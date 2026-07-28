@@ -90,6 +90,8 @@ $formStatus = null;
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
   $name = trim($_POST['name'] ?? '');
   $email = trim($_POST['email'] ?? '');
+  $projectPhone = trim($_POST['phone'] ?? '');
+  $serviceInterest = trim($_POST['service'] ?? '');
   $message = trim($_POST['message'] ?? '');
   $honeypot = trim($_POST['company_site'] ?? '');
 
@@ -99,7 +101,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $formStatus = ['type' => 'error', 'text' => 'Por favor completa nombre, correo válido y mensaje.'];
   } else {
     $subject = 'Nueva solicitud desde idindustrial.com.mx';
-    $body = "Nombre: {$name}\nCorreo: {$email}\n\nMensaje:\n{$message}";
+    $body = "Nombre: {$name}\nCorreo: {$email}\nTeléfono: {$projectPhone}\nServicio de interés: {$serviceInterest}\n\nMensaje:\n{$message}";
     $headers = "From: {$contactEmail}\r\nReply-To: {$email}\r\nContent-Type: text/plain; charset=UTF-8";
     $sent = @mail($contactEmail, $subject, $body, $headers);
     $formStatus = $sent
@@ -206,6 +208,24 @@ include __DIR__ . '/includes/navbar.php';
     </div>
   </section>
 
+  <section class="lamp-section" aria-labelledby="lamp-title">
+    <div class="lamp-scene reveal">
+      <div class="lamp-beam lamp-beam--left" aria-hidden="true"></div>
+      <div class="lamp-beam lamp-beam--right" aria-hidden="true"></div>
+      <div class="lamp-haze lamp-haze--wide" aria-hidden="true"></div>
+      <div class="lamp-haze lamp-haze--soft" aria-hidden="true"></div>
+      <div class="lamp-core" aria-hidden="true"></div>
+      <div class="lamp-line" aria-hidden="true"></div>
+      <div class="lamp-mask" aria-hidden="true"></div>
+      <div class="lamp-content">
+        <p class="eyebrow">Infraestructura crítica conectada</p>
+        <h2 id="lamp-title">Sistemas industriales que trabajan como una sola operación.</h2>
+        <p>Redes, fibra, HVAC, incendio y accesos con una arquitectura pensada para continuidad, trazabilidad y crecimiento.</p>
+        <a class="button button--primary" href="#contacto">Evaluar proyecto</a>
+      </div>
+    </div>
+  </section>
+
   <?php foreach ($services as $index => $service): ?>
     <section id="<?php echo htmlspecialchars($service['id']); ?>" class="service section-dark section-pad <?php echo $index % 2 ? 'service--reverse' : ''; ?>">
       <div class="container split">
@@ -264,32 +284,75 @@ include __DIR__ . '/includes/navbar.php';
         <p class="eyebrow">Contacto</p>
         <h2>Cuéntanos qué sistema necesitas mejorar o instalar.</h2>
         <p>Respondemos con una ruta de atención clara: diagnóstico, alcance técnico, tiempos y próximos pasos.</p>
+        <div class="contact-proof">
+          <div>
+            <strong>24/7</strong>
+            <span>Atención a operación crítica</span>
+          </div>
+          <div>
+            <strong>QRO</strong>
+            <span>Cobertura en polos industriales</span>
+          </div>
+        </div>
         <div class="contact-methods">
-          <a href="tel:+524425986318"><?php echo htmlspecialchars($phone); ?></a>
-          <a href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20cotizar%20un%20proyecto" target="_blank" rel="noopener">WhatsApp directo</a>
-          <a href="mailto:<?php echo htmlspecialchars($contactEmail); ?>"><?php echo htmlspecialchars($contactEmail); ?></a>
+          <a href="tel:+524425986318">
+            <span>Teléfono</span>
+            <?php echo htmlspecialchars($phone); ?>
+          </a>
+          <a href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20cotizar%20un%20proyecto" target="_blank" rel="noopener">
+            <span>WhatsApp</span>
+            Atención directa
+          </a>
+          <a href="mailto:<?php echo htmlspecialchars($contactEmail); ?>">
+            <span>Correo</span>
+            <?php echo htmlspecialchars($contactEmail); ?>
+          </a>
         </div>
       </div>
 
       <form class="contact-form reveal reveal--delay" action="#contacto" method="post">
+        <div class="form-head">
+          <span>Solicitud técnica</span>
+          <h3>Agenda una evaluación</h3>
+          <p>Déjanos los datos clave y te contactamos para aterrizar alcance, prioridad y visita.</p>
+        </div>
         <?php if ($formStatus): ?>
           <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>"><?php echo htmlspecialchars($formStatus['text']); ?></p>
         <?php endif; ?>
-        <label>
-          Nombre
-          <input type="text" name="name" autocomplete="name" required>
-        </label>
-        <label>
-          Correo
-          <input type="email" name="email" autocomplete="email" required>
-        </label>
+        <div class="form-row">
+          <label>
+            Nombre
+            <input type="text" name="name" autocomplete="name" placeholder="Nombre y empresa" required>
+          </label>
+          <label>
+            Correo
+            <input type="email" name="email" autocomplete="email" placeholder="correo@empresa.com" required>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
+            Teléfono
+            <input type="tel" name="phone" autocomplete="tel" placeholder="+52 442 000 0000">
+          </label>
+          <label>
+            Servicio
+            <select name="service">
+              <option value="">Seleccionar</option>
+              <option value="Cableado estructurado">Cableado estructurado</option>
+              <option value="Detección de incendios">Detección de incendios</option>
+              <option value="Sistemas HVAC">Sistemas HVAC</option>
+              <option value="Fibra óptica">Fibra óptica</option>
+              <option value="Control de Accesos">Control de Accesos</option>
+            </select>
+          </label>
+        </div>
         <label class="honeypot">
           Sitio
           <input type="text" name="company_site" tabindex="-1" autocomplete="off">
         </label>
         <label>
           Mensaje
-          <textarea name="message" rows="5" required></textarea>
+          <textarea name="message" rows="5" placeholder="Cuéntanos ubicación, tipo de instalación y prioridad del proyecto." required></textarea>
         </label>
         <button class="button button--primary" type="submit">Enviar solicitud</button>
       </form>

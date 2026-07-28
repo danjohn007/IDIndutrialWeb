@@ -2,6 +2,8 @@ const header = document.querySelector('[data-header]');
 const navToggle = document.querySelector('[data-nav-toggle]');
 const navMenu = document.querySelector('[data-nav-menu]');
 const navLinks = document.querySelectorAll('.nav-menu a');
+const dropdown = document.querySelector('[data-dropdown]');
+const dropdownToggle = document.querySelector('[data-dropdown-toggle]');
 const revealItems = document.querySelectorAll('.reveal');
 const counters = document.querySelectorAll('[data-count]');
 
@@ -12,13 +14,34 @@ function setHeaderState() {
 navToggle?.addEventListener('click', () => {
   const isOpen = navMenu.classList.toggle('is-open');
   navToggle.setAttribute('aria-expanded', String(isOpen));
+  if (!isOpen) closeDropdown();
 });
 
 navLinks.forEach((link) => {
   link.addEventListener('click', () => {
     navMenu.classList.remove('is-open');
     navToggle?.setAttribute('aria-expanded', 'false');
+    closeDropdown();
   });
+});
+
+function closeDropdown() {
+  dropdown?.classList.remove('is-open');
+  dropdownToggle?.setAttribute('aria-expanded', 'false');
+}
+
+dropdownToggle?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  const isOpen = dropdown.classList.toggle('is-open');
+  dropdownToggle.setAttribute('aria-expanded', String(isOpen));
+});
+
+document.addEventListener('click', (event) => {
+  if (!dropdown?.contains(event.target)) closeDropdown();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeDropdown();
 });
 
 const revealObserver = new IntersectionObserver((entries) => {
