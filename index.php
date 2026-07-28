@@ -232,6 +232,10 @@ $homeCarouselItems = [
   ],
 ];
 
+$serviceOverview = array_slice($serviceOverview, 0, 6);
+$heroDesktopImage = $homeCarouselItems[0]['image'];
+$heroMobileImage = $homeCarouselItems[0]['image'];
+
 $formStatus = null;
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
   $name = trim($_POST['name'] ?? '');
@@ -262,11 +266,26 @@ include __DIR__ . '/includes/navbar.php';
 
 <main id="inicio">
   <section class="hero section-dark" aria-labelledby="hero-title">
-    <div class="hero__media" aria-hidden="true">
-      <picture>
-        <source srcset="<?php echo htmlspecialchars($heroDesktopImage); ?>" media="(min-width: 900px)">
-        <img src="<?php echo htmlspecialchars($heroMobileImage); ?>" alt="" width="820" height="342" fetchpriority="high" decoding="async">
-      </picture>
+    <div class="hero-carousel" data-carousel aria-label="Especialidades ID Industrial">
+      <div class="hero-carousel__viewport">
+        <?php foreach ($homeCarouselItems as $index => $item): ?>
+          <figure class="hero-carousel__slide <?php echo $index === 0 ? 'is-active' : ''; ?>" style="--slide-image: url('<?php echo htmlspecialchars($item['image']); ?>');" aria-hidden="<?php echo $index === 0 ? 'false' : 'true'; ?>" data-carousel-slide>
+            <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" <?php echo $index === 0 ? 'fetchpriority="high"' : 'loading="lazy"'; ?> decoding="async">
+            <figcaption><?php echo htmlspecialchars($item['label']); ?></figcaption>
+          </figure>
+        <?php endforeach; ?>
+      </div>
+      <button class="hero-carousel__arrow hero-carousel__arrow--prev" type="button" aria-label="Imagen anterior" data-carousel-prev>
+        <span aria-hidden="true"></span>
+      </button>
+      <button class="hero-carousel__arrow hero-carousel__arrow--next" type="button" aria-label="Imagen siguiente" data-carousel-next>
+        <span aria-hidden="true"></span>
+      </button>
+      <div class="hero-carousel__dots" aria-label="Seleccionar imagen">
+        <?php foreach ($homeCarouselItems as $index => $item): ?>
+          <button class="hero-carousel__dot <?php echo $index === 0 ? 'is-active' : ''; ?>" type="button" aria-label="Ver <?php echo htmlspecialchars($item['label']); ?>" aria-current="<?php echo $index === 0 ? 'true' : 'false'; ?>" data-carousel-dot="<?php echo (int) $index; ?>"></button>
+        <?php endforeach; ?>
+      </div>
     </div>
     <div class="hero__overlay" aria-hidden="true"></div>
     <div class="container hero__grid">
@@ -308,6 +327,7 @@ include __DIR__ . '/includes/navbar.php';
     </div>
   </section>
 
+  <?php if (false): ?>
   <section class="project-carousel project-carousel--home section-dark section-pad" aria-labelledby="home-carousel-title">
     <div class="container">
       <div class="section-head reveal">
@@ -338,6 +358,8 @@ include __DIR__ . '/includes/navbar.php';
     </div>
   </section>
 
+  <?php endif; ?>
+
   <section id="servicios" class="services-overview section-dark section-pad">
     <div class="container">
       <div class="section-head reveal">
@@ -347,7 +369,7 @@ include __DIR__ . '/includes/navbar.php';
       </div>
 
       <div class="services-overview__grid">
-        <?php foreach ($serviceOverview as $item): ?>
+        <?php foreach (array_slice($serviceOverview, 0, 6) as $item): ?>
           <article class="service-card <?php echo !empty($item['featured']) ? 'service-card--featured' : ''; ?> <?php echo (int) $item['height'] <= 500 ? 'service-card--wide' : ''; ?> reveal">
             <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async" fetchpriority="low">
             <em><?php echo htmlspecialchars($item['badge']); ?></em>

@@ -75,30 +75,6 @@ $glossaryItems = [
   ],
 ];
 
-$carouselItems = [
-  [
-    'image' => 'assets/imagesnew/BANNERS%20VER2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_11.jpg',
-    'alt' => 'Banner de CCTV industrial para instalaciones corporativas',
-    'width' => 1920,
-    'height' => 500,
-    'label' => 'CCTV industrial',
-  ],
-  [
-    'image' => 'assets/imagesnew/SLIDES2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_2.jpg',
-    'alt' => 'Sistema de videovigilancia para naves industriales',
-    'width' => 1920,
-    'height' => 800,
-    'label' => 'Videovigilancia',
-  ],
-  [
-    'image' => 'assets/imagesnew/SLIDES2/CONTROL%20DE%20ACCESOS/PAGINA%20WEB%20ID%20INDUSTRIAL_4.jpg',
-    'alt' => 'Control de accesos integrado con monitoreo CCTV',
-    'width' => 1920,
-    'height' => 800,
-    'label' => 'Control integrado',
-  ],
-];
-
 include __DIR__ . '/../includes/head.php';
 include __DIR__ . '/../includes/navbar.php';
 ?>
@@ -164,6 +140,7 @@ include __DIR__ . '/../includes/navbar.php';
     </div>
   </section>
 
+  <?php if (false): ?>
   <section class="project-carousel section-dark section-pad" aria-labelledby="cctv-carousel-title">
     <div class="container">
       <div class="section-head reveal">
@@ -193,6 +170,8 @@ include __DIR__ . '/../includes/navbar.php';
       </div>
     </div>
   </section>
+
+  <?php endif; ?>
 
   <section class="service-banner service-banner--contain" aria-label="CCTV industrial para continuidad operativa">
     <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS/CCTV/LANDING%20ID%20INDUSTRIAL_2.jpg" alt="CCTV para plantas industriales" width="1920" height="500" loading="lazy" decoding="async">
