@@ -98,6 +98,54 @@ $bitacora = [
   ],
 ];
 
+$serviceOverview = [
+  [
+    'title' => 'Cableado estructurado',
+    'copy' => 'Redes industriales, voz y datos, racks, servidores, sites y fibra óptica para operación estable.',
+    'href' => 'industriales/cableado-estructurado-queretaro/',
+    'image' => 'assets/img/empresa-de-cableado-estructurado-en-queretaro-centro.webp',
+    'alt' => 'Cableado estructurado industrial en Querétaro',
+    'width' => 1254,
+    'height' => 1254,
+  ],
+  [
+    'title' => 'Detección de incendios',
+    'copy' => 'Paneles, sensores, estaciones manuales y alarmamiento para áreas críticas y procesos productivos.',
+    'href' => '#deteccion-incendios',
+    'image' => 'assets/img/panel-firelite-industrial.webp',
+    'alt' => 'Panel de detección de incendios industrial',
+    'width' => 626,
+    'height' => 417,
+  ],
+  [
+    'title' => 'Sistemas HVAC',
+    'copy' => 'Climatización, ventilación, chillers y soporte para cuartos técnicos, oficinas y producción.',
+    'href' => '#sistemas-hvac',
+    'image' => 'assets/img/soluciones-de-climatizacion-para-edificios-de-oficinas-qro.webp',
+    'alt' => 'Sistemas HVAC industriales',
+    'width' => 1942,
+    'height' => 809,
+  ],
+  [
+    'title' => 'Fibra óptica',
+    'copy' => 'Backbone, fusiones, certificación e interconexión de edificios para redes de alto desempeño.',
+    'href' => '#fibra-optica',
+    'image' => 'assets/img/instalacion-de-fibra-optica-en-qro.webp',
+    'alt' => 'Instalación de fibra óptica en Querétaro',
+    'width' => 1942,
+    'height' => 810,
+  ],
+  [
+    'title' => 'Control de Accesos',
+    'copy' => 'Biométricos, tarjetas, plumas, CCTV y trazabilidad para personal, proveedores y perímetros.',
+    'href' => '#control-accesos',
+    'image' => 'assets/img/control-de-acceso-biometrico-queretaro.webp',
+    'alt' => 'Control de accesos biométrico industrial',
+    'width' => 1942,
+    'height' => 809,
+  ],
+];
+
 $formStatus = null;
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
   $name = trim($_POST['name'] ?? '');
@@ -170,6 +218,27 @@ include __DIR__ . '/includes/navbar.php';
       <div class="metric reveal">
         <span data-count="100">0</span>
         <p>Proyectos documentados y trazables</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="servicios" class="services-overview section-dark section-pad">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Servicios</p>
+        <h2>Soluciones industriales para infraestructura, seguridad y continuidad operativa.</h2>
+        <p>Una vista rápida de nuestras capacidades principales. Cada servicio conduce a más detalle técnico para ayudarte a evaluar alcance, tiempos y prioridad.</p>
+      </div>
+
+      <div class="services-overview__grid">
+        <?php foreach ($serviceOverview as $item): ?>
+          <a class="service-card reveal" href="<?php echo htmlspecialchars($item['href']); ?>">
+            <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
+            <span><?php echo htmlspecialchars($item['title']); ?></span>
+            <p><?php echo htmlspecialchars($item['copy']); ?></p>
+            <strong>Ver servicio</strong>
+          </a>
+        <?php endforeach; ?>
       </div>
     </div>
   </section>

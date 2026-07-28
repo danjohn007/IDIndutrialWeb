@@ -1,16 +1,17 @@
 <footer class="site-footer">
+  <?php $assetBase = $basePath ?? ''; ?>
   <div class="container footer__grid">
     <div>
-      <img src="assets/img/logo-idindustrial.png" alt="ID Industrial" class="footer__logo" width="500" height="132" loading="lazy" decoding="async">
+      <img src="<?php echo htmlspecialchars($assetBase); ?>assets/img/logo-idindustrial.png" alt="ID Industrial" class="footer__logo" width="500" height="132" loading="lazy" decoding="async">
       <p>Ingeniería industrial para continuidad operativa, seguridad e infraestructura crítica en Querétaro y Bajío.</p>
     </div>
     <div>
       <h2>Servicios</h2>
-      <a href="#cableado-estructurado">Cableado estructurado</a>
-      <a href="#deteccion-incendios">Detección de incendios</a>
-      <a href="#sistemas-hvac">Sistemas HVAC</a>
-      <a href="#fibra-optica">Fibra óptica</a>
-      <a href="#control-accesos">Control de Accesos</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>industriales/cableado-estructurado-queretaro/">Cableado estructurado</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>#deteccion-incendios">Detección de incendios</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>#sistemas-hvac">Sistemas HVAC</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>#fibra-optica">Fibra óptica</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>#control-accesos">Control de Accesos</a>
     </div>
     <div>
       <h2>Atención directa</h2>
@@ -21,7 +22,7 @@
   </div>
   <div class="container footer__bottom">
     <span>© <?php echo date('Y'); ?> ID Industrial. Todos los derechos reservados.</span>
-    <a href="#inicio">Volver arriba</a>
+    <a href="<?php echo htmlspecialchars($assetBase); ?>#inicio">Volver arriba</a>
   </div>
 </footer>
 
@@ -45,6 +46,6 @@
   </a>
 </aside>
 
-<script src="assets/js/main.js" defer></script>
+<script src="<?php echo htmlspecialchars($assetBase); ?>assets/js/main.js" defer></script>
 </body>
 </html>

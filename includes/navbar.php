@@ -1,27 +1,28 @@
 <?php
+$assetBase = $basePath ?? '';
 $primaryNavItems = [
-  ['label' => 'Inicio', 'href' => '#inicio'],
-  ['label' => 'Quiénes somos', 'href' => '#quienes-somos'],
-  ['label' => 'Cableado estructurado', 'href' => '#cableado-estructurado'],
-  ['label' => 'Detección de incendios', 'href' => '#deteccion-incendios'],
+  ['label' => 'Inicio', 'href' => $assetBase . '#inicio'],
+  ['label' => 'Quiénes somos', 'href' => $assetBase . '#quienes-somos'],
+  ['label' => 'Cableado estructurado', 'href' => $assetBase . 'industriales/cableado-estructurado-queretaro/'],
+  ['label' => 'Detección de incendios', 'href' => $assetBase . '#deteccion-incendios'],
 ];
 
 $moreServiceItems = [
-  ['label' => 'Sistemas HVAC', 'href' => '#sistemas-hvac'],
-  ['label' => 'Fibra óptica', 'href' => '#fibra-optica'],
-  ['label' => 'Control de Accesos', 'href' => '#control-accesos'],
+  ['label' => 'Sistemas HVAC', 'href' => $assetBase . '#sistemas-hvac'],
+  ['label' => 'Fibra óptica', 'href' => $assetBase . '#fibra-optica'],
+  ['label' => 'Control de Accesos', 'href' => $assetBase . '#control-accesos'],
 ];
 
 $secondaryNavItems = [
-  ['label' => 'Bitácora ID', 'href' => '#bitacora-id'],
-  ['label' => 'Contacto', 'href' => '#contacto'],
+  ['label' => 'Bitácora ID', 'href' => $assetBase . '#bitacora-id'],
+  ['label' => 'Contacto', 'href' => $assetBase . '#contacto'],
 ];
 ?>
 
 <header class="site-header" data-header>
   <nav class="nav container" aria-label="Mapa de navegación principal">
-    <a class="brand" href="#inicio" aria-label="ID Industrial inicio">
-      <img src="assets/img/logo-idindustrial.png" alt="ID Industrial" width="500" height="132">
+    <a class="brand" href="<?php echo htmlspecialchars($assetBase); ?>#inicio" aria-label="ID Industrial inicio">
+      <img src="<?php echo htmlspecialchars($assetBase); ?>assets/img/logo-idindustrial.png" alt="ID Industrial" width="500" height="132">
     </a>
     <button class="nav-toggle" type="button" aria-label="Abrir menú de navegación" aria-controls="main-menu" aria-expanded="false" data-nav-toggle>
       <span></span>
@@ -49,6 +50,6 @@ $secondaryNavItems = [
         <a href="<?php echo htmlspecialchars($item['href']); ?>"><?php echo htmlspecialchars($item['label']); ?></a>
       <?php endforeach; ?>
     </div>
-    <a class="nav-cta" href="#contacto">Cotizar</a>
+    <a class="nav-cta" href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Cotizar</a>
   </nav>
 </header>

@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="es-MX">
 <head>
+  <?php $assetBase = $basePath ?? ''; ?>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?php echo htmlspecialchars($title ?? 'ID Industrial'); ?></title>
@@ -13,12 +14,12 @@
   <meta property="og:locale" content="es_MX">
   <meta property="og:title" content="<?php echo htmlspecialchars($title ?? 'ID Industrial'); ?>">
   <meta property="og:description" content="<?php echo htmlspecialchars($description ?? 'Soluciones industriales en Querétaro.'); ?>">
-  <meta property="og:url" content="<?php echo htmlspecialchars($siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
+  <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
   <meta property="og:image" content="<?php echo htmlspecialchars(($siteUrl ?? 'https://idindustrial.com.mx/') . 'assets/img/og-id-industrial.webp'); ?>">
-  <link rel="icon" type="image/png" href="assets/img/favicon-id-industrial.png">
-  <link rel="preload" as="image" href="assets/img/hero-mobile.webp" media="(max-width: 899px)" fetchpriority="high">
-  <link rel="preload" as="image" href="assets/img/slide2.jpg" media="(min-width: 900px)" fetchpriority="high">
-  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($assetBase); ?>assets/img/favicon-id-industrial.png">
+  <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroMobileImage ?? 'assets/img/hero-mobile.webp')); ?>" media="(max-width: 899px)" fetchpriority="high">
+  <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroDesktopImage ?? 'assets/img/slide2.jpg')); ?>" media="(min-width: 900px)" fetchpriority="high">
+  <link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase); ?>assets/css/styles.css">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
