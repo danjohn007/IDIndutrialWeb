@@ -133,13 +133,13 @@ include __DIR__ . '/../includes/navbar.php';
           <li>Monitoreo remoto y evidencia por evento</li>
         </ul>
       </div>
-      <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/CCTV-para-naves-industriales-queretaro.webp" alt="CCTV para naves industriales en Querétaro" width="1060" height="1550" loading="lazy" decoding="async">
+      <figure class="service__image service__image--cctv reveal reveal--delay">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/cctv-para-naves-industriales-qro.webp" alt="Cámara CCTV instalada en nave industrial" width="1942" height="809" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
 
-  <section class="service-banner" aria-label="CCTV industrial para continuidad operativa">
+  <section class="service-banner service-banner--contain" aria-label="CCTV industrial para continuidad operativa">
     <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/cctv-para-plantas-industriales.webp" alt="CCTV para plantas industriales" width="1942" height="809" loading="lazy" decoding="async">
     <div>
       <p>Instalación alineada a normas y procesos internos</p>
@@ -169,8 +169,8 @@ include __DIR__ . '/../includes/navbar.php';
 
   <section class="detail-section section-dark section-pad">
     <div class="container split">
-      <figure class="service__image reveal">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/instalacion-de-camaras-de-seguridad-precios.webp" alt="Instalación de cámaras de seguridad precios" width="2020" height="778" loading="lazy" decoding="async">
+      <figure class="service__image service__image--monitoring reveal">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/centros-de-monitoreo-inteligentes.webp" alt="Centro de monitoreo inteligente para sistemas CCTV" width="1500" height="1000" loading="lazy" decoding="async">
       </figure>
       <div class="split__content reveal reveal--delay">
         <p class="eyebrow">Empresa instaladora en Querétaro</p>
@@ -186,7 +186,7 @@ include __DIR__ . '/../includes/navbar.php';
     </div>
   </section>
 
-  <section class="service-banner" aria-label="Control de accesos y monitoreo remoto">
+  <section class="service-banner service-banner--contain" aria-label="Control de accesos y monitoreo remoto">
     <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/seguridad-industrial-en-empresas.webp" alt="Seguridad industrial en empresas" width="2239" height="702" loading="lazy" decoding="async">
     <div>
       <p>Control de accesos y monitoreo en una misma arquitectura</p>
@@ -229,8 +229,8 @@ include __DIR__ . '/../includes/navbar.php';
           <li>Capacitación y memoria técnica</li>
         </ul>
       </div>
-      <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/camaras-de-videovigilancia-en-qro.webp" alt="Cámaras de videovigilancia en Querétaro" width="2239" height="702" loading="lazy" decoding="async">
+      <figure class="service__image service__image--factory reveal reveal--delay">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/seguridad-industrial-inteligente-en-queretaro.webp" alt="CCTV inteligente integrado con operación industrial" width="1254" height="1254" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
