@@ -94,9 +94,22 @@ carousels.forEach((carousel) => {
   const next = carousel.querySelector('[data-carousel-next]');
   let current = 0;
 
+  function loadSlide(slide) {
+    const image = slide?.querySelector('img[data-src]');
+    if (image) {
+      image.src = image.dataset.src;
+      image.removeAttribute('data-src');
+    }
+
+    if (slide?.dataset.bg && !slide.style.getPropertyValue('--slide-image')) {
+      slide.style.setProperty('--slide-image', `url('${slide.dataset.bg}')`);
+    }
+  }
+
   function showSlide(index) {
     if (!slides.length) return;
     current = (index + slides.length) % slides.length;
+    loadSlide(slides[current]);
     slides.forEach((slide, slideIndex) => {
       const isActive = slideIndex === current;
       slide.classList.toggle('is-active', isActive);
@@ -109,6 +122,7 @@ carousels.forEach((carousel) => {
     });
   }
 
+  loadSlide(slides[current]);
   prev?.addEventListener('click', () => showSlide(current - 1));
   next?.addEventListener('click', () => showSlide(current + 1));
   dots.forEach((dot) => {

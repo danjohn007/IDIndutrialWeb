@@ -6,8 +6,8 @@ $canonicalUrl = 'https://idindustrial.com.mx/sistema/instalacion-camaras-segurid
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
-$heroMobileImage = 'assets/imagesnew/BANNERS/CCTV/LANDING%20ID%20INDUSTRIAL_2.jpg';
-$heroDesktopImage = 'assets/imagesnew/BANNERS%20VER2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_11.jpg';
+$heroMobileImage = 'assets/img/optimized/home-hero-cctv.jpg';
+$heroDesktopImage = 'assets/img/optimized/home-hero-cctv.jpg';
 
 $title = 'Instalación de cámaras de seguridad industrial en Querétaro | CCTV para naves industriales';
 $description = 'Instalación profesional de cámaras de seguridad industrial y sistemas CCTV en Querétaro. Protección a perímetros, plantas y naves industriales.';
@@ -135,7 +135,7 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image service__image--cctv reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_2.jpg" alt="Cámara CCTV instalada en nave industrial" width="1920" height="800" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/service-cctv.jpg" alt="Cámara CCTV instalada en nave industrial" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
@@ -174,7 +174,7 @@ include __DIR__ . '/../includes/navbar.php';
   <?php endif; ?>
 
   <section class="service-banner service-banner--contain" aria-label="CCTV industrial para continuidad operativa">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS/CCTV/LANDING%20ID%20INDUSTRIAL_2.jpg" alt="CCTV para plantas industriales" width="1920" height="500" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/home-hero-cctv.jpg" alt="CCTV para plantas industriales" width="1920" height="500" loading="lazy" decoding="async">
     <div>
       <p>Instalación alineada a normas y procesos internos</p>
       <h2>CCTV industrial para cumplir y operar sin riesgos</h2>
@@ -204,7 +204,7 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="detail-section section-dark section-pad">
     <div class="container split">
       <figure class="service__image service__image--monitoring reveal">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS%20VER2/CONTROL%20DE%20ACCESO/PAGINA%20WEB%20ID%20INDUSTRIAL_13.jpg" alt="Centro de monitoreo inteligente para sistemas CCTV" width="1920" height="500" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/home-hero-control-acceso.jpg" alt="Centro de monitoreo inteligente para sistemas CCTV" width="1920" height="500" loading="lazy" decoding="async">
       </figure>
       <div class="split__content reveal reveal--delay">
         <p class="eyebrow">Empresa instaladora en Querétaro</p>
@@ -221,7 +221,7 @@ include __DIR__ . '/../includes/navbar.php';
   </section>
 
   <section class="service-banner service-banner--contain" aria-label="Control de accesos y monitoreo remoto">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CONTROL%20DE%20ACCESOS/PAGINA%20WEB%20ID%20INDUSTRIAL_4.jpg" alt="Seguridad industrial en empresas" width="1920" height="800" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/service-control-acceso.jpg" alt="Seguridad industrial en empresas" width="1920" height="800" loading="lazy" decoding="async">
     <div>
       <p>Control de accesos y monitoreo en una misma arquitectura</p>
       <h2>Video, identidad y reportes para operación diaria</h2>
@@ -264,7 +264,7 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image service__image--factory reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/INDUSTRIAL/ID%20INDUSTRIAL%20WEB_3.jpg" alt="CCTV inteligente integrado con operación industrial" width="1920" height="800" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/home-industrial.jpg" alt="CCTV inteligente integrado con operación industrial" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>

@@ -481,7 +481,7 @@ p {
   content: "";
   position: absolute;
   inset: -26px;
-  background-image: var(--slide-image);
+  background-image: var(--slide-image, none);
   background-position: center;
   background-size: cover;
   filter: blur(18px);
@@ -614,7 +614,7 @@ p {
 
 .hero__grid {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
   align-items: end;

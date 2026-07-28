@@ -52,9 +52,7 @@
     .button--primary{background:linear-gradient(135deg,#ffd84d,#f3c623);color:#111316}
     @media (max-width:899px){.nav{grid-template-columns:auto 1fr}.nav-toggle{grid-column:2;justify-self:end;order:0}.hero{min-height:auto}.hero__grid{padding-top:108px}h1{font-size:clamp(3rem,16vw,4.25rem)}}
   </style>
-  <link rel="preload" href="<?php echo htmlspecialchars($stylesHref); ?>" as="style">
-  <link rel="stylesheet" href="<?php echo htmlspecialchars($stylesHref); ?>" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="<?php echo htmlspecialchars($stylesHref); ?>"></noscript>
+  <link rel="stylesheet" href="<?php echo htmlspecialchars($stylesHref); ?>">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
