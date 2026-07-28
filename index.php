@@ -9,6 +9,7 @@ $description = 'Soluciones de ingeniería industrial en Querétaro: cableado est
 $keywords = 'ID Industrial, cableado estructurado Querétaro, detección de incendios industrial, sistemas HVAC Querétaro, fibra óptica industrial, control de accesos Querétaro';
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
 $canonicalUrl = rtrim($siteUrl, '/') . ($requestPath === '/' ? '/' : $requestPath);
+$heroDesktopImage = 'assets/img/hero-desktop.webp';
 
 $navItems = [
   ['label' => 'Inicio', 'href' => '#inicio'],
@@ -33,7 +34,7 @@ $services = [
     'width' => 1942,
     'height' => 810,
     'detailHref' => 'industriales/cableado-estructurado-queretaro/',
-    'detailLabel' => 'Ver página de cableado',
+    'detailLabel' => 'Ver más',
     'bullets' => ['Cableado UTP, fibra y canalización', 'Racks, patch panels y ordenamiento', 'Memoria técnica y pruebas de enlace'],
   ],
   [
@@ -58,8 +59,8 @@ $services = [
     'alt' => 'Sistemas HVAC industriales en Querétaro',
     'width' => 1736,
     'height' => 906,
-    'detailHref' => '#contacto',
-    'detailLabel' => 'Cotizar HVAC',
+    'detailHref' => 'instalacion-aire-acondicionado-industrial-queretaro/',
+    'detailLabel' => 'Ver más',
     'bullets' => ['Instalación y mantenimiento', 'Ventilación y ductería', 'Sistemas de precisión para cuartos técnicos'],
   ],
   [
@@ -85,7 +86,7 @@ $services = [
     'width' => 1254,
     'height' => 1254,
     'detailHref' => 'control-de-acceso-de-personal-queretaro/',
-    'detailLabel' => 'Ver página de accesos',
+    'detailLabel' => 'Ver más',
     'bullets' => ['Biométricos, tarjetas y plumas', 'Integración con CCTV y nómina', 'Trazabilidad de entradas y salidas'],
   ],
 ];
@@ -113,10 +114,10 @@ $serviceOverview = [
     'title' => 'Cableado estructurado',
     'copy' => 'Redes industriales, voz y datos, racks, servidores, sites y fibra óptica para operación estable.',
     'href' => 'industriales/cableado-estructurado-queretaro/',
-    'image' => 'assets/img/empresa-de-cableado-estructurado-en-queretaro-centro.webp',
+    'image' => 'assets/img/thumb-cableado-estructurado.webp',
     'alt' => 'Cableado estructurado industrial en Querétaro',
-    'width' => 1254,
-    'height' => 1254,
+    'width' => 560,
+    'height' => 560,
     'badge' => 'Página técnica',
     'featured' => true,
   ],
@@ -124,32 +125,43 @@ $serviceOverview = [
     'title' => 'Detección de incendios',
     'copy' => 'Paneles, sensores, estaciones manuales y alarmamiento para áreas críticas y procesos productivos.',
     'href' => '#deteccion-incendios',
-    'image' => 'assets/img/panel-firelite-industrial.webp',
+    'image' => 'assets/img/thumb-deteccion-incendios.webp',
     'alt' => 'Panel de detección de incendios industrial',
-    'width' => 626,
-    'height' => 417,
+    'width' => 560,
+    'height' => 373,
     'badge' => 'Resumen',
     'featured' => false,
   ],
   [
     'title' => 'Sistemas HVAC',
     'copy' => 'Climatización, ventilación, chillers y soporte para cuartos técnicos, oficinas y producción.',
-    'href' => '#sistemas-hvac',
-    'image' => 'assets/img/soluciones-de-climatizacion-para-edificios-de-oficinas-qro.webp',
+    'href' => 'instalacion-aire-acondicionado-industrial-queretaro/',
+    'image' => 'assets/img/thumb-hvac.webp',
     'alt' => 'Sistemas HVAC industriales',
-    'width' => 1942,
-    'height' => 809,
+    'width' => 560,
+    'height' => 233,
     'badge' => 'Resumen',
     'featured' => false,
+  ],
+  [
+    'title' => 'CCTV industrial',
+    'copy' => 'Instalación de cámaras de seguridad, videovigilancia y monitoreo para plantas, oficinas y naves industriales.',
+    'href' => 'instalacion-camaras-seguridad-industrial-queretaro/',
+    'image' => 'assets/img/sistema-de-cctv.webp',
+    'alt' => 'Sistema de CCTV industrial en Querétaro',
+    'width' => 1944,
+    'height' => 809,
+    'badge' => 'Página técnica',
+    'featured' => true,
   ],
   [
     'title' => 'Fibra óptica',
     'copy' => 'Backbone, fusiones, certificación e interconexión de edificios para redes de alto desempeño.',
     'href' => '#fibra-optica',
-    'image' => 'assets/img/instalacion-de-fibra-optica-en-qro.webp',
+    'image' => 'assets/img/thumb-fibra-optica.webp',
     'alt' => 'Instalación de fibra óptica en Querétaro',
-    'width' => 1942,
-    'height' => 810,
+    'width' => 560,
+    'height' => 234,
     'badge' => 'Resumen',
     'featured' => false,
   ],
@@ -157,10 +169,10 @@ $serviceOverview = [
     'title' => 'Control de Accesos',
     'copy' => 'Biométricos, tarjetas, plumas, CCTV y trazabilidad para personal, proveedores y perímetros.',
     'href' => 'control-de-acceso-de-personal-queretaro/',
-    'image' => 'assets/img/control-de-acceso-biometrico-queretaro.webp',
+    'image' => 'assets/img/thumb-control-accesos.webp',
     'alt' => 'Control de accesos biométrico industrial',
-    'width' => 1942,
-    'height' => 809,
+    'width' => 560,
+    'height' => 233,
     'badge' => 'Página técnica',
     'featured' => true,
   ],
@@ -198,7 +210,7 @@ include __DIR__ . '/includes/navbar.php';
   <section class="hero section-dark" aria-labelledby="hero-title">
     <div class="hero__media" aria-hidden="true">
       <picture>
-        <source srcset="assets/img/slide2.jpg" media="(min-width: 900px)">
+        <source srcset="assets/img/hero-desktop.webp" media="(min-width: 900px)">
         <img src="assets/img/hero-mobile.webp" alt="" width="820" height="342" fetchpriority="high" decoding="async">
       </picture>
     </div>
@@ -252,13 +264,13 @@ include __DIR__ . '/includes/navbar.php';
 
       <div class="services-overview__grid">
         <?php foreach ($serviceOverview as $item): ?>
-          <a class="service-card <?php echo !empty($item['featured']) ? 'service-card--featured' : ''; ?> reveal" href="<?php echo htmlspecialchars($item['href']); ?>">
-            <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
+          <article class="service-card <?php echo !empty($item['featured']) ? 'service-card--featured' : ''; ?> reveal">
+            <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async" fetchpriority="low">
             <em><?php echo htmlspecialchars($item['badge']); ?></em>
             <span><?php echo htmlspecialchars($item['title']); ?></span>
             <p><?php echo htmlspecialchars($item['copy']); ?></p>
-            <strong>Ver servicio</strong>
-          </a>
+            <a class="service-card__more" href="<?php echo htmlspecialchars($item['href']); ?>" aria-label="Ver más sobre <?php echo htmlspecialchars($item['title']); ?>">Ver más</a>
+          </article>
         <?php endforeach; ?>
       </div>
     </div>
@@ -400,17 +412,26 @@ include __DIR__ . '/includes/navbar.php';
           </div>
         </div>
         <div class="contact-methods">
-          <a href="tel:+524425986318">
-            <span>Teléfono</span>
-            <?php echo htmlspecialchars($phone); ?>
+          <a href="tel:+524425986318" aria-label="Llamar a ID Industrial">
+            <span class="contact-methods__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M6.62 10.78a15.3 15.3 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1.02-.24 11.4 11.4 0 0 0 3.56.56 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .56 3.56 1 1 0 0 1-.24 1.02l-2.2 2.2Z"/></svg>
+            </span>
+            <span class="contact-methods__label">Teléfono</span>
+            <strong><?php echo htmlspecialchars($phone); ?></strong>
           </a>
-          <a href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20cotizar%20un%20proyecto" target="_blank" rel="noopener">
-            <span>WhatsApp</span>
-            Atención directa
+          <a href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20cotizar%20un%20proyecto" target="_blank" rel="noopener" aria-label="Contactar por WhatsApp">
+            <span class="contact-methods__icon contact-methods__icon--whatsapp" aria-hidden="true">
+              <svg viewBox="0 0 32 32"><path d="M16.04 3.2A12.72 12.72 0 0 0 5.2 22.6L4 29l6.56-1.72A12.72 12.72 0 1 0 16.04 3.2Zm0 22.84a10.1 10.1 0 0 1-5.14-1.4l-.36-.22-3.9 1.02 1.04-3.78-.24-.4A10.08 10.08 0 1 1 16.04 26.04Zm5.52-7.54c-.3-.16-1.8-.9-2.08-1-.28-.1-.48-.16-.68.16-.2.3-.78 1-.96 1.2-.18.2-.36.22-.66.08-.3-.16-1.28-.48-2.44-1.52-.9-.8-1.5-1.78-1.68-2.08-.18-.3-.02-.46.14-.62.14-.14.3-.36.46-.54.16-.18.2-.3.3-.5.1-.2.06-.38-.02-.54-.08-.16-.68-1.64-.94-2.24-.24-.58-.5-.5-.68-.5h-.58c-.2 0-.52.08-.8.38-.28.3-1.06 1.04-1.06 2.54s1.1 2.94 1.24 3.14c.16.2 2.16 3.3 5.24 4.62.74.32 1.3.5 1.74.64.74.24 1.4.2 1.94.12.6-.1 1.8-.74 2.06-1.46.26-.72.26-1.34.18-1.46-.08-.14-.28-.22-.58-.38Z"/></svg>
+            </span>
+            <span class="contact-methods__label">WhatsApp</span>
+            <strong>Atención directa</strong>
           </a>
-          <a href="mailto:<?php echo htmlspecialchars($contactEmail); ?>">
-            <span>Correo</span>
-            <?php echo htmlspecialchars($contactEmail); ?>
+          <a href="mailto:<?php echo htmlspecialchars($contactEmail); ?>" aria-label="Enviar correo a ID Industrial">
+            <span class="contact-methods__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 3.2V17h16V8.2l-7.42 5.16a1 1 0 0 1-1.16 0L4 8.2Zm1.1-1.2 6.9 4.8L18.9 7H5.1Z"/></svg>
+            </span>
+            <span class="contact-methods__label">Correo</span>
+            <strong><?php echo htmlspecialchars($contactEmail); ?></strong>
           </a>
         </div>
       </div>

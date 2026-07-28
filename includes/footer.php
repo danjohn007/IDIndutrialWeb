@@ -1,28 +1,46 @@
 <footer class="site-footer">
   <?php $assetBase = $basePath ?? ''; ?>
   <div class="container footer__grid">
-    <div>
-      <img src="<?php echo htmlspecialchars($assetBase); ?>assets/img/logo-idindustrial.png" alt="ID Industrial" class="footer__logo" width="500" height="132" loading="lazy" decoding="async">
-      <p>Ingeniería industrial para continuidad operativa, seguridad e infraestructura crítica en Querétaro y Bajío.</p>
+    <div class="footer__brand">
+      <img src="<?php echo htmlspecialchars($assetBase); ?>assets/img/logo-idindustrial-small.webp" alt="ID Industrial" class="footer__logo" width="280" height="74" loading="lazy" decoding="async" fetchpriority="low">
+      <span class="footer__rule" aria-hidden="true"></span>
+      <p>Líderes en ingeniería industrial en Querétaro. Especialistas en <strong>infraestructura TI crítica</strong>, sistemas SCADA y soluciones llave en mano para naves industriales de alta exigencia.</p>
+      <div class="footer__badges" aria-label="Estándares de trabajo">
+        <span>STPS</span>
+        <span>ISO</span>
+        <span>NOM</span>
+      </div>
     </div>
-    <div>
-      <h2>Servicios</h2>
-      <a href="<?php echo htmlspecialchars($assetBase); ?>industriales/cableado-estructurado-queretaro/">Cableado estructurado</a>
-      <a href="<?php echo htmlspecialchars($assetBase); ?>#deteccion-incendios">Detección de incendios</a>
-      <a href="<?php echo htmlspecialchars($assetBase); ?>#sistemas-hvac">Sistemas HVAC</a>
-      <a href="<?php echo htmlspecialchars($assetBase); ?>#fibra-optica">Fibra óptica</a>
-      <a href="<?php echo htmlspecialchars($assetBase); ?>control-de-acceso-de-personal-queretaro/">Control de Accesos</a>
-    </div>
-    <div>
-      <h2>Atención directa</h2>
-      <a href="tel:+524425986318">+52 442 598 6318</a>
-      <a href="mailto:contacto@idindustrial.com.mx">contacto@idindustrial.com.mx</a>
-      <a href="https://wa.me/524425986318" target="_blank" rel="noopener">WhatsApp</a>
+
+    <nav class="footer__nav" aria-label="Especializaciones ID Industrial">
+      <h2>Especializaciones</h2>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>industriales/cableado-estructurado-queretaro/">Cableado Estructurado &amp; Fibra</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Servidores &amp; Sites (Data Centers)</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>instalacion-aire-acondicionado-industrial-queretaro/">HVAC Industrial &amp; Chillers</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>instalacion-camaras-seguridad-industrial-queretaro/">CCTV &amp; Control de Accesos</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Subestaciones Eléctricas</a>
+    </nav>
+
+    <div class="footer__region">
+      <h2>Región Bajío</h2>
+      <ul>
+        <li>Querétaro &amp; Corregidora</li>
+        <li>El Marqués &amp; Colón</li>
+        <li>Apaseo el Grande &amp; Celaya</li>
+      </ul>
+      <a class="footer__phone" href="tel:+524425986318" aria-label="Llamar a ID Industrial">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 10.78a15.3 15.3 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1.02-.24 11.4 11.4 0 0 0 3.56.56 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .56 3.56 1 1 0 0 1-.24 1.02l-2.2 2.2Z"/></svg>
+        <strong>+52 442 598 6318</strong>
+      </a>
     </div>
   </div>
+
   <div class="container footer__bottom">
-    <span>© <?php echo date('Y'); ?> ID Industrial. Todos los derechos reservados.</span>
-    <a href="<?php echo htmlspecialchars($assetBase); ?>#inicio">Volver arriba</a>
+    <span>© <?php echo date('Y'); ?> ID Industrial · Ingeniería inteligente que construye el futuro.</span>
+    <div>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Aviso de privacidad</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Términos</a>
+    </div>
   </div>
 </footer>
 

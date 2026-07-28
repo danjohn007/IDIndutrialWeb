@@ -18,15 +18,41 @@
   <meta property="og:image" content="<?php echo htmlspecialchars(($siteUrl ?? 'https://idindustrial.com.mx/') . 'assets/img/og-id-industrial.webp'); ?>">
   <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($assetBase); ?>assets/img/favicon-id-industrial.png">
   <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroMobileImage ?? 'assets/img/hero-mobile.webp')); ?>" media="(max-width: 899px)" fetchpriority="high">
-  <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroDesktopImage ?? 'assets/img/slide2.jpg')); ?>" media="(min-width: 900px)" fetchpriority="high">
-  <link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase); ?>assets/css/styles.css">
+  <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroDesktopImage ?? 'assets/img/hero-desktop.webp')); ?>" media="(min-width: 900px)" fetchpriority="high">
+  <style>
+    :root{--bg:#08090b;--ink:#f7f7f2;--yellow:#f3c623;--muted:#a7abb2;--container:min(1240px,calc(100vw - 40px))}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;scroll-padding-top:88px;overflow-x:hidden}
+    body{margin:0;background:#08090b;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;overflow-x:hidden}
+    img{display:block;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    .container{width:var(--container);margin-inline:auto}
+    .site-header{position:fixed;inset:0 0 auto;z-index:60;padding:12px 0}
+    .nav{min-height:68px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px}
+    .brand img{width:116px;height:auto}
+    .hero{position:relative;min-height:100svh;display:grid;align-items:center;overflow:hidden;background:#08090b}
+    .hero__media,.hero__media picture,.hero__media img,.hero__overlay{position:absolute;inset:0;width:100%;height:100%}
+    .hero__media img{object-fit:cover}
+    .hero__overlay{background:linear-gradient(90deg,rgba(8,9,11,.92) 0%,rgba(8,9,11,.64) 48%,rgba(8,9,11,.36) 100%)}
+    .hero__grid{position:relative;z-index:1;padding-top:104px}
+    .eyebrow{margin:0 0 16px;color:var(--yellow);font-size:.76rem;font-weight:850;letter-spacing:.16em;text-transform:uppercase}
+    h1{margin:0 0 22px;max-width:820px;font-size:clamp(4.6rem,14vw,11rem);line-height:.86;font-weight:900}
+    h1 span{display:block}
+    .hero__lead{max-width:640px;color:#e7e7e0;font-size:clamp(1.04rem,2vw,1.28rem)}
+    .button{display:inline-flex;align-items:center;justify-content:center;min-height:54px;padding:0 28px;border-radius:999px;font-weight:900}
+    .button--primary{background:linear-gradient(135deg,#ffd84d,#f3c623);color:#111316}
+    @media (max-width:899px){.nav{grid-template-columns:auto 1fr}.nav-toggle{grid-column:2;justify-self:end;order:0}.hero{min-height:auto}.hero__grid{padding-top:108px}h1{font-size:clamp(3rem,16vw,4.25rem)}}
+  </style>
+  <link rel="preload" href="<?php echo htmlspecialchars($assetBase); ?>assets/css/styles.css" as="style">
+  <link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase); ?>assets/css/styles.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase); ?>assets/css/styles.css"></noscript>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     "name": "ID Industrial",
     "url": "<?php echo htmlspecialchars($siteUrl ?? 'https://idindustrial.com.mx/'); ?>",
-    "image": "<?php echo htmlspecialchars(($siteUrl ?? 'https://idindustrial.com.mx/') . 'assets/img/logo-idindustrial.png'); ?>",
+    "image": "<?php echo htmlspecialchars(($siteUrl ?? 'https://idindustrial.com.mx/') . 'assets/img/logo-idindustrial.webp'); ?>",
     "telephone": "<?php echo htmlspecialchars($phone ?? '+52 442 598 6318'); ?>",
     "email": "<?php echo htmlspecialchars($contactEmail ?? 'contacto@idindustrial.com.mx'); ?>",
     "address": {

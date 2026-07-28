@@ -7,6 +7,8 @@ const dropdownToggle = document.querySelector('[data-dropdown-toggle]');
 const revealItems = document.querySelectorAll('.reveal');
 const counters = document.querySelectorAll('[data-count]');
 
+let scrollTicking = false;
+
 function setHeaderState() {
   header?.classList.toggle('is-scrolled', window.scrollY > 20);
 }
@@ -84,10 +86,12 @@ const counterObserver = new IntersectionObserver((entries) => {
 
 counters.forEach((counter) => counterObserver.observe(counter));
 
-document.addEventListener('mousemove', (event) => {
-  document.documentElement.style.setProperty('--cursor-x', `${event.clientX}px`);
-  document.documentElement.style.setProperty('--cursor-y', `${event.clientY}px`);
-});
-
-window.addEventListener('scroll', setHeaderState, { passive: true });
+window.addEventListener('scroll', () => {
+  if (scrollTicking) return;
+  scrollTicking = true;
+  requestAnimationFrame(() => {
+    setHeaderState();
+    scrollTicking = false;
+  });
+}, { passive: true });
 setHeaderState();

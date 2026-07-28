@@ -9,6 +9,7 @@ $primaryNavItems = [
 
 $moreServiceItems = [
   ['label' => 'Sistemas HVAC', 'href' => $assetBase . '#sistemas-hvac'],
+  ['label' => 'CCTV industrial', 'href' => $assetBase . 'instalacion-camaras-seguridad-industrial-queretaro/'],
   ['label' => 'Fibra óptica', 'href' => $assetBase . '#fibra-optica'],
   ['label' => 'Control de Accesos', 'href' => $assetBase . '#control-accesos'],
 ];
@@ -22,7 +23,7 @@ $secondaryNavItems = [
 <header class="site-header" data-header>
   <nav class="nav container" aria-label="Mapa de navegación principal">
     <a class="brand" href="<?php echo htmlspecialchars($assetBase); ?>#inicio" aria-label="ID Industrial inicio">
-      <img src="<?php echo htmlspecialchars($assetBase); ?>assets/img/logo-idindustrial.png" alt="ID Industrial" width="500" height="132">
+      <img src="<?php echo htmlspecialchars($assetBase); ?>assets/img/logo-idindustrial-small.webp" alt="ID Industrial" width="280" height="74">
     </a>
     <button class="nav-toggle" type="button" aria-label="Abrir menú de navegación" aria-controls="main-menu" aria-expanded="false" data-nav-toggle>
       <span></span>
