@@ -21,9 +21,9 @@ $secondaryNavItems = [
 <header class="site-header" data-header>
   <nav class="nav container" aria-label="Mapa de navegación principal">
     <a class="brand" href="#inicio" aria-label="ID Industrial inicio">
-      <img src="assets/img/logo-idindustrial.png" alt="ID Industrial">
+      <img src="assets/img/logo-idindustrial.png" alt="ID Industrial" width="500" height="132">
     </a>
-    <button class="nav-toggle" type="button" aria-controls="main-menu" aria-expanded="false" data-nav-toggle>
+    <button class="nav-toggle" type="button" aria-label="Abrir menú de navegación" aria-controls="main-menu" aria-expanded="false" data-nav-toggle>
       <span></span>
       <span></span>
       <span></span>

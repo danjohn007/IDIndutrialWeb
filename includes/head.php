@@ -7,7 +7,7 @@
   <meta name="description" content="<?php echo htmlspecialchars($description ?? 'Soluciones industriales en Querétaro.'); ?>">
   <meta name="keywords" content="<?php echo htmlspecialchars($keywords ?? 'ID Industrial'); ?>">
   <meta name="robots" content="index, follow, max-image-preview:large">
-  <link rel="canonical" href="<?php echo htmlspecialchars($siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
+  <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
   <meta name="theme-color" content="#0a0b0d">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="es_MX">
@@ -16,7 +16,8 @@
   <meta property="og:url" content="<?php echo htmlspecialchars($siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
   <meta property="og:image" content="<?php echo htmlspecialchars(($siteUrl ?? 'https://idindustrial.com.mx/') . 'assets/img/og-id-industrial.webp'); ?>">
   <link rel="icon" type="image/png" href="assets/img/favicon-id-industrial.png">
-  <link rel="preload" as="image" href="assets/img/slide.jpg">
+  <link rel="preload" as="image" href="assets/img/hero-mobile.webp" media="(max-width: 899px)" fetchpriority="high">
+  <link rel="preload" as="image" href="assets/img/slide2.jpg" media="(min-width: 900px)" fetchpriority="high">
   <link rel="stylesheet" href="assets/css/styles.css">
   <script type="application/ld+json">
   {

@@ -7,6 +7,8 @@ $contactEmail = 'contacto@idindustrial.com.mx';
 $title = 'ID Industrial | Ingeniería industrial, cableado, HVAC y seguridad en Querétaro';
 $description = 'Soluciones de ingeniería industrial en Querétaro: cableado estructurado, detección de incendios, sistemas HVAC, fibra óptica, control de accesos e infraestructura crítica.';
 $keywords = 'ID Industrial, cableado estructurado Querétaro, detección de incendios industrial, sistemas HVAC Querétaro, fibra óptica industrial, control de accesos Querétaro';
+$requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
+$canonicalUrl = rtrim($siteUrl, '/') . ($requestPath === '/' ? '/' : $requestPath);
 
 $navItems = [
   ['label' => 'Inicio', 'href' => '#inicio'],
@@ -28,6 +30,8 @@ $services = [
     'copy' => 'Diseñamos e instalamos nodos, racks, canalizaciones, puntos de voz y datos, etiquetado técnico y pruebas para redes preparadas para operación continua.',
     'image' => 'assets/img/instalacion-de-cableado-estructurado-en-queretaro.webp',
     'alt' => 'Instalación de cableado estructurado en Querétaro',
+    'width' => 1942,
+    'height' => 810,
     'bullets' => ['Cableado UTP, fibra y canalización', 'Racks, patch panels y ordenamiento', 'Memoria técnica y pruebas de enlace'],
   ],
   [
@@ -37,6 +41,8 @@ $services = [
     'copy' => 'Implementamos paneles, sensores, sirenas, estaciones manuales y lógica de alerta para reducir tiempos de respuesta y proteger activos estratégicos.',
     'image' => 'assets/img/fire-alarm-industrial.webp',
     'alt' => 'Sistema de detección de incendios industrial',
+    'width' => 1942,
+    'height' => 809,
     'bullets' => ['Paneles y sensores direccionables', 'Alarmamiento y supervisión', 'Diseño orientado a normativas aplicables'],
   ],
   [
@@ -46,6 +52,8 @@ $services = [
     'copy' => 'Integramos climatización, ventilación, chillers y mantenimiento para oficinas, cuartos técnicos, procesos productivos y espacios de precisión.',
     'image' => 'assets/img/chillers-industriales-queretaro.webp',
     'alt' => 'Sistemas HVAC industriales en Querétaro',
+    'width' => 1736,
+    'height' => 906,
     'bullets' => ['Instalación y mantenimiento', 'Ventilación y ductería', 'Sistemas de precisión para cuartos técnicos'],
   ],
   [
@@ -55,6 +63,8 @@ $services = [
     'copy' => 'Tendidos, fusiones, certificación y enlaces de fibra óptica para naves, campus industriales, edificios corporativos y redes críticas.',
     'image' => 'assets/img/instaladores-de-fibra-optica.webp',
     'alt' => 'Instaladores de fibra óptica industrial',
+    'width' => 1254,
+    'height' => 1254,
     'bullets' => ['Fusión y certificación', 'Backbone para naves y campus', 'Canalización y protección de enlace'],
   ],
   [
@@ -64,6 +74,8 @@ $services = [
     'copy' => 'Integramos biométricos, tarjetas, plumas, torniquetes, CCTV y monitoreo para controlar personal, proveedores y perímetros industriales.',
     'image' => 'assets/img/control-de-acceso-conectado-a-CCTV-queretaro.webp',
     'alt' => 'Control de accesos conectado a CCTV',
+    'width' => 1254,
+    'height' => 1254,
     'bullets' => ['Biométricos, tarjetas y plumas', 'Integración con CCTV y nómina', 'Trazabilidad de entradas y salidas'],
   ],
 ];
@@ -119,14 +131,14 @@ include __DIR__ . '/includes/navbar.php';
     <div class="hero__media" aria-hidden="true">
       <picture>
         <source srcset="assets/img/slide2.jpg" media="(min-width: 900px)">
-        <img src="assets/img/slide.jpg" alt="" fetchpriority="high">
+        <img src="assets/img/hero-mobile.webp" alt="" width="820" height="342" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="hero__overlay" aria-hidden="true"></div>
     <div class="container hero__grid">
       <div class="hero__copy reveal">
         <p class="eyebrow">Ingeniería industrial en Querétaro y Bajío</p>
-        <h1 id="hero-title">ID Industrial</h1>
+        <h1 id="hero-title"><span>ID</span><span>Industrial</span></h1>
         <p class="hero__lead">Integramos infraestructura crítica para plantas, naves y edificios corporativos: redes, seguridad, detección de incendios, HVAC y fibra óptica.</p>
         <div class="hero__actions">
           <a class="button button--primary" href="#contacto">Cotizar proyecto</a>
@@ -176,7 +188,7 @@ include __DIR__ . '/includes/navbar.php';
         </div>
       </div>
       <figure class="image-lockup reveal reveal--delay">
-        <img src="assets/img/personal-capacitado-industrial.webp" alt="Personal capacitado de ID Industrial">
+        <img src="assets/img/personal-capacitado-industrial.webp" alt="Personal capacitado de ID Industrial" width="1942" height="810" loading="lazy" decoding="async">
         <figcaption>Cuadrillas técnicas para ejecución industrial con orden, seguridad y trazabilidad.</figcaption>
       </figure>
     </div>
@@ -241,7 +253,7 @@ include __DIR__ . '/includes/navbar.php';
           <a class="text-link" href="#contacto">Solicitar evaluación técnica</a>
         </div>
         <figure class="service__image reveal reveal--delay">
-          <img src="<?php echo htmlspecialchars($service['image']); ?>" alt="<?php echo htmlspecialchars($service['alt']); ?>" loading="lazy">
+          <img src="<?php echo htmlspecialchars($service['image']); ?>" alt="<?php echo htmlspecialchars($service['alt']); ?>" width="<?php echo (int) $service['width']; ?>" height="<?php echo (int) $service['height']; ?>" loading="lazy" decoding="async">
         </figure>
       </div>
     </section>
@@ -255,7 +267,7 @@ include __DIR__ . '/includes/navbar.php';
         <p>Cuando redes, HVAC, seguridad, control de accesos y detección trabajan con una misma lógica de operación, el mantenimiento es más claro y las decisiones se toman con mejor información.</p>
       </div>
       <div class="integration__visual reveal reveal--delay">
-        <img src="assets/img/centros-de-monitoreo-inteligentes.webp" alt="Centro de monitoreo inteligente industrial" loading="lazy">
+        <img src="assets/img/centros-de-monitoreo-inteligentes.webp" alt="Centro de monitoreo inteligente industrial" width="1500" height="1000" loading="lazy" decoding="async">
       </div>
     </div>
   </section>
@@ -321,21 +333,21 @@ include __DIR__ . '/includes/navbar.php';
         <?php endif; ?>
         <div class="form-row">
           <label>
-            Nombre
+            <span class="field-pill">Nombre</span>
             <input type="text" name="name" autocomplete="name" placeholder="Nombre y empresa" required>
           </label>
           <label>
-            Correo
+            <span class="field-pill">Correo</span>
             <input type="email" name="email" autocomplete="email" placeholder="correo@empresa.com" required>
           </label>
         </div>
         <div class="form-row">
           <label>
-            Teléfono
+            <span class="field-pill">Teléfono</span>
             <input type="tel" name="phone" autocomplete="tel" placeholder="+52 442 000 0000">
           </label>
           <label>
-            Servicio
+            <span class="field-pill">Servicio</span>
             <select name="service">
               <option value="">Seleccionar</option>
               <option value="Cableado estructurado">Cableado estructurado</option>
@@ -351,7 +363,7 @@ include __DIR__ . '/includes/navbar.php';
           <input type="text" name="company_site" tabindex="-1" autocomplete="off">
         </label>
         <label>
-          Mensaje
+          <span class="field-pill">Mensaje</span>
           <textarea name="message" rows="5" placeholder="Cuéntanos ubicación, tipo de instalación y prioridad del proyecto." required></textarea>
         </label>
         <button class="button button--primary" type="submit">Enviar solicitud</button>

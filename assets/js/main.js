@@ -14,6 +14,7 @@ function setHeaderState() {
 navToggle?.addEventListener('click', () => {
   const isOpen = navMenu.classList.toggle('is-open');
   navToggle.setAttribute('aria-expanded', String(isOpen));
+  navToggle.setAttribute('aria-label', isOpen ? 'Cerrar menú de navegación' : 'Abrir menú de navegación');
   if (!isOpen) closeDropdown();
 });
 
@@ -21,6 +22,7 @@ navLinks.forEach((link) => {
   link.addEventListener('click', () => {
     navMenu.classList.remove('is-open');
     navToggle?.setAttribute('aria-expanded', 'false');
+    navToggle?.setAttribute('aria-label', 'Abrir menú de navegación');
     closeDropdown();
   });
 });

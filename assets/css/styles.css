@@ -22,6 +22,7 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 88px;
+  overflow-x: hidden;
 }
 
 body {
@@ -31,6 +32,7 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.6;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 body::before {
@@ -126,6 +128,10 @@ h1 {
   font-size: clamp(4.6rem, 14vw, 11rem);
   line-height: 0.86;
   font-weight: 900;
+}
+
+h1 span {
+  display: block;
 }
 
 h2 {
@@ -348,18 +354,40 @@ p {
   justify-content: center;
   min-height: 46px;
   border: 1px solid transparent;
-  border-radius: 7px;
-  padding: 12px 20px;
+  border-radius: 999px;
+  padding: 12px 24px;
   font-weight: 850;
   letter-spacing: 0.02em;
-  transition: transform 220ms ease, background 220ms ease, border-color 220ms ease, color 220ms ease;
+  overflow: hidden;
+  transition: transform 220ms ease, background 220ms ease, border-color 220ms ease, color 220ms ease, box-shadow 220ms ease;
 }
 
 .nav-cta,
 .button--primary {
+  position: relative;
   background: linear-gradient(180deg, var(--yellow-strong), var(--yellow));
   color: #111;
   box-shadow: 0 14px 30px rgba(243, 198, 35, 0.24);
+}
+
+.nav-cta::before,
+.button--primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.65) 42%, transparent 70%);
+  transform: translateX(-130%);
+  transition: transform 640ms ease;
+}
+
+.nav-cta:hover::before,
+.button--primary:hover::before {
+  transform: translateX(130%);
+}
+
+.nav-cta,
+.button--primary {
+  isolation: isolate;
 }
 
 .button--ghost {
@@ -375,6 +403,7 @@ p {
 
 .button--primary:hover {
   background: var(--yellow-strong);
+  box-shadow: 0 18px 38px rgba(243, 198, 35, 0.3);
 }
 
 .button--ghost:hover {
@@ -442,6 +471,7 @@ p {
   max-width: 680px;
   color: #d9dce0;
   font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  text-wrap: pretty;
 }
 
 .hero__actions {
@@ -976,10 +1006,11 @@ p {
 .contact-form {
   position: relative;
   display: grid;
-  gap: 18px;
+  gap: 20px;
   border: 1px solid rgba(17, 19, 22, 0.1);
-  border-radius: 8px;
+  border-radius: 28px;
   background:
+    radial-gradient(circle at 18% 0%, rgba(243, 198, 35, 0.16), transparent 28%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 246, 241, 0.98));
   padding: clamp(24px, 4vw, 42px);
   box-shadow: 0 28px 76px rgba(17, 19, 22, 0.18);
@@ -990,7 +1021,10 @@ p {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border-top: 4px solid var(--yellow);
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(243, 198, 35, 0.85), transparent 22%, rgba(143, 183, 199, 0.34), transparent 72%);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
   pointer-events: none;
 }
 
@@ -1029,48 +1063,95 @@ p {
 
 .contact-form label {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   color: #1d2025;
-  font-size: 0.92rem;
-  font-weight: 850;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.field-pill {
+  width: fit-content;
+  border: 1px solid rgba(17, 19, 22, 0.1);
+  border-radius: 999px;
+  background: rgba(17, 19, 22, 0.06);
+  color: #2a2e34;
+  padding: 6px 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.68);
 }
 
 .contact-form input,
 .contact-form select,
 .contact-form textarea {
   width: 100%;
-  border: 1px solid rgba(17, 19, 22, 0.18);
-  border-radius: 6px;
-  background: #f8f7f2;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background:
+    linear-gradient(#f9f8f3, #f9f8f3) padding-box,
+    linear-gradient(120deg, rgba(17, 19, 22, 0.18), rgba(243, 198, 35, 0.16), rgba(17, 19, 22, 0.18)) border-box;
+  background-size: 100% 100%, 250% 250%;
   color: #111316;
-  padding: 13px 14px;
+  padding: 15px 18px;
   outline: none;
   resize: vertical;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 24px rgba(17, 19, 22, 0.06);
+  transition: background-position 700ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+
+.contact-form input::placeholder,
+.contact-form textarea::placeholder {
+  color: #8b8f96;
+}
+
+.contact-form textarea {
+  border-radius: 24px;
+  min-height: 150px;
 }
 
 .contact-form input:focus,
 .contact-form select:focus,
 .contact-form textarea:focus {
-  border-color: #a77d00;
-  box-shadow: 0 0 0 4px rgba(243, 198, 35, 0.2);
+  background-position: 0 0, 100% 50%;
+  box-shadow:
+    0 0 0 4px rgba(243, 198, 35, 0.16),
+    0 0 24px rgba(243, 198, 35, 0.18),
+    0 12px 28px rgba(17, 19, 22, 0.08);
+  transform: translateY(-1px);
+  animation: inputGlow 1.7s linear infinite;
 }
 
 .contact-form select {
-  min-height: 53px;
+  min-height: 56px;
   appearance: none;
   background-image:
+    linear-gradient(#f9f8f3, #f9f8f3),
+    linear-gradient(120deg, rgba(17, 19, 22, 0.18), rgba(243, 198, 35, 0.16), rgba(17, 19, 22, 0.18)),
     linear-gradient(45deg, transparent 50%, #6e7278 50%),
     linear-gradient(135deg, #6e7278 50%, transparent 50%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box, border-box, border-box;
   background-position:
+    0 0,
+    0 0,
     calc(100% - 20px) 22px,
     calc(100% - 14px) 22px;
-  background-size: 6px 6px, 6px 6px;
+  background-size:
+    100% 100%,
+    250% 250%,
+    6px 6px,
+    6px 6px;
   background-repeat: no-repeat;
+  padding-right: 46px;
+}
+
+.contact-form select:focus {
+  animation: selectGlow 1.7s linear infinite;
 }
 
 .contact-form .button {
   width: 100%;
-  min-height: 58px;
+  min-height: 60px;
   margin-top: 4px;
   font-size: 1rem;
 }
@@ -1143,25 +1224,90 @@ p {
   font-size: 0.9rem;
 }
 
-.whatsapp-float {
+.social-dock {
   position: fixed;
   right: 18px;
-  bottom: 18px;
+  bottom: 22px;
   z-index: 50;
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: #25d366;
-  color: #062312;
-  font-weight: 950;
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
-  transition: transform 220ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(7, 8, 11, 0.72);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(16px);
 }
 
-.whatsapp-float:hover {
-  transform: translateY(-3px) scale(1.04);
+.social-dock__link {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  overflow: hidden;
+  transition: transform 220ms ease, background 220ms ease, border-color 220ms ease, color 220ms ease;
+}
+
+.social-dock__link::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background: conic-gradient(from 0deg, transparent, rgba(243, 198, 35, 0.55), transparent 32%);
+  opacity: 0;
+  animation: dockSpin 2.8s linear infinite;
+  transition: opacity 180ms ease;
+}
+
+.social-dock__link svg {
+  position: relative;
+  z-index: 1;
+  width: 21px;
+  height: 21px;
+  fill: currentColor;
+}
+
+.social-dock__link:hover,
+.social-dock__link:focus-visible {
+  transform: translateY(-3px) scale(1.06);
+  border-color: rgba(243, 198, 35, 0.38);
+  background: rgba(243, 198, 35, 0.12);
+  color: var(--yellow-strong);
+}
+
+.social-dock__link:hover::before,
+.social-dock__link:focus-visible::before {
+  opacity: 1;
+}
+
+.social-dock__link--whatsapp {
+  width: 58px;
+  height: 58px;
+  margin: 0 0 2px -6px;
+  background: #25d366;
+  color: #062312;
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 34px rgba(37, 211, 102, 0.24);
+}
+
+.social-dock__link--whatsapp svg {
+  width: 30px;
+  height: 30px;
+}
+
+.social-dock__link--whatsapp:hover,
+.social-dock__link--whatsapp:focus-visible {
+  background: #2ee875;
+  color: #041b0d;
+}
+
+.social-dock__link--placeholder {
+  opacity: 0.72;
 }
 
 .reveal {
@@ -1185,6 +1331,30 @@ p {
   }
   to {
     transform: scale(1.08) translate3d(-1.4%, 0.8%, 0);
+  }
+}
+
+@keyframes inputGlow {
+  0% {
+    background-position: 0 0, 0% 50%;
+  }
+  100% {
+    background-position: 0 0, 200% 50%;
+  }
+}
+
+@keyframes selectGlow {
+  0% {
+    background-position: 0 0, 0% 50%, calc(100% - 20px) 22px, calc(100% - 14px) 22px;
+  }
+  100% {
+    background-position: 0 0, 200% 50%, calc(100% - 20px) 22px, calc(100% - 14px) 22px;
+  }
+}
+
+@keyframes dockSpin {
+  to {
+    transform: rotate(1turn);
   }
 }
 
@@ -1286,7 +1456,7 @@ p {
   }
 
   .hero {
-    min-height: 88vh;
+    min-height: 86vh;
   }
 
   .hero__grid,
@@ -1298,11 +1468,15 @@ p {
   }
 
   .hero__grid {
-    padding: 128px 0 48px;
+    padding: 126px 0 44px;
   }
 
   .hero__panel {
     max-width: 420px;
+  }
+
+  .hero__copy {
+    min-width: 0;
   }
 
   .metrics__grid,
@@ -1354,13 +1528,18 @@ p {
 }
 
 @media (max-width: 560px) {
+  html {
+    scroll-padding-top: 76px;
+  }
+
   .nav {
-    min-height: 70px;
+    min-height: 62px;
     gap: 10px;
+    padding: 8px 10px 8px 14px;
   }
 
   .brand img {
-    width: 128px;
+    width: 116px;
   }
 
   .nav-cta {
@@ -1368,16 +1547,53 @@ p {
   }
 
   .nav-menu {
-    top: 86px;
+    top: 82px;
+    left: 14px;
+    right: 14px;
   }
 
   h1 {
-    font-size: clamp(3.8rem, 22vw, 5.8rem);
+    max-width: 100%;
+    font-size: clamp(3.15rem, 18.5vw, 4.75rem);
+    line-height: 0.9;
+    overflow-wrap: anywhere;
+  }
+
+  h2 {
+    font-size: clamp(2rem, 11vw, 3.2rem);
+  }
+
+  .eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.13em;
+  }
+
+  .hero {
+    min-height: auto;
+  }
+
+  .hero__grid {
+    gap: 22px;
+    padding: 118px 0 38px;
+  }
+
+  .hero__lead {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  .hero__panel {
+    padding: 18px;
   }
 
   .hero__actions,
   .footer__bottom {
     flex-direction: column;
+  }
+
+  .hero__actions {
+    gap: 10px;
+    margin-top: 24px;
   }
 
   .button,
@@ -1396,6 +1612,34 @@ p {
   .service__image img,
   .integration__visual img {
     min-height: 300px;
+  }
+
+  .social-dock {
+    right: 10px;
+    bottom: 10px;
+    gap: 6px;
+    padding: 5px;
+  }
+
+  .social-dock__link {
+    width: 38px;
+    height: 38px;
+  }
+
+  .social-dock__link--whatsapp {
+    width: 48px;
+    height: 48px;
+    margin-left: -5px;
+  }
+
+  .social-dock__link svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .social-dock__link--whatsapp svg {
+    width: 26px;
+    height: 26px;
   }
 
   .lamp-section,
