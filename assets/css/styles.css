@@ -632,10 +632,18 @@ p {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
   transform: scale(1.02);
   transition: transform 700ms ease, filter 700ms ease;
+}
+
+.service-card--wide {
+  min-height: 250px;
+}
+
+.service-card--wide img {
+  object-fit: contain;
 }
 
 .service-card em,
@@ -1035,6 +1043,10 @@ p {
   overflow: hidden;
 }
 
+.service-hero--compact {
+  min-height: 58vh;
+}
+
 .service-hero__media,
 .service-hero__media picture,
 .service-hero__media img,
@@ -1070,6 +1082,51 @@ p {
   max-width: 760px;
   color: #d9dce0;
   font-size: clamp(1.05rem, 2.1vw, 1.35rem);
+}
+
+.legal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.36fr);
+  gap: clamp(28px, 6vw, 74px);
+  align-items: start;
+}
+
+.legal-copy {
+  max-width: 860px;
+}
+
+.legal-copy h2 {
+  color: #111316;
+}
+
+.legal-copy h3 {
+  margin-top: 34px;
+  color: #111316;
+  font-size: 1.25rem;
+}
+
+.legal-copy p,
+.legal-copy li {
+  color: #41464d;
+  font-size: 1.02rem;
+}
+
+.legal-copy ul {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding-left: 22px;
+}
+
+.legal-copy a {
+  color: #7b5d00;
+  font-weight: 850;
+  border-bottom: 1px solid rgba(123, 93, 0, 0.34);
+}
+
+.legal-aside {
+  position: sticky;
+  top: 110px;
 }
 
 .detail-section {
@@ -1193,6 +1250,10 @@ p {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.project-carousel--home {
+  border-top: 0;
+}
+
 .media-carousel {
   position: relative;
   overflow: hidden;
@@ -1206,6 +1267,12 @@ p {
   position: relative;
   aspect-ratio: 16 / 6.8;
   min-height: 330px;
+}
+
+.media-carousel--panoramic .media-carousel__viewport {
+  height: clamp(220px, 26vw, 410px);
+  min-height: 0;
+  aspect-ratio: auto;
 }
 
 .media-carousel__slide {
@@ -1229,6 +1296,10 @@ p {
   height: 100%;
   object-fit: contain;
   object-position: center;
+}
+
+.media-carousel--panoramic .media-carousel__slide img {
+  object-fit: cover;
 }
 
 .media-carousel__slide::after {
@@ -2225,6 +2296,7 @@ p {
 
   .hero__grid,
   .split,
+  .legal-layout,
   .detail-grid,
   .detail-grid--reverse,
   .integration__grid,
@@ -2481,6 +2553,10 @@ p {
   .service-card {
     grid-column: auto;
     min-height: 270px;
+  }
+
+  .service-card--wide {
+    min-height: 220px;
   }
 
   .service-card--featured {

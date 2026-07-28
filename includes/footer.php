@@ -43,8 +43,8 @@
   <div class="container footer__bottom">
     <span>© <?php echo date('Y'); ?> ID Industrial · Ingeniería inteligente que construye el futuro.</span>
     <div>
-      <a href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Aviso de privacidad</a>
-      <a href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Términos</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>aviso-de-privacidad/">Aviso de privacidad</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>terminos-y-condiciones/">Términos</a>
     </div>
   </div>
 </footer>

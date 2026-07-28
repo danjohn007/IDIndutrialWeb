@@ -194,6 +194,44 @@ $serviceOverview = [
   ],
 ];
 
+$homeCarouselItems = [
+  [
+    'image' => 'assets/imagesnew/BANNERS%20VER2/CABLEADO%20ESTRUCTURADO/PAGINA%20WEB%20ID%20INDUSTRIAL_10.jpg',
+    'alt' => 'Cableado estructurado para infraestructura industrial',
+    'width' => 1920,
+    'height' => 500,
+    'label' => 'Cableado estructurado',
+  ],
+  [
+    'image' => 'assets/imagesnew/BANNERS%20VER2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_11.jpg',
+    'alt' => 'CCTV industrial y monitoreo de seguridad',
+    'width' => 1920,
+    'height' => 500,
+    'label' => 'CCTV industrial',
+  ],
+  [
+    'image' => 'assets/imagesnew/BANNERS%20VER2/CONTROL%20DE%20ACCESO/PAGINA%20WEB%20ID%20INDUSTRIAL_13.jpg',
+    'alt' => 'Control de acceso industrial para personal',
+    'width' => 1920,
+    'height' => 500,
+    'label' => 'Control de accesos',
+  ],
+  [
+    'image' => 'assets/imagesnew/BANNERS%20VER2/SERVIDORES/PAGINA%20WEB%20ID%20INDUSTRIAL_12.jpg',
+    'alt' => 'Servidores y sites para operación industrial',
+    'width' => 1920,
+    'height' => 500,
+    'label' => 'Servidores y sites',
+  ],
+  [
+    'image' => 'assets/imagesnew/BANNERS%20VER2/LOGICAS%20INDUSTRIALES/PAGINA%20WEB%20ID%20INDUSTRIAL_15.jpg',
+    'alt' => 'Lógicas industriales e integración operativa',
+    'width' => 1920,
+    'height' => 500,
+    'label' => 'Lógicas industriales',
+  ],
+];
+
 $formStatus = null;
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
   $name = trim($_POST['name'] ?? '');
@@ -270,6 +308,36 @@ include __DIR__ . '/includes/navbar.php';
     </div>
   </section>
 
+  <section class="project-carousel project-carousel--home section-dark section-pad" aria-labelledby="home-carousel-title">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Áreas ID Industrial</p>
+        <h2 id="home-carousel-title">Especialidades segmentadas para operación, seguridad e infraestructura.</h2>
+      </div>
+      <div class="media-carousel media-carousel--panoramic reveal" data-carousel>
+        <div class="media-carousel__viewport">
+          <?php foreach ($homeCarouselItems as $index => $item): ?>
+            <figure class="media-carousel__slide <?php echo $index === 0 ? 'is-active' : ''; ?>" aria-hidden="<?php echo $index === 0 ? 'false' : 'true'; ?>" data-carousel-slide>
+              <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
+              <figcaption><?php echo htmlspecialchars($item['label']); ?></figcaption>
+            </figure>
+          <?php endforeach; ?>
+        </div>
+        <button class="media-carousel__arrow media-carousel__arrow--prev" type="button" aria-label="Imagen anterior" data-carousel-prev>
+          <span aria-hidden="true"></span>
+        </button>
+        <button class="media-carousel__arrow media-carousel__arrow--next" type="button" aria-label="Imagen siguiente" data-carousel-next>
+          <span aria-hidden="true"></span>
+        </button>
+        <div class="media-carousel__dots" aria-label="Seleccionar imagen">
+          <?php foreach ($homeCarouselItems as $index => $item): ?>
+            <button class="media-carousel__dot <?php echo $index === 0 ? 'is-active' : ''; ?>" type="button" aria-label="Ver <?php echo htmlspecialchars($item['label']); ?>" aria-current="<?php echo $index === 0 ? 'true' : 'false'; ?>" data-carousel-dot="<?php echo (int) $index; ?>"></button>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="servicios" class="services-overview section-dark section-pad">
     <div class="container">
       <div class="section-head reveal">
@@ -280,7 +348,7 @@ include __DIR__ . '/includes/navbar.php';
 
       <div class="services-overview__grid">
         <?php foreach ($serviceOverview as $item): ?>
-          <article class="service-card <?php echo !empty($item['featured']) ? 'service-card--featured' : ''; ?> reveal">
+          <article class="service-card <?php echo !empty($item['featured']) ? 'service-card--featured' : ''; ?> <?php echo (int) $item['height'] <= 500 ? 'service-card--wide' : ''; ?> reveal">
             <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async" fetchpriority="low">
             <em><?php echo htmlspecialchars($item['badge']); ?></em>
             <span><?php echo htmlspecialchars($item['title']); ?></span>
