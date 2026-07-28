@@ -11,7 +11,7 @@
       <a href="<?php echo htmlspecialchars($assetBase); ?>#deteccion-incendios">Detección de incendios</a>
       <a href="<?php echo htmlspecialchars($assetBase); ?>#sistemas-hvac">Sistemas HVAC</a>
       <a href="<?php echo htmlspecialchars($assetBase); ?>#fibra-optica">Fibra óptica</a>
-      <a href="<?php echo htmlspecialchars($assetBase); ?>#control-accesos">Control de Accesos</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>control-de-acceso-de-personal-queretaro/">Control de Accesos</a>
     </div>
     <div>
       <h2>Atención directa</h2>

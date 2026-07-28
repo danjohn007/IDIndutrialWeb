@@ -3,7 +3,7 @@ $assetBase = $basePath ?? '';
 $primaryNavItems = [
   ['label' => 'Inicio', 'href' => $assetBase . '#inicio'],
   ['label' => 'Quiénes somos', 'href' => $assetBase . '#quienes-somos'],
-  ['label' => 'Cableado estructurado', 'href' => $assetBase . 'industriales/cableado-estructurado-queretaro/'],
+  ['label' => 'Cableado estructurado', 'href' => $assetBase . '#cableado-estructurado'],
   ['label' => 'Detección de incendios', 'href' => $assetBase . '#deteccion-incendios'],
 ];
 

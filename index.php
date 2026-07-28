@@ -32,6 +32,8 @@ $services = [
     'alt' => 'Instalación de cableado estructurado en Querétaro',
     'width' => 1942,
     'height' => 810,
+    'detailHref' => 'industriales/cableado-estructurado-queretaro/',
+    'detailLabel' => 'Ver página de cableado',
     'bullets' => ['Cableado UTP, fibra y canalización', 'Racks, patch panels y ordenamiento', 'Memoria técnica y pruebas de enlace'],
   ],
   [
@@ -43,6 +45,8 @@ $services = [
     'alt' => 'Sistema de detección de incendios industrial',
     'width' => 1942,
     'height' => 809,
+    'detailHref' => '#contacto',
+    'detailLabel' => 'Cotizar detección',
     'bullets' => ['Paneles y sensores direccionables', 'Alarmamiento y supervisión', 'Diseño orientado a normativas aplicables'],
   ],
   [
@@ -54,6 +58,8 @@ $services = [
     'alt' => 'Sistemas HVAC industriales en Querétaro',
     'width' => 1736,
     'height' => 906,
+    'detailHref' => '#contacto',
+    'detailLabel' => 'Cotizar HVAC',
     'bullets' => ['Instalación y mantenimiento', 'Ventilación y ductería', 'Sistemas de precisión para cuartos técnicos'],
   ],
   [
@@ -65,6 +71,8 @@ $services = [
     'alt' => 'Instaladores de fibra óptica industrial',
     'width' => 1254,
     'height' => 1254,
+    'detailHref' => '#contacto',
+    'detailLabel' => 'Cotizar fibra óptica',
     'bullets' => ['Fusión y certificación', 'Backbone para naves y campus', 'Canalización y protección de enlace'],
   ],
   [
@@ -76,6 +84,8 @@ $services = [
     'alt' => 'Control de accesos conectado a CCTV',
     'width' => 1254,
     'height' => 1254,
+    'detailHref' => 'control-de-acceso-de-personal-queretaro/',
+    'detailLabel' => 'Ver página de accesos',
     'bullets' => ['Biométricos, tarjetas y plumas', 'Integración con CCTV y nómina', 'Trazabilidad de entradas y salidas'],
   ],
 ];
@@ -107,6 +117,8 @@ $serviceOverview = [
     'alt' => 'Cableado estructurado industrial en Querétaro',
     'width' => 1254,
     'height' => 1254,
+    'badge' => 'Página técnica',
+    'featured' => true,
   ],
   [
     'title' => 'Detección de incendios',
@@ -116,6 +128,8 @@ $serviceOverview = [
     'alt' => 'Panel de detección de incendios industrial',
     'width' => 626,
     'height' => 417,
+    'badge' => 'Resumen',
+    'featured' => false,
   ],
   [
     'title' => 'Sistemas HVAC',
@@ -125,6 +139,8 @@ $serviceOverview = [
     'alt' => 'Sistemas HVAC industriales',
     'width' => 1942,
     'height' => 809,
+    'badge' => 'Resumen',
+    'featured' => false,
   ],
   [
     'title' => 'Fibra óptica',
@@ -134,15 +150,19 @@ $serviceOverview = [
     'alt' => 'Instalación de fibra óptica en Querétaro',
     'width' => 1942,
     'height' => 810,
+    'badge' => 'Resumen',
+    'featured' => false,
   ],
   [
     'title' => 'Control de Accesos',
     'copy' => 'Biométricos, tarjetas, plumas, CCTV y trazabilidad para personal, proveedores y perímetros.',
-    'href' => '#control-accesos',
+    'href' => 'control-de-acceso-de-personal-queretaro/',
     'image' => 'assets/img/control-de-acceso-biometrico-queretaro.webp',
     'alt' => 'Control de accesos biométrico industrial',
     'width' => 1942,
     'height' => 809,
+    'badge' => 'Página técnica',
+    'featured' => true,
   ],
 ];
 
@@ -227,13 +247,14 @@ include __DIR__ . '/includes/navbar.php';
       <div class="section-head reveal">
         <p class="eyebrow">Servicios</p>
         <h2>Soluciones industriales para infraestructura, seguridad y continuidad operativa.</h2>
-        <p>Una vista rápida de nuestras capacidades principales. Cada servicio conduce a más detalle técnico para ayudarte a evaluar alcance, tiempos y prioridad.</p>
+        <p>Explora primero el alcance dentro de esta página. En los servicios con landing técnica podrás entrar a una página exclusiva con información SEO, preguntas frecuentes, normativas y criterios de compra.</p>
       </div>
 
       <div class="services-overview__grid">
         <?php foreach ($serviceOverview as $item): ?>
-          <a class="service-card reveal" href="<?php echo htmlspecialchars($item['href']); ?>">
+          <a class="service-card <?php echo !empty($item['featured']) ? 'service-card--featured' : ''; ?> reveal" href="<?php echo htmlspecialchars($item['href']); ?>">
             <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
+            <em><?php echo htmlspecialchars($item['badge']); ?></em>
             <span><?php echo htmlspecialchars($item['title']); ?></span>
             <p><?php echo htmlspecialchars($item['copy']); ?></p>
             <strong>Ver servicio</strong>
@@ -319,7 +340,10 @@ include __DIR__ . '/includes/navbar.php';
               <li><?php echo htmlspecialchars($bullet); ?></li>
             <?php endforeach; ?>
           </ul>
-          <a class="text-link" href="#contacto">Solicitar evaluación técnica</a>
+          <div class="service-actions">
+            <a class="text-link" href="<?php echo htmlspecialchars($service['detailHref']); ?>"><?php echo htmlspecialchars($service['detailLabel']); ?></a>
+            <a class="text-link text-link--muted" href="#contacto">Solicitar evaluación técnica</a>
+          </div>
         </div>
         <figure class="service__image reveal reveal--delay">
           <img src="<?php echo htmlspecialchars($service['image']); ?>" alt="<?php echo htmlspecialchars($service['alt']); ?>" width="<?php echo (int) $service['width']; ?>" height="<?php echo (int) $service['height']; ?>" loading="lazy" decoding="async">

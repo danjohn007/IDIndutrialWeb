@@ -37,7 +37,29 @@
     },
     "areaServed": ["Querétaro", "El Marqués", "Apaseo el Grande", "Bajío"],
     "sameAs": ["https://idindustrial.com.mx/"],
-    "knowsAbout": ["Cableado estructurado", "Detección de incendios", "Sistemas HVAC", "Fibra óptica", "Control de accesos"]
+    "knowsAbout": [
+      "cableado estructurado industrial",
+      "fibra óptica",
+      "infraestructura TI industrial",
+      "CCTV industrial",
+      "control de accesos",
+      "HVAC industrial",
+      "subestaciones eléctricas",
+      "sistemas contra incendio",
+      "SCADA",
+      "IIoT"
+    ],
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Soluciones industriales",
+      "itemListElement": [
+        {"@type": "Service", "name": "Cableado estructurado y fibra óptica"},
+        {"@type": "Service", "name": "Detección de incendios"},
+        {"@type": "Service", "name": "Sistemas HVAC"},
+        {"@type": "Service", "name": "Control de accesos"},
+        {"@type": "Service", "name": "CCTV industrial"}
+      ]
+    }
   }
   </script>
 </head>

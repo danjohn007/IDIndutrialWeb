@@ -155,28 +155,100 @@ include __DIR__ . '/../../includes/navbar.php';
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "Service",
-  "name": "Instalación de cableado estructurado y fibra óptica",
-  "serviceType": "Infraestructura de red industrial",
-  "provider": {
-    "@type": "Organization",
-    "name": "ID Industrial",
-    "url": "https://idindustrial.com.mx/"
-  },
-  "areaServed": "Querétaro",
-  "audience": {
-    "@type": "Audience",
-    "audienceType": "Gerentes de TI y compras industriales"
-  },
-  "hasOfferCatalog": {
-    "@type": "OfferCatalog",
-    "name": "Servicios de red",
-    "itemListElement": [
-      {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Instalación de fibra óptica"}},
-      {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Redes de voz y datos"}},
-      {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Servidores y sites"}}
-    ]
-  }
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://idindustrial.com.mx/#organization",
+      "name": "ID Industrial",
+      "url": "https://idindustrial.com.mx/",
+      "areaServed": "Querétaro",
+      "knowsAbout": [
+        "cableado estructurado industrial",
+        "fibra óptica",
+        "infraestructura TI industrial",
+        "CCTV industrial",
+        "control de accesos",
+        "HVAC industrial",
+        "subestaciones eléctricas",
+        "sistemas contra incendio",
+        "SCADA",
+        "IIoT"
+      ],
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Soluciones industriales",
+        "itemListElement": [
+          {"@type": "Service", "name": "Cableado estructurado y fibra óptica"},
+          {"@type": "Service", "name": "Servidores y sites"},
+          {"@type": "Service", "name": "CCTV y control de accesos"},
+          {"@type": "Service", "name": "HVAC industrial"},
+          {"@type": "Service", "name": "Sistemas contra incendio"}
+        ]
+      }
+    },
+    {
+      "@type": "Service",
+      "@id": "https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/#service",
+      "name": "Instalación de cableado estructurado y fibra óptica",
+      "serviceType": "Infraestructura de red industrial",
+      "provider": {
+        "@id": "https://idindustrial.com.mx/#organization"
+      },
+      "areaServed": "Querétaro",
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Gerentes de TI y compras industriales"
+      },
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Servicios de red",
+        "itemListElement": [
+          {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Instalación de fibra óptica"}},
+          {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Redes de voz y datos"}},
+          {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Servidores y sites"}},
+          {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Redes WiFi industriales"}},
+          {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "Mantenimiento de redes"}}
+        ]
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/#faq",
+      "mainEntity": [
+        <?php foreach ($faqItems as $index => $item): ?>
+          {
+            "@type": "Question",
+            "name": <?php echo json_encode($item['q'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>,
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": <?php echo json_encode($item['a'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>
+            }
+          }<?php echo $index < count($faqItems) - 1 ? ',' : ''; ?>
+        <?php endforeach; ?>
+      ]
+    }
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Inicio",
+      "item": "https://idindustrial.com.mx/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Cableado estructurado Querétaro",
+      "item": "https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/"
+    }
+  ]
 }
 </script>
 
