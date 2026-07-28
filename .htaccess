@@ -8,6 +8,12 @@ DirectoryIndex index.php index.html
 
   RewriteCond %{HTTP_HOST} ^www\.idindustrial\.com\.mx$ [NC]
   RewriteRule ^ https://idindustrial.com.mx%{REQUEST_URI} [L,R=301]
+
+  RewriteRule ^industriales/cableado-estructurado-queretaro/?$ /sistema/industriales/cableado-estructurado-queretaro/ [L,R=301]
+  RewriteRule ^instalacion-aire-acondicionado-industrial-queretaro/?$ /sistema/instalacion-aire-acondicionado-industrial-queretaro/ [L,R=301]
+  RewriteRule ^control-de-acceso-de-personal-queretaro/?$ /sistema/control-de-acceso-de-personal-queretaro/ [L,R=301]
+  RewriteRule ^instalacion-camaras-seguridad-industrial-queretaro/?$ /sistema/instalacion-camaras-seguridad-industrial-queretaro/ [L,R=301]
+  RewriteRule ^instalacion-camaras-seguridad-industrial-queretaro\.php$ /sistema/instalacion-camaras-seguridad-industrial-queretaro/ [L,R=301]
 </IfModule>
 
 <IfModule mod_deflate.c>

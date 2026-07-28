@@ -9,7 +9,7 @@ $primaryNavItems = [
 
 $moreServiceItems = [
   ['label' => 'Sistemas HVAC', 'href' => $assetBase . '#sistemas-hvac'],
-  ['label' => 'CCTV industrial', 'href' => $assetBase . 'instalacion-camaras-seguridad-industrial-queretaro/'],
+  ['label' => 'CCTV industrial', 'href' => $assetBase . '#cctv-industrial'],
   ['label' => 'Fibra óptica', 'href' => $assetBase . '#fibra-optica'],
   ['label' => 'Control de Accesos', 'href' => $assetBase . '#control-accesos'],
 ];

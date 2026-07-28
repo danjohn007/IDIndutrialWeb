@@ -1,12 +1,13 @@
 <?php
 $basePath = '../../';
-$siteUrl = 'https://idindustrial.com.mx/';
-$canonicalUrl = 'https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/';
+$siteUrl = 'https://idindustrial.com.mx/sistema/';
+$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
+$canonicalUrl = 'https://idindustrial.com.mx/sistema/industriales/cableado-estructurado-queretaro/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
-$heroMobileImage = 'assets/img/instalacion-de-cableado-estructurado-queretaro.webp';
-$heroDesktopImage = 'assets/img/empresa-de-cableado-estructurado-en-queretaro-centro.webp';
+$heroMobileImage = 'assets/imagesnew/BANNERS/CABLEADO%20ESTRUCTURADO/LANDING%20ID%20INDUSTRIAL_10.jpg';
+$heroDesktopImage = 'assets/imagesnew/BANNERS%20VER2/CABLEADO%20ESTRUCTURADO/PAGINA%20WEB%20ID%20INDUSTRIAL_10.jpg';
 
 $title = 'Empresas de Cableado Estructurado en Querétaro | Redes, fibra óptica, sites, servidores';
 $description = 'Instalación de cableado estructurado en Querétaro para empresas industriales: redes, fibra óptica, servidores y voz y datos. +20 años de experiencia.';
@@ -39,8 +40,8 @@ include __DIR__ . '/../../includes/navbar.php';
   <section class="service-hero section-dark">
     <div class="service-hero__media" aria-hidden="true">
       <picture>
-        <source srcset="<?php echo htmlspecialchars($basePath); ?>assets/img/empresa-de-cableado-estructurado-en-queretaro-centro.webp" media="(min-width: 900px)">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/instalacion-de-cableado-estructurado-queretaro.webp" alt="" width="1942" height="810" fetchpriority="high" decoding="async">
+        <source srcset="<?php echo htmlspecialchars($basePath . $heroDesktopImage); ?>" media="(min-width: 900px)">
+        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>" alt="" width="1920" height="500" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="service-hero__overlay" aria-hidden="true"></div>
@@ -89,13 +90,13 @@ include __DIR__ . '/../../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/instalacion-cableado-fibra-optica.webp" alt="Cableado estructurado industrial con fibra óptica" width="1024" height="1536" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CABLEADO%20ESTRUCTURADO/PAGINA%20WEB%20ID%20INDUSTRIAL_1.jpg" alt="Cableado estructurado industrial con fibra óptica" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
 
   <section class="service-banner" aria-label="Cableado estructurado industrial">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/instalacion-de-voz-y-datos-queretaro.webp" alt="Instalación de voz y datos Querétaro" width="2172" height="724" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CABLEADO%20ESTRUCTURADO/ID%20INDUSTRIAL%20WEB_5.jpg" alt="Instalación de voz y datos Querétaro" width="1920" height="500" loading="lazy" decoding="async">
     <div>
       <p>Diseño e instalación de redes con fibra óptica</p>
       <h2>Cableado estructurado industrial</h2>

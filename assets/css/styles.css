@@ -588,14 +588,14 @@ p {
 
 .service-card {
   position: relative;
-  min-height: 360px;
+  min-height: 330px;
   display: flex;
   flex-direction: column;
   justify-content: end;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  background: #0d0f13;
+  background: #050607;
   padding: 18px;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
   transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
@@ -632,7 +632,8 @@ p {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   transform: scale(1.02);
   transition: transform 700ms ease, filter 700ms ease;
 }
@@ -703,7 +704,7 @@ p {
 
 .service-card:hover img,
 .service-card:focus-within img {
-  transform: scale(1.1);
+  transform: scale(1.035);
   filter: saturate(1.08);
 }
 
@@ -734,6 +735,7 @@ p {
   margin: 0;
   overflow: hidden;
   border-radius: 8px;
+  background: #050607;
   box-shadow: var(--shadow);
 }
 
@@ -741,8 +743,9 @@ p {
 .service__image img,
 .integration__visual img {
   width: 100%;
-  min-height: 420px;
-  object-fit: cover;
+  min-height: clamp(280px, 32vw, 380px);
+  max-height: 460px;
+  object-fit: contain;
   object-position: center;
   transition: transform 900ms ease;
 }
@@ -762,7 +765,7 @@ p {
 .image-lockup:hover img,
 .service__image:hover img,
 .integration__visual:hover img {
-  transform: scale(1.05);
+  transform: scale(1.025);
 }
 
 .image-lockup figcaption {
@@ -1131,7 +1134,7 @@ p {
 
 .service-banner {
   position: relative;
-  min-height: 360px;
+  min-height: clamp(260px, 31vw, 340px);
   display: flex;
   align-items: end;
   overflow: hidden;
@@ -1144,12 +1147,12 @@ p {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
 }
 
 .service-banner--contain {
-  min-height: clamp(310px, 37vw, 470px);
+  min-height: clamp(240px, 30vw, 360px);
   background: #030405;
 }
 
@@ -1185,6 +1188,149 @@ p {
   color: #fff;
 }
 
+.project-carousel {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.media-carousel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: #07080b;
+  box-shadow: var(--shadow);
+}
+
+.media-carousel__viewport {
+  position: relative;
+  aspect-ratio: 16 / 6.8;
+  min-height: 330px;
+}
+
+.media-carousel__slide {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  transform: scale(1.02);
+  transition: opacity 360ms ease, transform 560ms ease;
+  pointer-events: none;
+}
+
+.media-carousel__slide.is-active {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.media-carousel__slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.media-carousel__slide::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(7, 8, 11, 0.76), transparent 48%),
+    linear-gradient(0deg, rgba(7, 8, 11, 0.72), transparent 42%);
+}
+
+.media-carousel__slide figcaption {
+  position: absolute;
+  left: clamp(18px, 4vw, 44px);
+  bottom: clamp(18px, 4vw, 40px);
+  z-index: 1;
+  color: #fff;
+  font-size: clamp(1.15rem, 3vw, 2.4rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.media-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: rgba(7, 8, 11, 0.72);
+  color: #fff;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.media-carousel__arrow--prev {
+  left: 18px;
+}
+
+.media-carousel__arrow--next {
+  right: 18px;
+}
+
+.media-carousel__arrow span {
+  width: 11px;
+  height: 11px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+
+.media-carousel__arrow--prev span {
+  transform: rotate(45deg) translate(2px, -2px);
+}
+
+.media-carousel__arrow--next span {
+  transform: rotate(225deg) translate(2px, -2px);
+}
+
+.media-carousel__arrow:hover,
+.media-carousel__arrow:focus-visible {
+  border-color: rgba(243, 198, 35, 0.72);
+  background: rgba(243, 198, 35, 0.18);
+  outline: 0;
+  transform: translateY(-50%) scale(1.06);
+}
+
+.media-carousel__dots {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 2;
+  display: flex;
+  gap: 9px;
+  transform: translateX(-50%);
+}
+
+.media-carousel__dot {
+  width: 10px;
+  height: 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.44);
+  cursor: pointer;
+  transition: width 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.media-carousel__dot.is-active {
+  width: 28px;
+  background: var(--yellow);
+}
+
+.media-carousel__dot:hover,
+.media-carousel__dot:focus-visible {
+  background: var(--yellow-strong);
+  outline: 0;
+  transform: translateY(-1px);
+}
+
 .faq-list {
   display: grid;
   gap: 12px;
@@ -1212,6 +1358,21 @@ p {
   margin: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0 22px 20px;
+}
+
+.section-light .faq-item {
+  border-color: rgba(17, 19, 22, 0.1);
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 14px 34px rgba(17, 19, 22, 0.055);
+}
+
+.section-light .faq-item summary {
+  color: #111316;
+}
+
+.section-light .faq-item p {
+  border-top-color: rgba(17, 19, 22, 0.1);
+  color: #363b42;
 }
 
 .cta-strip {
@@ -1672,8 +1833,10 @@ p {
 }
 
 .footer__logo {
-  width: clamp(150px, 15vw, 174px);
-  margin-bottom: 24px;
+  width: clamp(118px, 12vw, 142px);
+  height: auto;
+  margin-bottom: 22px;
+  opacity: 0.94;
 }
 
 .footer__rule {
@@ -1819,7 +1982,7 @@ p {
 
 .social-dock {
   position: fixed;
-  right: 18px;
+  right: 34px;
   bottom: 22px;
   z-index: 50;
   display: flex;
@@ -2099,7 +2262,7 @@ p {
   }
 
   .service-card {
-    min-height: 330px;
+    min-height: 300px;
   }
 
   .cta-strip__inner {
@@ -2352,18 +2515,40 @@ p {
   }
 
   .service-banner {
-    min-height: 290px;
+    min-height: 250px;
     padding: 28px 18px;
+  }
+
+  .media-carousel__viewport {
+    aspect-ratio: 4 / 3;
+    min-height: 260px;
+  }
+
+  .media-carousel__arrow {
+    width: 38px;
+    height: 38px;
+  }
+
+  .media-carousel__arrow--prev {
+    left: 10px;
+  }
+
+  .media-carousel__arrow--next {
+    right: 10px;
+  }
+
+  .media-carousel__dots {
+    bottom: 12px;
   }
 
   .image-lockup img,
   .service__image img,
   .integration__visual img {
-    min-height: 300px;
+    min-height: 240px;
   }
 
   .social-dock {
-    right: 10px;
+    right: 18px;
     bottom: 10px;
     gap: 6px;
     padding: 5px;
@@ -2377,7 +2562,6 @@ p {
   .social-dock__link--whatsapp {
     width: 48px;
     height: 48px;
-    margin-left: -5px;
   }
 
   .social-dock__link svg {

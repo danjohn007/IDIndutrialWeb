@@ -1,7 +1,13 @@
 <!doctype html>
 <html lang="es-MX">
 <head>
-  <?php $assetBase = $basePath ?? ''; ?>
+  <?php
+    $assetBase = $basePath ?? '';
+    $stylesFile = is_file(__DIR__ . '/../assets/css/styles.min.css') ? 'styles.min.css' : 'styles.css';
+    $stylesVersion = @filemtime(__DIR__ . '/../assets/css/' . $stylesFile) ?: '1';
+    $stylesHref = $assetBase . 'assets/css/' . $stylesFile . '?v=' . $stylesVersion;
+    $publicAssetBase = $assetUrlBase ?? 'https://idindustrial.com.mx/sistema/';
+  ?>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?php echo htmlspecialchars($title ?? 'ID Industrial'); ?></title>
@@ -15,7 +21,7 @@
   <meta property="og:title" content="<?php echo htmlspecialchars($title ?? 'ID Industrial'); ?>">
   <meta property="og:description" content="<?php echo htmlspecialchars($description ?? 'Soluciones industriales en Querétaro.'); ?>">
   <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
-  <meta property="og:image" content="<?php echo htmlspecialchars(($siteUrl ?? 'https://idindustrial.com.mx/') . 'assets/img/og-id-industrial.webp'); ?>">
+  <meta property="og:image" content="<?php echo htmlspecialchars($publicAssetBase . 'assets/img/og-id-industrial.webp'); ?>">
   <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($assetBase); ?>assets/img/favicon-id-industrial.png">
   <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroMobileImage ?? 'assets/img/hero-mobile.webp')); ?>" media="(max-width: 899px)" fetchpriority="high">
   <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroDesktopImage ?? 'assets/img/hero-desktop.webp')); ?>" media="(min-width: 900px)" fetchpriority="high">
@@ -43,16 +49,16 @@
     .button--primary{background:linear-gradient(135deg,#ffd84d,#f3c623);color:#111316}
     @media (max-width:899px){.nav{grid-template-columns:auto 1fr}.nav-toggle{grid-column:2;justify-self:end;order:0}.hero{min-height:auto}.hero__grid{padding-top:108px}h1{font-size:clamp(3rem,16vw,4.25rem)}}
   </style>
-  <link rel="preload" href="<?php echo htmlspecialchars($assetBase); ?>assets/css/styles.css" as="style">
-  <link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase); ?>assets/css/styles.css" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="<?php echo htmlspecialchars($assetBase); ?>assets/css/styles.css"></noscript>
+  <link rel="preload" href="<?php echo htmlspecialchars($stylesHref); ?>" as="style">
+  <link rel="stylesheet" href="<?php echo htmlspecialchars($stylesHref); ?>" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="<?php echo htmlspecialchars($stylesHref); ?>"></noscript>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     "name": "ID Industrial",
     "url": "<?php echo htmlspecialchars($siteUrl ?? 'https://idindustrial.com.mx/'); ?>",
-    "image": "<?php echo htmlspecialchars(($siteUrl ?? 'https://idindustrial.com.mx/') . 'assets/img/logo-idindustrial.webp'); ?>",
+    "image": "<?php echo htmlspecialchars($publicAssetBase . 'assets/img/logo-idindustrial.webp'); ?>",
     "telephone": "<?php echo htmlspecialchars($phone ?? '+52 442 598 6318'); ?>",
     "email": "<?php echo htmlspecialchars($contactEmail ?? 'contacto@idindustrial.com.mx'); ?>",
     "address": {

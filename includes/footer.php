@@ -1,5 +1,10 @@
 <footer class="site-footer">
-  <?php $assetBase = $basePath ?? ''; ?>
+  <?php
+    $assetBase = $basePath ?? '';
+    $scriptFile = is_file(__DIR__ . '/../assets/js/main.min.js') ? 'main.min.js' : 'main.js';
+    $scriptVersion = @filemtime(__DIR__ . '/../assets/js/' . $scriptFile) ?: '1';
+    $scriptHref = $assetBase . 'assets/js/' . $scriptFile . '?v=' . $scriptVersion;
+  ?>
   <div class="container footer__grid">
     <div class="footer__brand">
       <img src="<?php echo htmlspecialchars($assetBase); ?>assets/img/logo-idindustrial-small.webp" alt="ID Industrial" class="footer__logo" width="280" height="74" loading="lazy" decoding="async" fetchpriority="low">
@@ -28,7 +33,7 @@
         <li>El Marqués &amp; Colón</li>
         <li>Apaseo el Grande &amp; Celaya</li>
       </ul>
-      <a class="footer__phone" href="tel:+524425986318" aria-label="Llamar a ID Industrial">
+      <a class="footer__phone" href="tel:+524425986318">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 10.78a15.3 15.3 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1.02-.24 11.4 11.4 0 0 0 3.56.56 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .56 3.56 1 1 0 0 1-.24 1.02l-2.2 2.2Z"/></svg>
         <strong>+52 442 598 6318</strong>
       </a>
@@ -64,6 +69,6 @@
   </a>
 </aside>
 
-<script src="<?php echo htmlspecialchars($assetBase); ?>assets/js/main.js" defer></script>
+<script src="<?php echo htmlspecialchars($scriptHref); ?>" defer></script>
 </body>
 </html>

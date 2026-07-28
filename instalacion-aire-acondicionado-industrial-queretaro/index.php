@@ -1,12 +1,13 @@
 <?php
 $basePath = '../';
-$siteUrl = 'https://idindustrial.com.mx/';
-$canonicalUrl = 'https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/';
+$siteUrl = 'https://idindustrial.com.mx/sistema/';
+$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
+$canonicalUrl = 'https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
-$heroMobileImage = 'assets/img/instalacion-de-aire-acondicionado-industrial.webp';
-$heroDesktopImage = 'assets/img/instalacion-de-aire-acondicionado-industrial-queretaro.webp';
+$heroMobileImage = 'assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg';
+$heroDesktopImage = 'assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg';
 
 $title = 'Instalación de Aire Acondicionado Industrial en Querétaro | HVAC y Chillers';
 $description = 'Soluciones HVAC industrial en Querétaro: instalación de aire acondicionado, chillers, ventilación y climatización para naves industriales, hospitales y corporativos.';
@@ -55,8 +56,8 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="service-hero section-dark">
     <div class="service-hero__media" aria-hidden="true">
       <picture>
-        <source srcset="<?php echo htmlspecialchars($basePath); ?>assets/img/instalacion-de-aire-acondicionado-industrial-queretaro.webp" media="(min-width: 900px)">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/instalacion-de-aire-acondicionado-industrial.webp" alt="" width="1736" height="906" fetchpriority="high" decoding="async">
+        <source srcset="<?php echo htmlspecialchars($basePath . $heroDesktopImage); ?>" media="(min-width: 900px)">
+        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>" alt="" width="1920" height="500" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="service-hero__overlay" aria-hidden="true"></div>
@@ -105,13 +106,13 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/chillers-industriales-queretaro.webp" alt="Chillers industriales en Querétaro" width="1736" height="906" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg" alt="Chillers industriales en Querétaro" width="1920" height="500" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
 
   <section class="service-banner" aria-label="Operación continua HVAC para plantas">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/chillers-industriales-en-queretaro.webp" alt="Operación continua HVAC para plantas industriales" width="1942" height="809" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg" alt="Operación continua HVAC para plantas industriales" width="1920" height="500" loading="lazy" decoding="async">
     <div>
       <p>Operación continua HVAC para plantas 24/7</p>
       <h2>Redundancia, monitoreo y mantenimiento preventivo</h2>
@@ -143,7 +144,7 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="detail-section section-dark section-pad">
     <div class="container split">
       <figure class="service__image reveal">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/ventilacion-industrial-queretaro.webp" alt="Ventilación industrial en Querétaro" width="1696" height="2528" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/INDUSTRIAL/ID%20INDUSTRIAL%20WEB_3.jpg" alt="Ventilación industrial en Querétaro" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
       <div class="split__content reveal reveal--delay">
         <p class="eyebrow">Infraestructura integrada</p>
@@ -160,7 +161,7 @@ include __DIR__ . '/../includes/navbar.php';
   </section>
 
   <section class="service-banner" aria-label="Instalación de conductos comerciales e industriales">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/instalacion-de-conductos-comerciales.webp" alt="Instalación de conductos comerciales e industriales" width="2048" height="2048" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/TECNOLOGIA%20EN%20LA%20CONSTRUCCION/PAGINA%20WEB%20ID%20INDUSTRIAL_9.jpg" alt="Instalación de conductos comerciales e industriales" width="1920" height="800" loading="lazy" decoding="async">
     <div>
       <p>Ambientes controlados para productividad y seguridad</p>
       <h2>Ductos, ventilación y climatización por zona</h2>

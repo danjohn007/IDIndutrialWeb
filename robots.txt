@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://idindustrial.com.mx/sitemap.xml
+Sitemap: https://idindustrial.com.mx/sistema/sitemap.xml

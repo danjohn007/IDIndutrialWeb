@@ -1,5 +1,7 @@
 <?php
-$siteUrl = 'https://idindustrial.com.mx/';
+$siteUrl = 'https://idindustrial.com.mx/sistema/';
+$publicOrigin = 'https://idindustrial.com.mx';
+$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
@@ -8,7 +10,8 @@ $title = 'ID Industrial | Ingeniería industrial, cableado, HVAC y seguridad en 
 $description = 'Soluciones de ingeniería industrial en Querétaro: cableado estructurado, detección de incendios, sistemas HVAC, fibra óptica, control de accesos e infraestructura crítica.';
 $keywords = 'ID Industrial, cableado estructurado Querétaro, detección de incendios industrial, sistemas HVAC Querétaro, fibra óptica industrial, control de accesos Querétaro';
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
-$canonicalUrl = rtrim($siteUrl, '/') . ($requestPath === '/' ? '/' : $requestPath);
+$canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/' : $requestPath);
+$heroMobileImage = 'assets/img/hero-mobile.webp';
 $heroDesktopImage = 'assets/img/hero-desktop.webp';
 
 $navItems = [
@@ -29,10 +32,10 @@ $services = [
     'eyebrow' => 'Infraestructura de red',
     'title' => 'Cableado estructurado para plantas, oficinas y sites industriales.',
     'copy' => 'Diseñamos e instalamos nodos, racks, canalizaciones, puntos de voz y datos, etiquetado técnico y pruebas para redes preparadas para operación continua.',
-    'image' => 'assets/img/instalacion-de-cableado-estructurado-en-queretaro.webp',
+    'image' => 'assets/imagesnew/SLIDES2/CABLEADO%20ESTRUCTURADO/ID%20INDUSTRIAL%20WEB_5.jpg',
     'alt' => 'Instalación de cableado estructurado en Querétaro',
-    'width' => 1942,
-    'height' => 810,
+    'width' => 1920,
+    'height' => 500,
     'detailHref' => 'industriales/cableado-estructurado-queretaro/',
     'detailLabel' => 'Ver más',
     'bullets' => ['Cableado UTP, fibra y canalización', 'Racks, patch panels y ordenamiento', 'Memoria técnica y pruebas de enlace'],
@@ -42,10 +45,10 @@ $services = [
     'eyebrow' => 'Protección temprana',
     'title' => 'Detección de incendios con integración para áreas críticas.',
     'copy' => 'Implementamos paneles, sensores, sirenas, estaciones manuales y lógica de alerta para reducir tiempos de respuesta y proteger activos estratégicos.',
-    'image' => 'assets/img/fire-alarm-industrial.webp',
+    'image' => 'assets/imagesnew/SLIDES2/SISTEMAS%20CONTRA%20INCENDIO/ID%20INDUSTRIAL%20WEB_8.jpg',
     'alt' => 'Sistema de detección de incendios industrial',
-    'width' => 1942,
-    'height' => 809,
+    'width' => 1920,
+    'height' => 500,
     'detailHref' => '#contacto',
     'detailLabel' => 'Cotizar detección',
     'bullets' => ['Paneles y sensores direccionables', 'Alarmamiento y supervisión', 'Diseño orientado a normativas aplicables'],
@@ -55,23 +58,36 @@ $services = [
     'eyebrow' => 'Control ambiental',
     'title' => 'Sistemas HVAC industriales para continuidad operativa.',
     'copy' => 'Integramos climatización, ventilación, chillers y mantenimiento para oficinas, cuartos técnicos, procesos productivos y espacios de precisión.',
-    'image' => 'assets/img/chillers-industriales-queretaro.webp',
+    'image' => 'assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg',
     'alt' => 'Sistemas HVAC industriales en Querétaro',
-    'width' => 1736,
-    'height' => 906,
+    'width' => 1920,
+    'height' => 500,
     'detailHref' => 'instalacion-aire-acondicionado-industrial-queretaro/',
     'detailLabel' => 'Ver más',
     'bullets' => ['Instalación y mantenimiento', 'Ventilación y ductería', 'Sistemas de precisión para cuartos técnicos'],
+  ],
+  [
+    'id' => 'cctv-industrial',
+    'eyebrow' => 'Videovigilancia industrial',
+    'title' => 'CCTV industrial para monitoreo, evidencia y control operativo.',
+    'copy' => 'Diseñamos e instalamos cámaras IP, grabadores, almacenamiento, redes y monitoreo para plantas, oficinas, perímetros y naves industriales en Querétaro.',
+    'image' => 'assets/imagesnew/SLIDES2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_2.jpg',
+    'alt' => 'Centro de monitoreo CCTV industrial',
+    'width' => 1920,
+    'height' => 800,
+    'detailHref' => 'instalacion-camaras-seguridad-industrial-queretaro/',
+    'detailLabel' => 'Ver más',
+    'bullets' => ['Cámaras IP y grabación 24/7', 'Monitoreo remoto y evidencia', 'Integración con acceso, alarmas y red'],
   ],
   [
     'id' => 'fibra-optica',
     'eyebrow' => 'Alta disponibilidad',
     'title' => 'Fibra óptica para comunicación industrial de alto desempeño.',
     'copy' => 'Tendidos, fusiones, certificación y enlaces de fibra óptica para naves, campus industriales, edificios corporativos y redes críticas.',
-    'image' => 'assets/img/instaladores-de-fibra-optica.webp',
+    'image' => 'assets/imagesnew/BANNERS/FIBRA%20OPTICA/LANDING%20ID%20INDUSTRIAL_6.jpg',
     'alt' => 'Instaladores de fibra óptica industrial',
-    'width' => 1254,
-    'height' => 1254,
+    'width' => 1920,
+    'height' => 500,
     'detailHref' => '#contacto',
     'detailLabel' => 'Cotizar fibra óptica',
     'bullets' => ['Fusión y certificación', 'Backbone para naves y campus', 'Canalización y protección de enlace'],
@@ -81,10 +97,10 @@ $services = [
     'eyebrow' => 'Seguridad y trazabilidad',
     'title' => 'Control de accesos conectado con operación y vigilancia.',
     'copy' => 'Integramos biométricos, tarjetas, plumas, torniquetes, CCTV y monitoreo para controlar personal, proveedores y perímetros industriales.',
-    'image' => 'assets/img/control-de-acceso-conectado-a-CCTV-queretaro.webp',
+    'image' => 'assets/imagesnew/SLIDES2/CONTROL%20DE%20ACCESOS/PAGINA%20WEB%20ID%20INDUSTRIAL_4.jpg',
     'alt' => 'Control de accesos conectado a CCTV',
-    'width' => 1254,
-    'height' => 1254,
+    'width' => 1920,
+    'height' => 800,
     'detailHref' => 'control-de-acceso-de-personal-queretaro/',
     'detailLabel' => 'Ver más',
     'bullets' => ['Biométricos, tarjetas y plumas', 'Integración con CCTV y nómina', 'Trazabilidad de entradas y salidas'],
@@ -114,10 +130,10 @@ $serviceOverview = [
     'title' => 'Cableado estructurado',
     'copy' => 'Redes industriales, voz y datos, racks, servidores, sites y fibra óptica para operación estable.',
     'href' => 'industriales/cableado-estructurado-queretaro/',
-    'image' => 'assets/img/thumb-cableado-estructurado.webp',
+    'image' => 'assets/imagesnew/BANNERS/CABLEADO%20ESTRUCTURADO/LANDING%20ID%20INDUSTRIAL_10.jpg',
     'alt' => 'Cableado estructurado industrial en Querétaro',
-    'width' => 560,
-    'height' => 560,
+    'width' => 1920,
+    'height' => 500,
     'badge' => 'Página técnica',
     'featured' => true,
   ],
@@ -125,10 +141,10 @@ $serviceOverview = [
     'title' => 'Detección de incendios',
     'copy' => 'Paneles, sensores, estaciones manuales y alarmamiento para áreas críticas y procesos productivos.',
     'href' => '#deteccion-incendios',
-    'image' => 'assets/img/thumb-deteccion-incendios.webp',
+    'image' => 'assets/imagesnew/SLIDES2/SISTEMAS%20CONTRA%20INCENDIO/ID%20INDUSTRIAL%20WEB_8.jpg',
     'alt' => 'Panel de detección de incendios industrial',
-    'width' => 560,
-    'height' => 373,
+    'width' => 1920,
+    'height' => 500,
     'badge' => 'Resumen',
     'featured' => false,
   ],
@@ -136,10 +152,10 @@ $serviceOverview = [
     'title' => 'Sistemas HVAC',
     'copy' => 'Climatización, ventilación, chillers y soporte para cuartos técnicos, oficinas y producción.',
     'href' => 'instalacion-aire-acondicionado-industrial-queretaro/',
-    'image' => 'assets/img/thumb-hvac.webp',
+    'image' => 'assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg',
     'alt' => 'Sistemas HVAC industriales',
-    'width' => 560,
-    'height' => 233,
+    'width' => 1920,
+    'height' => 500,
     'badge' => 'Resumen',
     'featured' => false,
   ],
@@ -147,10 +163,10 @@ $serviceOverview = [
     'title' => 'CCTV industrial',
     'copy' => 'Instalación de cámaras de seguridad, videovigilancia y monitoreo para plantas, oficinas y naves industriales.',
     'href' => 'instalacion-camaras-seguridad-industrial-queretaro/',
-    'image' => 'assets/img/sistema-de-cctv.webp',
+    'image' => 'assets/imagesnew/BANNERS%20VER2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_11.jpg',
     'alt' => 'Sistema de CCTV industrial en Querétaro',
-    'width' => 1944,
-    'height' => 809,
+    'width' => 1920,
+    'height' => 500,
     'badge' => 'Página técnica',
     'featured' => true,
   ],
@@ -158,10 +174,10 @@ $serviceOverview = [
     'title' => 'Fibra óptica',
     'copy' => 'Backbone, fusiones, certificación e interconexión de edificios para redes de alto desempeño.',
     'href' => '#fibra-optica',
-    'image' => 'assets/img/thumb-fibra-optica.webp',
+    'image' => 'assets/imagesnew/BANNERS/FIBRA%20OPTICA/LANDING%20ID%20INDUSTRIAL_6.jpg',
     'alt' => 'Instalación de fibra óptica en Querétaro',
-    'width' => 560,
-    'height' => 234,
+    'width' => 1920,
+    'height' => 500,
     'badge' => 'Resumen',
     'featured' => false,
   ],
@@ -169,10 +185,10 @@ $serviceOverview = [
     'title' => 'Control de Accesos',
     'copy' => 'Biométricos, tarjetas, plumas, CCTV y trazabilidad para personal, proveedores y perímetros.',
     'href' => 'control-de-acceso-de-personal-queretaro/',
-    'image' => 'assets/img/thumb-control-accesos.webp',
+    'image' => 'assets/imagesnew/BANNERS%20VER2/CONTROL%20DE%20ACCESO/PAGINA%20WEB%20ID%20INDUSTRIAL_13.jpg',
     'alt' => 'Control de accesos biométrico industrial',
-    'width' => 560,
-    'height' => 233,
+    'width' => 1920,
+    'height' => 500,
     'badge' => 'Página técnica',
     'featured' => true,
   ],
@@ -210,8 +226,8 @@ include __DIR__ . '/includes/navbar.php';
   <section class="hero section-dark" aria-labelledby="hero-title">
     <div class="hero__media" aria-hidden="true">
       <picture>
-        <source srcset="assets/img/hero-desktop.webp" media="(min-width: 900px)">
-        <img src="assets/img/hero-mobile.webp" alt="" width="820" height="342" fetchpriority="high" decoding="async">
+        <source srcset="<?php echo htmlspecialchars($heroDesktopImage); ?>" media="(min-width: 900px)">
+        <img src="<?php echo htmlspecialchars($heroMobileImage); ?>" alt="" width="820" height="342" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="hero__overlay" aria-hidden="true"></div>
@@ -290,7 +306,7 @@ include __DIR__ . '/includes/navbar.php';
         </div>
       </div>
       <figure class="image-lockup reveal reveal--delay">
-        <img src="assets/img/personal-capacitado-industrial.webp" alt="Personal capacitado de ID Industrial" width="1942" height="810" loading="lazy" decoding="async">
+        <img src="assets/imagesnew/SLIDES2/INDUSTRIAL/ID%20INDUSTRIAL%20WEB_1.jpg" alt="Personal capacitado de ID Industrial" width="1920" height="800" loading="lazy" decoding="async">
         <figcaption>Cuadrillas técnicas para ejecución industrial con orden, seguridad y trazabilidad.</figcaption>
       </figure>
     </div>
@@ -372,7 +388,7 @@ include __DIR__ . '/includes/navbar.php';
         <p>Cuando redes, HVAC, seguridad, control de accesos y detección trabajan con una misma lógica de operación, el mantenimiento es más claro y las decisiones se toman con mejor información.</p>
       </div>
       <div class="integration__visual reveal reveal--delay">
-        <img src="assets/img/centros-de-monitoreo-inteligentes.webp" alt="Centro de monitoreo inteligente industrial" width="1500" height="1000" loading="lazy" decoding="async">
+        <img src="assets/imagesnew/SLIDES2/SERVIDORES/ID%20INDUSTRIAL%20WEB_2.jpg" alt="Centro de monitoreo inteligente industrial" width="1920" height="800" loading="lazy" decoding="async">
       </div>
     </div>
   </section>
@@ -467,6 +483,7 @@ include __DIR__ . '/includes/navbar.php';
               <option value="Cableado estructurado">Cableado estructurado</option>
               <option value="Detección de incendios">Detección de incendios</option>
               <option value="Sistemas HVAC">Sistemas HVAC</option>
+              <option value="CCTV industrial">CCTV industrial</option>
               <option value="Fibra óptica">Fibra óptica</option>
               <option value="Control de Accesos">Control de Accesos</option>
             </select>

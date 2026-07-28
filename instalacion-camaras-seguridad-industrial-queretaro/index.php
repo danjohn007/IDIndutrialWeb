@@ -1,12 +1,13 @@
 <?php
 $basePath = '../';
-$siteUrl = 'https://idindustrial.com.mx/';
-$canonicalUrl = 'https://idindustrial.com.mx/instalacion-camaras-seguridad-industrial-queretaro/';
+$siteUrl = 'https://idindustrial.com.mx/sistema/';
+$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
+$canonicalUrl = 'https://idindustrial.com.mx/sistema/instalacion-camaras-seguridad-industrial-queretaro/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
-$heroMobileImage = 'assets/img/Instalacion-de-camaras-de-seguridad-industrial-en-Queretaro.webp';
-$heroDesktopImage = 'assets/img/sistema-de-cctv.webp';
+$heroMobileImage = 'assets/imagesnew/BANNERS/CCTV/LANDING%20ID%20INDUSTRIAL_2.jpg';
+$heroDesktopImage = 'assets/imagesnew/BANNERS%20VER2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_11.jpg';
 
 $title = 'Instalación de cámaras de seguridad industrial en Querétaro | CCTV para naves industriales';
 $description = 'Instalación profesional de cámaras de seguridad industrial y sistemas CCTV en Querétaro. Protección a perímetros, plantas y naves industriales.';
@@ -74,6 +75,30 @@ $glossaryItems = [
   ],
 ];
 
+$carouselItems = [
+  [
+    'image' => 'assets/imagesnew/BANNERS%20VER2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_11.jpg',
+    'alt' => 'Banner de CCTV industrial para instalaciones corporativas',
+    'width' => 1920,
+    'height' => 500,
+    'label' => 'CCTV industrial',
+  ],
+  [
+    'image' => 'assets/imagesnew/SLIDES2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_2.jpg',
+    'alt' => 'Sistema de videovigilancia para naves industriales',
+    'width' => 1920,
+    'height' => 800,
+    'label' => 'Videovigilancia',
+  ],
+  [
+    'image' => 'assets/imagesnew/SLIDES2/CONTROL%20DE%20ACCESOS/PAGINA%20WEB%20ID%20INDUSTRIAL_4.jpg',
+    'alt' => 'Control de accesos integrado con monitoreo CCTV',
+    'width' => 1920,
+    'height' => 800,
+    'label' => 'Control integrado',
+  ],
+];
+
 include __DIR__ . '/../includes/head.php';
 include __DIR__ . '/../includes/navbar.php';
 ?>
@@ -82,8 +107,8 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="service-hero section-dark">
     <div class="service-hero__media" aria-hidden="true">
       <picture>
-        <source srcset="<?php echo htmlspecialchars($basePath); ?>assets/img/sistema-de-cctv.webp" media="(min-width: 900px)">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/Instalacion-de-camaras-de-seguridad-industrial-en-Queretaro.webp" alt="" width="1942" height="810" fetchpriority="high" decoding="async">
+        <source srcset="<?php echo htmlspecialchars($basePath . $heroDesktopImage); ?>" media="(min-width: 900px)">
+        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>" alt="" width="1920" height="500" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="service-hero__overlay" aria-hidden="true"></div>
@@ -134,13 +159,43 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image service__image--cctv reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/cctv-para-naves-industriales-qro.webp" alt="Cámara CCTV instalada en nave industrial" width="1942" height="809" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_2.jpg" alt="Cámara CCTV instalada en nave industrial" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
 
+  <section class="project-carousel section-dark section-pad" aria-labelledby="cctv-carousel-title">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Galería por área</p>
+        <h2 id="cctv-carousel-title">Imágenes segmentadas para CCTV, monitoreo y control de accesos.</h2>
+      </div>
+      <div class="media-carousel reveal" data-carousel>
+        <div class="media-carousel__viewport">
+          <?php foreach ($carouselItems as $index => $item): ?>
+            <figure class="media-carousel__slide <?php echo $index === 0 ? 'is-active' : ''; ?>" aria-hidden="<?php echo $index === 0 ? 'false' : 'true'; ?>" data-carousel-slide>
+              <img src="<?php echo htmlspecialchars($basePath . $item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
+              <figcaption><?php echo htmlspecialchars($item['label']); ?></figcaption>
+            </figure>
+          <?php endforeach; ?>
+        </div>
+        <button class="media-carousel__arrow media-carousel__arrow--prev" type="button" aria-label="Imagen anterior" data-carousel-prev>
+          <span aria-hidden="true"></span>
+        </button>
+        <button class="media-carousel__arrow media-carousel__arrow--next" type="button" aria-label="Imagen siguiente" data-carousel-next>
+          <span aria-hidden="true"></span>
+        </button>
+        <div class="media-carousel__dots" aria-label="Seleccionar imagen">
+          <?php foreach ($carouselItems as $index => $item): ?>
+            <button class="media-carousel__dot <?php echo $index === 0 ? 'is-active' : ''; ?>" type="button" aria-label="Ver <?php echo htmlspecialchars($item['label']); ?>" aria-current="<?php echo $index === 0 ? 'true' : 'false'; ?>" data-carousel-dot="<?php echo (int) $index; ?>"></button>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="service-banner service-banner--contain" aria-label="CCTV industrial para continuidad operativa">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/cctv-para-plantas-industriales.webp" alt="CCTV para plantas industriales" width="1942" height="809" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS/CCTV/LANDING%20ID%20INDUSTRIAL_2.jpg" alt="CCTV para plantas industriales" width="1920" height="500" loading="lazy" decoding="async">
     <div>
       <p>Instalación alineada a normas y procesos internos</p>
       <h2>CCTV industrial para cumplir y operar sin riesgos</h2>
@@ -170,7 +225,7 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="detail-section section-dark section-pad">
     <div class="container split">
       <figure class="service__image service__image--monitoring reveal">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/centros-de-monitoreo-inteligentes.webp" alt="Centro de monitoreo inteligente para sistemas CCTV" width="1500" height="1000" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS%20VER2/CONTROL%20DE%20ACCESO/PAGINA%20WEB%20ID%20INDUSTRIAL_13.jpg" alt="Centro de monitoreo inteligente para sistemas CCTV" width="1920" height="500" loading="lazy" decoding="async">
       </figure>
       <div class="split__content reveal reveal--delay">
         <p class="eyebrow">Empresa instaladora en Querétaro</p>
@@ -187,7 +242,7 @@ include __DIR__ . '/../includes/navbar.php';
   </section>
 
   <section class="service-banner service-banner--contain" aria-label="Control de accesos y monitoreo remoto">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/seguridad-industrial-en-empresas.webp" alt="Seguridad industrial en empresas" width="2239" height="702" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CONTROL%20DE%20ACCESOS/PAGINA%20WEB%20ID%20INDUSTRIAL_4.jpg" alt="Seguridad industrial en empresas" width="1920" height="800" loading="lazy" decoding="async">
     <div>
       <p>Control de accesos y monitoreo en una misma arquitectura</p>
       <h2>Video, identidad y reportes para operación diaria</h2>
@@ -230,7 +285,7 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image service__image--factory reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/seguridad-industrial-inteligente-en-queretaro.webp" alt="CCTV inteligente integrado con operación industrial" width="1254" height="1254" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/INDUSTRIAL/ID%20INDUSTRIAL%20WEB_3.jpg" alt="CCTV inteligente integrado con operación industrial" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>

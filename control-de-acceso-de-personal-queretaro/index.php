@@ -1,12 +1,13 @@
 <?php
 $basePath = '../';
-$siteUrl = 'https://idindustrial.com.mx/';
-$canonicalUrl = 'https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/';
+$siteUrl = 'https://idindustrial.com.mx/sistema/';
+$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
+$canonicalUrl = 'https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
-$heroMobileImage = 'assets/img/control-de-acceso-de-personal.webp';
-$heroDesktopImage = 'assets/img/control-de-acceso-biometrico-queretaro.webp';
+$heroMobileImage = 'assets/imagesnew/BANNERS/CONTROL%20DE%20ACCESOS/LANDING%20ID%20INDUSTRIAL_1.jpg';
+$heroDesktopImage = 'assets/imagesnew/BANNERS%20VER2/CONTROL%20DE%20ACCESO/PAGINA%20WEB%20ID%20INDUSTRIAL_13.jpg';
 
 $title = 'Control de acceso de personal Querétaro | Biométricos, CCTV y Nómina';
 $description = 'Instalación de control de acceso de personal en Querétaro para empresas industriales y corporativos. Sistemas biométricos, tarjetas RFID, CCTV y nómina.';
@@ -43,8 +44,8 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="service-hero section-dark">
     <div class="service-hero__media" aria-hidden="true">
       <picture>
-        <source srcset="<?php echo htmlspecialchars($basePath); ?>assets/img/control-de-acceso-biometrico-queretaro.webp" media="(min-width: 900px)">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/control-de-acceso-de-personal.webp" alt="" width="1942" height="809" fetchpriority="high" decoding="async">
+        <source srcset="<?php echo htmlspecialchars($basePath . $heroDesktopImage); ?>" media="(min-width: 900px)">
+        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>" alt="" width="1920" height="500" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="service-hero__overlay" aria-hidden="true"></div>
@@ -93,13 +94,13 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/control-de-acceso-con-tarjeta-qro.webp" alt="Control de acceso con tarjeta en Querétaro" width="1254" height="1254" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CONTROL%20DE%20ACCESOS/PAGINA%20WEB%20ID%20INDUSTRIAL_4.jpg" alt="Control de acceso con tarjeta en Querétaro" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
 
   <section class="service-banner" aria-label="Control de acceso RH conectado a cálculo de nómina">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/control-de-asistencia-biometrico.webp" alt="Control de asistencia biométrico conectado a nómina" width="1942" height="810" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS/CONTROL%20DE%20ACCESOS/LANDING%20ID%20INDUSTRIAL_4.jpg" alt="Control de asistencia biométrico conectado a nómina" width="1920" height="500" loading="lazy" decoding="async">
     <div>
       <p>RH, asistencia y seguridad en una sola plataforma</p>
       <h2>Control de acceso conectado a nómina</h2>
@@ -130,7 +131,7 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="detail-section section-dark section-pad">
     <div class="container split">
       <figure class="service__image reveal">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/control-de-acceso-para-puertas-sjr.webp" alt="Puertas de alta seguridad y control de acceso" width="1254" height="1254" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS/CONTROL%20DE%20ACCESOS/LANDING%20ID%20INDUSTRIAL_9.jpg" alt="Puertas de alta seguridad y control de acceso" width="1920" height="500" loading="lazy" decoding="async">
       </figure>
       <div class="split__content reveal reveal--delay">
         <p class="eyebrow">Áreas críticas</p>
@@ -147,7 +148,7 @@ include __DIR__ . '/../includes/navbar.php';
   </section>
 
   <section class="service-banner" aria-label="CCTV industrial conectado a accesos">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/control-de-acceso-conectado-a-CCTV-queretaro.webp" alt="Control de acceso conectado a CCTV industrial" width="1254" height="1254" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS%20VER2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_11.jpg" alt="Control de acceso conectado a CCTV industrial" width="1920" height="500" loading="lazy" decoding="async">
     <div>
       <p>CCTV industrial conectado a accesos y monitoreo</p>
       <h2>Video, identidad y alertas en tiempo real</h2>

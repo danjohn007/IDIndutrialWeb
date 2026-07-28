@@ -6,6 +6,7 @@ const dropdown = document.querySelector('[data-dropdown]');
 const dropdownToggle = document.querySelector('[data-dropdown-toggle]');
 const revealItems = document.querySelectorAll('.reveal');
 const counters = document.querySelectorAll('[data-count]');
+const carousels = document.querySelectorAll('[data-carousel]');
 
 let scrollTicking = false;
 
@@ -85,6 +86,39 @@ const counterObserver = new IntersectionObserver((entries) => {
 }, { threshold: 0.7 });
 
 counters.forEach((counter) => counterObserver.observe(counter));
+
+carousels.forEach((carousel) => {
+  const slides = Array.from(carousel.querySelectorAll('[data-carousel-slide]'));
+  const dots = Array.from(carousel.querySelectorAll('[data-carousel-dot]'));
+  const prev = carousel.querySelector('[data-carousel-prev]');
+  const next = carousel.querySelector('[data-carousel-next]');
+  let current = 0;
+
+  function showSlide(index) {
+    if (!slides.length) return;
+    current = (index + slides.length) % slides.length;
+    slides.forEach((slide, slideIndex) => {
+      const isActive = slideIndex === current;
+      slide.classList.toggle('is-active', isActive);
+      slide.setAttribute('aria-hidden', String(!isActive));
+    });
+    dots.forEach((dot, dotIndex) => {
+      const isActive = dotIndex === current;
+      dot.classList.toggle('is-active', isActive);
+      dot.setAttribute('aria-current', String(isActive));
+    });
+  }
+
+  prev?.addEventListener('click', () => showSlide(current - 1));
+  next?.addEventListener('click', () => showSlide(current + 1));
+  dots.forEach((dot) => {
+    dot.addEventListener('click', () => showSlide(Number(dot.dataset.carouselDot || 0)));
+  });
+  carousel.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowLeft') showSlide(current - 1);
+    if (event.key === 'ArrowRight') showSlide(current + 1);
+  });
+});
 
 window.addEventListener('scroll', () => {
   if (scrollTicking) return;
