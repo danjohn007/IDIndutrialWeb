@@ -184,7 +184,7 @@ $counts = [
   'leads' => (int) $pdo->query('SELECT COUNT(*) FROM opportunities')->fetchColumn(),
   'clients' => (int) $pdo->query('SELECT COUNT(*) FROM clients')->fetchColumn(),
   'open_quotes' => (int) $pdo->query("SELECT COUNT(*) FROM quotes WHERE status NOT IN ('Aprobada', 'Perdida')")->fetchColumn(),
-  'pending' => (int) $pdo->query("SELECT COUNT(*) FROM activities WHERE completed_at IS NULL AND (due_date IS NULL OR due_date <= date('now', '+2 days'))")->fetchColumn(),
+  'pending' => 0,
 ];
 $quoteTotal = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM quotes WHERE status NOT IN ('Perdida')")->fetchColumn();
 $wonTotal = (float) $pdo->query("SELECT COALESCE(SUM(estimated_value), 0) FROM opportunities WHERE status = 'Proyecto ganado'")->fetchColumn();
@@ -196,8 +196,14 @@ $quotes = $pdo->query('
   ORDER BY q.created_at DESC
 ')->fetchAll();
 $clients = $pdo->query('SELECT * FROM clients ORDER BY is_public DESC, name')->fetchAll();
+$pendingStmt = $pdo->prepare('SELECT COUNT(*) FROM activities WHERE completed_at IS NULL AND (due_date IS NULL OR due_date <= ?)');
+$pendingStmt->execute([date('Y-m-d', strtotime('+2 days'))]);
+$counts['pending'] = (int) $pendingStmt->fetchColumn();
 $statusRows = $pdo->query('SELECT status, COUNT(*) AS total FROM opportunities GROUP BY status ORDER BY total DESC')->fetchAll();
-$monthlyRows = $pdo->query("SELECT strftime('%m', created_at) AS month, COUNT(*) AS total FROM opportunities GROUP BY strftime('%m', created_at) ORDER BY month")->fetchAll();
+$monthlySql = crm_driver($pdo) === 'mysql'
+  ? "SELECT DATE_FORMAT(created_at, '%m') AS month, COUNT(*) AS total FROM opportunities GROUP BY DATE_FORMAT(created_at, '%m') ORDER BY month"
+  : "SELECT strftime('%m', created_at) AS month, COUNT(*) AS total FROM opportunities GROUP BY strftime('%m', created_at) ORDER BY month";
+$monthlyRows = $pdo->query($monthlySql)->fetchAll();
 
 $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', 'HVAC industrial', 'Deteccion de incendios', 'Fibra optica', 'Subestaciones electricas', 'Mantenimiento'];
 ?>

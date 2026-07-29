@@ -1,76 +1,90 @@
-PRAGMA foreign_keys = ON;
+-- Base de datos MySQL/MariaDB para importar en phpMyAdmin.
+-- Selecciona primero la base idindust_crm_idindustrial y luego ejecuta este archivo.
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 1;
 
 CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'admin',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(160) NOT NULL,
+  email VARCHAR(190) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(60) NOT NULL DEFAULT 'admin',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS clients (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  segment TEXT NOT NULL DEFAULT 'Industrial',
-  city TEXT,
-  contact_name TEXT,
-  contact_email TEXT,
-  contact_phone TEXT,
-  notes TEXT,
-  is_public INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(190) NOT NULL,
+  segment VARCHAR(120) NOT NULL DEFAULT 'Industrial',
+  city VARCHAR(120) NULL,
+  contact_name VARCHAR(160) NULL,
+  contact_email VARCHAR(190) NULL,
+  contact_phone VARCHAR(60) NULL,
+  notes TEXT NULL,
+  is_public TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_clients_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS opportunities (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  client_id INTEGER,
-  company_name TEXT NOT NULL,
-  contact_name TEXT NOT NULL,
-  contact_email TEXT,
-  contact_phone TEXT,
-  service TEXT NOT NULL,
-  source TEXT NOT NULL DEFAULT 'Sitio web',
-  status TEXT NOT NULL DEFAULT 'Nueva solicitud',
-  priority TEXT NOT NULL DEFAULT 'Media',
-  estimated_value REAL NOT NULL DEFAULT 0,
-  next_action_date TEXT,
-  notes TEXT,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
-);
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  client_id INT UNSIGNED NULL,
+  company_name VARCHAR(190) NOT NULL,
+  contact_name VARCHAR(160) NOT NULL,
+  contact_email VARCHAR(190) NULL,
+  contact_phone VARCHAR(60) NULL,
+  service VARCHAR(160) NOT NULL,
+  source VARCHAR(120) NOT NULL DEFAULT 'Sitio web',
+  status VARCHAR(80) NOT NULL DEFAULT 'Nueva solicitud',
+  priority VARCHAR(30) NOT NULL DEFAULT 'Media',
+  estimated_value DECIMAL(12,2) NOT NULL DEFAULT 0,
+  next_action_date DATE NULL,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_opportunities_client (client_id),
+  KEY idx_opportunities_status (status),
+  KEY idx_opportunities_next_action (next_action_date),
+  CONSTRAINT fk_opportunities_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS quotes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  opportunity_id INTEGER NOT NULL,
-  quote_code TEXT NOT NULL UNIQUE,
-  amount REAL NOT NULL DEFAULT 0,
-  status TEXT NOT NULL DEFAULT 'En elaboracion',
-  probability INTEGER NOT NULL DEFAULT 40,
-  sent_at TEXT,
-  valid_until TEXT,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
-);
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  opportunity_id INT UNSIGNED NOT NULL,
+  quote_code VARCHAR(60) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  status VARCHAR(80) NOT NULL DEFAULT 'En elaboracion',
+  probability TINYINT UNSIGNED NOT NULL DEFAULT 40,
+  sent_at DATE NULL,
+  valid_until DATE NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_quotes_code (quote_code),
+  KEY idx_quotes_opportunity (opportunity_id),
+  KEY idx_quotes_status (status),
+  CONSTRAINT fk_quotes_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS activities (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  opportunity_id INTEGER NOT NULL,
-  type TEXT NOT NULL DEFAULT 'Seguimiento',
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  opportunity_id INT UNSIGNED NOT NULL,
+  type VARCHAR(80) NOT NULL DEFAULT 'Seguimiento',
   summary TEXT NOT NULL,
-  due_date TEXT,
-  completed_at TEXT,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
-);
+  due_date DATE NULL,
+  completed_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_activities_opportunity (opportunity_id),
+  KEY idx_activities_due (completed_at, due_date),
+  CONSTRAINT fk_activities_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE INDEX IF NOT EXISTS idx_opportunities_status ON opportunities(status);
-CREATE INDEX IF NOT EXISTS idx_opportunities_next_action ON opportunities(next_action_date);
-CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
-CREATE INDEX IF NOT EXISTS idx_activities_due ON activities(completed_at, due_date);
-
-INSERT OR IGNORE INTO users (name, email, password_hash, role)
+INSERT IGNORE INTO users (name, email, password_hash, role)
 VALUES (
   'Administrador',
   'admin@idindustrial.com.mx',
@@ -78,7 +92,7 @@ VALUES (
   'superadmin'
 );
 
-INSERT OR IGNORE INTO clients (name, segment, city, is_public, notes) VALUES
+INSERT IGNORE INTO clients (name, segment, city, is_public, notes) VALUES
   ('Daechang', 'Automotriz', 'Queretaro', 1, 'Cliente de referencia para credibilidad comercial.'),
   ('DR-ENC', 'Manufactura', 'Queretaro', 1, 'Cliente de referencia para credibilidad comercial.'),
   ('Pollux', 'Industrial', 'Bajio', 1, 'Cliente de referencia para credibilidad comercial.'),

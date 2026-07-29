@@ -1,9 +1,40 @@
 <?php
 declare(strict_types=1);
 
+function crm_config(): array
+{
+  $config = [
+    'driver' => 'sqlite',
+    'host' => 'localhost',
+    'database' => '',
+    'username' => '',
+    'password' => '',
+    'charset' => 'utf8mb4',
+  ];
+
+  $configPath = __DIR__ . '/../config.php';
+  if (is_file($configPath)) {
+    $customConfig = require $configPath;
+    if (is_array($customConfig)) {
+      $config = array_replace($config, $customConfig);
+    }
+  }
+
+  return $config;
+}
+
 function crm_db_path(): string
 {
   return __DIR__ . '/../data/idindustrial_crm.sqlite';
+}
+
+function crm_driver(?PDO $pdo = null): string
+{
+  if ($pdo instanceof PDO) {
+    return (string) $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+  }
+
+  return (string) crm_config()['driver'];
 }
 
 function crm_db(): PDO
@@ -13,21 +44,42 @@ function crm_db(): PDO
     return $pdo;
   }
 
-  $dataDir = dirname(crm_db_path());
-  if (!is_dir($dataDir)) {
-    mkdir($dataDir, 0755, true);
+  $config = crm_config();
+  if (($config['driver'] ?? 'sqlite') === 'mysql') {
+    $charset = $config['charset'] ?: 'utf8mb4';
+    $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', $config['host'], $config['database'], $charset);
+    $pdo = new PDO($dsn, (string) $config['username'], (string) $config['password']);
+  } else {
+    $dataDir = dirname(crm_db_path());
+    if (!is_dir($dataDir)) {
+      mkdir($dataDir, 0755, true);
+    }
+    $pdo = new PDO('sqlite:' . crm_db_path());
   }
 
-  $pdo = new PDO('sqlite:' . crm_db_path());
   $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-  $pdo->exec('PRAGMA foreign_keys = ON');
+
+  if (crm_driver($pdo) === 'sqlite') {
+    $pdo->exec('PRAGMA foreign_keys = ON');
+  }
+
   crm_migrate($pdo);
   crm_seed($pdo);
   return $pdo;
 }
 
 function crm_migrate(PDO $pdo): void
+{
+  if (crm_driver($pdo) === 'mysql') {
+    crm_migrate_mysql($pdo);
+    return;
+  }
+
+  crm_migrate_sqlite($pdo);
+}
+
+function crm_migrate_sqlite(PDO $pdo): void
 {
   $pdo->exec("
     CREATE TABLE IF NOT EXISTS users (
@@ -94,6 +146,96 @@ function crm_migrate(PDO $pdo): void
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
     );
+
+    CREATE INDEX IF NOT EXISTS idx_opportunities_status ON opportunities(status);
+    CREATE INDEX IF NOT EXISTS idx_opportunities_next_action ON opportunities(next_action_date);
+    CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
+    CREATE INDEX IF NOT EXISTS idx_activities_due ON activities(completed_at, due_date);
+  ");
+}
+
+function crm_migrate_mysql(PDO $pdo): void
+{
+  $pdo->exec("
+    CREATE TABLE IF NOT EXISTS users (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(160) NOT NULL,
+      email VARCHAR(190) NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(60) NOT NULL DEFAULT 'admin',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_users_email (email)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS clients (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(190) NOT NULL,
+      segment VARCHAR(120) NOT NULL DEFAULT 'Industrial',
+      city VARCHAR(120) NULL,
+      contact_name VARCHAR(160) NULL,
+      contact_email VARCHAR(190) NULL,
+      contact_phone VARCHAR(60) NULL,
+      notes TEXT NULL,
+      is_public TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_clients_name (name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS opportunities (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      client_id INT UNSIGNED NULL,
+      company_name VARCHAR(190) NOT NULL,
+      contact_name VARCHAR(160) NOT NULL,
+      contact_email VARCHAR(190) NULL,
+      contact_phone VARCHAR(60) NULL,
+      service VARCHAR(160) NOT NULL,
+      source VARCHAR(120) NOT NULL DEFAULT 'Sitio web',
+      status VARCHAR(80) NOT NULL DEFAULT 'Nueva solicitud',
+      priority VARCHAR(30) NOT NULL DEFAULT 'Media',
+      estimated_value DECIMAL(12,2) NOT NULL DEFAULT 0,
+      next_action_date DATE NULL,
+      notes TEXT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_opportunities_client (client_id),
+      KEY idx_opportunities_status (status),
+      KEY idx_opportunities_next_action (next_action_date),
+      CONSTRAINT fk_opportunities_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS quotes (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      opportunity_id INT UNSIGNED NOT NULL,
+      quote_code VARCHAR(60) NOT NULL,
+      amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+      status VARCHAR(80) NOT NULL DEFAULT 'En elaboracion',
+      probability TINYINT UNSIGNED NOT NULL DEFAULT 40,
+      sent_at DATE NULL,
+      valid_until DATE NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_quotes_code (quote_code),
+      KEY idx_quotes_opportunity (opportunity_id),
+      KEY idx_quotes_status (status),
+      CONSTRAINT fk_quotes_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS activities (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      opportunity_id INT UNSIGNED NOT NULL,
+      type VARCHAR(80) NOT NULL DEFAULT 'Seguimiento',
+      summary TEXT NOT NULL,
+      due_date DATE NULL,
+      completed_at DATETIME NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_activities_opportunity (opportunity_id),
+      KEY idx_activities_due (completed_at, due_date),
+      CONSTRAINT fk_activities_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   ");
 }
 
@@ -140,15 +282,16 @@ function crm_seed(PDO $pdo): void
     ];
     $opStmt = $pdo->prepare('
       INSERT INTO opportunities (client_id, company_name, contact_name, contact_email, contact_phone, service, status, estimated_value, next_action_date, notes, source)
-      VALUES ((SELECT id FROM clients WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, date("now", ?), ?, "Referido / cartera")
+      VALUES ((SELECT id FROM clients WHERE name = ? LIMIT 1), ?, ?, ?, ?, ?, ?, ?, ?, ?, "Referido / cartera")
     ');
-    $quoteStmt = $pdo->prepare('INSERT INTO quotes (opportunity_id, quote_code, amount, status, probability, sent_at, valid_until) VALUES (?, ?, ?, ?, ?, date("now", "-2 days"), date("now", "+15 days"))');
-    $activityStmt = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, ?, ?, date("now", ?))');
+    $quoteStmt = $pdo->prepare('INSERT INTO quotes (opportunity_id, quote_code, amount, status, probability, sent_at, valid_until) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    $activityStmt = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, ?, ?, ?)');
     foreach ($seed as $index => $row) {
-      $opStmt->execute([$row[0], $row[0], $row[1], $row[2], $row[3], $row[4], $row[5], $row[6], $row[7], $row[8]]);
+      $nextActionDate = date('Y-m-d', strtotime($row[7]));
+      $opStmt->execute([$row[0], $row[0], $row[1], $row[2], $row[3], $row[4], $row[5], $row[6], $nextActionDate, $row[8]]);
       $opportunityId = (int) $pdo->lastInsertId();
-      $quoteStmt->execute([$opportunityId, 'ID-' . date('Y') . '-' . str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT), $row[6], $row[5] === 'Cotizacion enviada' ? 'Enviada' : 'En elaboracion', $row[5] === 'Cotizacion enviada' ? 65 : 40]);
-      $activityStmt->execute([$opportunityId, 'Seguimiento comercial', 'Actualizar avance y siguiente paso tecnico.', $row[7]]);
+      $quoteStmt->execute([$opportunityId, 'ID-' . date('Y') . '-' . str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT), $row[6], $row[5] === 'Cotizacion enviada' ? 'Enviada' : 'En elaboracion', $row[5] === 'Cotizacion enviada' ? 65 : 40, date('Y-m-d', strtotime('-2 days')), date('Y-m-d', strtotime('+15 days'))]);
+      $activityStmt->execute([$opportunityId, 'Seguimiento comercial', 'Actualizar avance y siguiente paso tecnico.', $nextActionDate]);
     }
   }
 }
@@ -167,7 +310,7 @@ function crm_capture_public_lead(array $data): void
     $pdo = crm_db();
     $stmt = $pdo->prepare('
       INSERT INTO opportunities (company_name, contact_name, contact_email, contact_phone, service, source, status, priority, estimated_value, next_action_date, notes)
-      VALUES (?, ?, ?, ?, ?, "Formulario web", "Nueva solicitud", "Alta", 0, date("now", "+1 day"), ?)
+      VALUES (?, ?, ?, ?, ?, "Formulario web", "Nueva solicitud", "Alta", 0, ?, ?)
     ');
     $stmt->execute([
       trim((string) ($data['company_name'] ?? 'Sin empresa')),
@@ -175,11 +318,12 @@ function crm_capture_public_lead(array $data): void
       trim((string) ($data['contact_email'] ?? '')),
       trim((string) ($data['contact_phone'] ?? '')),
       trim((string) ($data['service'] ?? 'Por definir')),
+      date('Y-m-d', strtotime('+1 day')),
       trim((string) ($data['notes'] ?? '')),
     ]);
     $opportunityId = (int) $pdo->lastInsertId();
-    $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Primer contacto", "Contactar lead recibido desde el sitio.", date("now", "+1 day"))');
-    $activity->execute([$opportunityId]);
+    $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Primer contacto", "Contactar lead recibido desde el sitio.", ?)');
+    $activity->execute([$opportunityId, date('Y-m-d', strtotime('+1 day'))]);
   } catch (Throwable $error) {
     error_log('CRM lead capture failed: ' . $error->getMessage());
   }
