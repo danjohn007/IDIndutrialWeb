@@ -16,6 +16,16 @@ function setHeaderState() {
   header?.classList.toggle('is-scrolled', window.scrollY > 20);
 }
 
+function syncMobileMenuState(forceState) {
+  const isOpen = typeof forceState === 'boolean' ? forceState : Boolean(navMenu?.classList.contains('is-open'));
+  navMenu?.classList.toggle('is-open', isOpen);
+  header?.classList.toggle('has-menu-open', isOpen);
+  document.body?.classList.toggle('has-nav-open', isOpen);
+  navToggle?.setAttribute('aria-expanded', String(isOpen));
+  navToggle?.setAttribute('aria-label', isOpen ? 'Cerrar menu de navegacion' : 'Abrir menu de navegacion');
+  if (!isOpen) closeDropdown();
+}
+
 navToggle?.addEventListener('click', () => {
   const isOpen = navMenu.classList.toggle('is-open');
   navToggle.setAttribute('aria-expanded', String(isOpen));
@@ -49,6 +59,16 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') closeDropdown();
+});
+
+navToggle?.addEventListener('click', () => requestAnimationFrame(() => syncMobileMenuState()));
+
+navLinks.forEach((link) => {
+  link.addEventListener('click', () => syncMobileMenuState(false));
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') syncMobileMenuState(false);
 });
 
 const revealObserver = new IntersectionObserver((entries) => {

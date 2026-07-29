@@ -71,6 +71,12 @@ $secondaryNavItems = [
         <?php $isActive = idindustrial_is_active_nav($item['href'], $currentPath, $currentSection); ?>
         <a href="<?php echo htmlspecialchars($item['href']); ?>" <?php echo $isActive ? 'class="is-active" aria-current="page"' : ''; ?>><?php echo htmlspecialchars($item['label']); ?></a>
       <?php endforeach; ?>
+
+      <div class="nav-menu__contact">
+        <span>Atención directa</span>
+        <strong><?php echo htmlspecialchars($phone ?? '+52 442 598 6318'); ?></strong>
+        <a class="button button--primary" href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Cotizar proyecto</a>
+      </div>
     </div>
     <a class="nav-cta" href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Cotizar</a>
   </nav>
