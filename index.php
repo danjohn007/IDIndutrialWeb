@@ -12,6 +12,13 @@ $description = 'Ingeniería industrial en Querétaro para cableado estructurado,
 $keywords = 'ID Industrial, infraestructura industrial Querétaro, cableado estructurado Querétaro, CCTV industrial, control de accesos Querétaro, HVAC industrial';
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
 $canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/sistema/' : $requestPath);
+require_once __DIR__ . '/crm/lib/database.php';
+$publicClients = [];
+try {
+  $publicClients = crm_public_clients(10);
+} catch (Throwable $error) {
+  error_log('CRM public clients failed: ' . $error->getMessage());
+}
 
 function idindustrial_mobile_image($image)
 {
@@ -111,7 +118,7 @@ $serviceOverview = [
     'width' => 1920,
     'height' => 500,
     'badge' => 'Videovigilancia',
-    'linkText' => 'Ver soluciones de CCTV industrial',
+    'linkText' => 'Ver más',
   ],
   [
     'id' => 'fibra-optica',
@@ -232,6 +239,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
       $body = "Nombre: {$formData['name']}\nCorreo: {$formData['email']}\nTeléfono: {$formData['phone']}\nServicio de interés: {$formData['service']}\n\nMensaje:\n{$formData['message']}";
       $headers = "From: {$contactEmail}\r\nReply-To: {$formData['email']}\r\nContent-Type: text/plain; charset=UTF-8";
       $sent = @mail($contactEmail, $subject, $body, $headers);
+      crm_capture_public_lead([
+        'company_name' => $formData['name'],
+        'contact_name' => $formData['name'],
+        'contact_email' => $formData['email'],
+        'contact_phone' => $formData['phone'],
+        'service' => $formData['service'],
+        'notes' => $formData['message'],
+      ]);
       $formStatus = $sent
         ? ['type' => 'ok', 'text' => 'Gracias. Tu solicitud fue enviada correctamente.']
         : ['type' => 'error', 'text' => 'No se pudo enviar desde el servidor. Escríbenos por WhatsApp y te atendemos.'];
@@ -318,6 +333,22 @@ include __DIR__ . '/includes/navbar.php';
       </div>
     </div>
   </section>
+
+  <?php if ($publicClients): ?>
+    <section class="clients-strip section-light" aria-labelledby="clients-title">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Clientes y referencias</p>
+          <h2 id="clients-title">Empresas que confian en soluciones tecnicas industriales.</h2>
+        </div>
+        <div class="clients-strip__grid">
+          <?php foreach ($publicClients as $client): ?>
+            <span class="reveal"><?php echo htmlspecialchars($client['name']); ?></span>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </section>
+  <?php endif; ?>
 
   <section id="servicios" class="services-overview section-dark section-pad">
     <div class="container">

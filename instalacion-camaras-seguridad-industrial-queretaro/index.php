@@ -9,9 +9,9 @@ $contactEmail = 'contacto@idindustrial.com.mx';
 $heroMobileImage = 'assets/img/optimized/home-hero-cctv.jpg';
 $heroDesktopImage = 'assets/img/optimized/home-hero-cctv.jpg';
 
-$title = 'Instalación de cámaras de seguridad industrial en Querétaro | CCTV';
-$description = 'Diseño, instalación y mantenimiento de CCTV industrial en Querétaro para naves, plantas, oficinas, almacenes y perímetros.';
-$keywords = 'CCTV industrial Querétaro, cámaras de seguridad industrial, videovigilancia industrial, instalación CCTV empresas';
+$title = 'Instalación de cámaras de seguridad industrial en Querétaro | CCTV para naves industriales';
+$description = 'Instalación profesional de cámaras de seguridad industrial y sistemas CCTV en Querétaro. Protección a perímetros, naves industriales, oficinas y plantas.';
+$keywords = 'instalación de cámaras de seguridad industrial en Querétaro, camaras de seguridad, sistema de cctv, camaras de videovigilancia, instalacion de cámaras, instalacion de camaras cctv, camaras de seguridad para empresas, sistema de camaras de seguridad, instalacion de camaras de seguridad precios, precio de instalación de camaras de seguridad, seguridad industrial en empresas, monitoreo de plantas industriales, sistema de videovigilancia para industria';
 
 $decisionItems = [
   [
@@ -44,6 +44,63 @@ $decisionItems = [
   ],
 ];
 
+$includedServices = [
+  'Diseño del sistema CCTV y ubicación estratégica de cámaras',
+  'Instalación de cámaras de videovigilancia IP o analógicas',
+  'Canalización, cableado estructurado y conexión a red',
+  'Configuración de grabación local, nube o esquema híbrido',
+  'Alta en servidores, sites, intranets y monitoreo remoto',
+  'Integración con control de accesos, alarmas y sistemas de seguridad',
+  'Capacitación operativa, pruebas y memoria técnica',
+];
+
+$priceFactors = [
+  'Número de cámaras y zonas a cubrir',
+  'Tipo de tecnología: IP, analógica, PTZ, térmica o LPR',
+  'Infraestructura existente de red, canalización y energía',
+  'Alturas, distancias, condiciones de luz e intemperie',
+  'Días de almacenamiento y calidad de grabación requerida',
+  'Nivel de integración con accesos, alarmas, intranet o monitoreo',
+];
+
+$maintenanceItems = [
+  [
+    'title' => 'Mantenimiento preventivo',
+    'copy' => 'Limpieza, reenfoque, revisión de conectividad, salud de grabadores, respaldo y pruebas de acceso remoto en esquemas trimestrales o semestrales.',
+  ],
+  [
+    'title' => 'Mantenimiento correctivo',
+    'copy' => 'Diagnóstico y solución de pérdida de video, fallas en cámaras, problemas de red, grabadores, sites, control de accesos, equipo de cómputo e intranets.',
+  ],
+];
+
+$glossaryItems = [
+  [
+    'term' => 'Instalación de cámaras de seguridad industrial en Qro.',
+    'definition' => 'Servicio especializado de diseño, suministro e instalación de sistemas CCTV para empresas, naves industriales, oficinas, edificios, centros de investigación, laboratorios, corporativos y plantas de producción en Querétaro.',
+  ],
+  [
+    'term' => 'Sistema de CCTV',
+    'definition' => 'Conjunto de cámaras, grabadores y software que permite monitorear instalaciones industriales en tiempo real y conservar evidencia bajo condiciones de operación continua.',
+  ],
+  [
+    'term' => 'Cámaras de videovigilancia industriales',
+    'definition' => 'Dispositivos para capturar video en entornos exigentes con visión nocturna, resistencia a polvo, humedad, temperatura e intemperie. No equivalen a cámaras domésticas.',
+  ],
+  [
+    'term' => 'Sistema de cámaras de seguridad corporativa',
+    'definition' => 'Solución integral que combina CCTV, control de accesos, alarmas, monitoreo remoto e infraestructura de red para proteger activos, personal e información.',
+  ],
+  [
+    'term' => 'Mantenimiento de cámaras de seguridad industrial',
+    'definition' => 'Servicio técnico que conserva disponibilidad mediante mantenimiento preventivo, correctivo, diagnóstico de fallas, respaldo, revisión de grabación y ajustes de cobertura.',
+  ],
+  [
+    'term' => 'Seguridad industrial',
+    'definition' => 'Conjunto de prácticas, tecnologías y sistemas diseñados para proteger personas, activos, evidencia e instalaciones dentro de entornos industriales.',
+  ],
+];
+
 $faqItems = [
   [
     'q' => '¿Qué incluye una instalación de CCTV industrial?',
@@ -60,6 +117,14 @@ $faqItems = [
   [
     'q' => '¿Dan mantenimiento a sistemas ya instalados?',
     'a' => 'Sí. Podemos diagnosticar pérdida de video, fallas de red, problemas de almacenamiento, cámaras dañadas y ajustes de enfoque o configuración.',
+  ],
+  [
+    'q' => '¿Qué incluye la instalación de cámaras de seguridad industrial?',
+    'a' => 'Incluye diseño del sistema CCTV, canalización, cableado, instalación de cámaras, configuración de grabación local o en la nube, integración con sistemas de seguridad, capacitación y memoria técnica.',
+  ],
+  [
+    'q' => '¿Para qué empresas conviene instalar cámaras de seguridad industrial?',
+    'a' => 'Es útil para empresas, oficinas, parques industriales, plantas de producción, almacenes, casetas de vigilancia, edificios corporativos e instituciones que requieren monitoreo y evidencia confiable.',
   ],
 ];
 
@@ -79,9 +144,9 @@ include __DIR__ . '/../includes/navbar.php';
     <div class="container service-hero__content reveal">
       <p class="eyebrow">CCTV industrial Querétaro</p>
       <h1><span>Instalación de cámaras</span><span>de seguridad industrial</span><span>en Querétaro</span></h1>
-      <p>Diseñamos e instalamos videovigilancia para naves, plantas, oficinas, almacenes y perímetros donde la evidencia, el monitoreo y la continuidad operativa importan.</p>
+      <p>Sistemas CCTV, videovigilancia y control de accesos para corporativos, oficinas, naves industriales, líneas de producción, almacenes, casetas y perímetros donde la evidencia operativa importa.</p>
       <div class="hero__actions">
-        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cctv#cotizacion">Solicitar evaluación</a>
+        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cctv#contacto">Solicitar evaluación</a>
         <a class="button button--ghost" href="#criterios-cctv">Ver criterios técnicos</a>
       </div>
     </div>
@@ -135,6 +200,42 @@ include __DIR__ . '/../includes/navbar.php';
     </div>
   </section>
 
+  <section class="detail-section section-light section-pad">
+    <div class="container detail-grid detail-grid--reverse">
+      <div class="detail-panel reveal">
+        <h3>Servicios incluidos</h3>
+        <ul>
+          <?php foreach ($includedServices as $item): ?>
+            <li><?php echo htmlspecialchars($item); ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+      <div class="detail-copy reveal reveal--delay">
+        <p class="eyebrow">Instalación profesional</p>
+        <h2>Cámaras de seguridad para empresas, oficinas, naves y líneas de producción.</h2>
+        <p>El proyecto considera diseño, instalación, configuración, pruebas y documentación para que el sistema pueda operar como herramienta diaria de seguridad, supervisión y control interno.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="detail-section section-dark section-pad">
+    <div class="container split">
+      <div class="split__content reveal">
+        <p class="eyebrow">Precio de instalación</p>
+        <h2>¿Cuánto cuesta instalar cámaras de seguridad o CCTV en Querétaro?</h2>
+        <p>El costo real se define con un levantamiento técnico. Cotizar solo por número de cámaras suele dejar fuera almacenamiento, cableado, alturas, permisos de red y condiciones de iluminación.</p>
+        <ul class="service-list">
+          <?php foreach ($priceFactors as $item): ?>
+            <li><?php echo htmlspecialchars($item); ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+      <figure class="service__image reveal reveal--delay">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/instalacion-de-camaras-de-seguridad-precios.webp" alt="Precio de instalación de cámaras de seguridad industrial" width="1254" height="1254" loading="lazy" decoding="async">
+      </figure>
+    </div>
+  </section>
+
   <section class="faq-section section-light section-pad">
     <div class="container">
       <div class="section-head reveal">
@@ -148,6 +249,29 @@ include __DIR__ . '/../includes/navbar.php';
             <p><?php echo htmlspecialchars($item['definition']); ?></p>
           </details>
         <?php endforeach; ?>
+      </div>
+    </div>
+  </section>
+
+  <section class="detail-section section-light section-pad">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Mantenimiento CCTV industrial</p>
+        <h2>Preventivo y correctivo para evitar fallas, puntos ciegos y pérdida de grabaciones.</h2>
+      </div>
+      <div class="process__grid">
+        <?php foreach ($maintenanceItems as $item): ?>
+          <article class="process-step reveal">
+            <span>CCTV</span>
+            <h3><?php echo htmlspecialchars($item['title']); ?></h3>
+            <p><?php echo htmlspecialchars($item['copy']); ?></p>
+          </article>
+        <?php endforeach; ?>
+        <article class="process-step reveal">
+          <span>Soporte</span>
+          <h3>Diagnóstico técnico en sitio</h3>
+          <p>Revisamos infraestructura, red, grabación, usuarios, cobertura visual y estado físico de cámaras para definir prioridades de corrección.</p>
+        </article>
       </div>
     </div>
   </section>
@@ -167,6 +291,23 @@ include __DIR__ . '/../includes/navbar.php';
           <li>Respaldo de evidencia por incidentes</li>
           <li>Soporte preventivo y correctivo</li>
         </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq-section section-light section-pad">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Glosario CCTV</p>
+        <h2>Conceptos clave sobre cámaras de seguridad industrial en Querétaro.</h2>
+      </div>
+      <div class="faq-list">
+        <?php foreach ($glossaryItems as $item): ?>
+          <details class="faq-item reveal">
+            <summary><?php echo htmlspecialchars($item['term']); ?></summary>
+            <p><?php echo htmlspecialchars($item['definition']); ?></p>
+          </details>
+        <?php endforeach; ?>
       </div>
     </div>
   </section>
@@ -194,7 +335,7 @@ include __DIR__ . '/../includes/navbar.php';
         <p class="eyebrow">Levantamiento técnico</p>
         <h2>Recibe una propuesta de CCTV industrial conectada con operación, accesos y red.</h2>
       </div>
-      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cctv#cotizacion">Solicitar cotización</a>
+      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cctv#contacto">Solicitar cotización</a>
     </div>
   </section>
 </main>
@@ -204,31 +345,75 @@ include __DIR__ . '/../includes/navbar.php';
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "Organization",
+      "@id": "https://idindustrial.com.mx/sistema/#organization",
+      "name": "ID Industrial",
+      "url": "https://idindustrial.com.mx/sistema/",
+      "sameAs": [
+        "https://www.linkedin.com/company/idindustrial",
+        "https://www.facebook.com/idindustrial"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+52-442-598-6318",
+        "contactType": "sales",
+        "areaServed": "MX"
+      }
+    },
+    {
       "@type": "Service",
       "@id": "https://idindustrial.com.mx/sistema/instalacion-camaras-seguridad-industrial-queretaro/#service",
       "name": "Instalación de cámaras de seguridad industrial",
       "serviceType": "CCTV industrial y videovigilancia",
       "provider": {
-        "@type": "Organization",
-        "@id": "https://idindustrial.com.mx/sistema/#organization",
-        "name": "ID Industrial",
-        "url": "https://idindustrial.com.mx/sistema/"
+        "@id": "https://idindustrial.com.mx/sistema/#organization"
       },
       "areaServed": {
         "@type": "Place",
         "name": "Querétaro"
       },
-      "description": "Diseño, instalación, integración y mantenimiento de sistemas CCTV para empresas industriales en Querétaro.",
+      "description": "Instalación de cámaras de seguridad industrial, sistemas CCTV, videovigilancia para empresas y mantenimiento especializado.",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/InStock"
+      },
       "hasOfferCatalog": {
         "@type": "OfferCatalog",
         "name": "Alcances CCTV industrial",
         "itemListElement": [
           {"@type": "Service", "name": "Diseño de puntos de cámara"},
           {"@type": "Service", "name": "Instalación de CCTV"},
+          {"@type": "Service", "name": "Cámaras de videovigilancia"},
+          {"@type": "Service", "name": "Monitoreo remoto"},
           {"@type": "Service", "name": "Integración con control de accesos"},
           {"@type": "Service", "name": "Mantenimiento preventivo y correctivo"}
         ]
       }
+    },
+    {
+      "@type": "Thing",
+      "@id": "https://idindustrial.com.mx/sistema/instalacion-camaras-seguridad-industrial-queretaro/#entity",
+      "name": "Instalación de cámaras de seguridad industrial en Querétaro",
+      "alternateName": [
+        "instalacion de camaras de seguridad",
+        "sistema de cctv",
+        "camaras de videovigilancia",
+        "camaras de seguridad industrial",
+        "instalacion de cctv",
+        "sistema de camaras de seguridad"
+      ],
+      "description": "Servicio especializado en instalación de sistemas CCTV para empresas industriales en Querétaro.",
+      "mentions": [
+        {"@type": "Thing", "name": "Seguridad industrial"},
+        {"@type": "Thing", "name": "Videovigilancia"},
+        {"@type": "Thing", "name": "Control de accesos"},
+        {"@type": "Thing", "name": "FireLite Honeywell"},
+        {"@type": "Thing", "name": "IIoT"}
+      ],
+      "about": [
+        {"@type": "Place", "name": "Querétaro"},
+        {"@type": "Audience", "audienceType": "Gerentes de producción, seguridad e higiene, compras industriales"}
+      ]
     },
     {
       "@type": "FAQPage",

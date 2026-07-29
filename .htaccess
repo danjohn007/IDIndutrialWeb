@@ -1,5 +1,5 @@
 Options -Indexes
-DirectoryIndex index.html index.php
+DirectoryIndex index.php index.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -45,3 +45,7 @@ DirectoryIndex index.html index.php
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 </IfModule>
+
+<FilesMatch "\.(sqlite|db)$">
+  Require all denied
+</FilesMatch>

@@ -744,6 +744,40 @@ p {
   font-weight: 720;
 }
 
+.clients-strip {
+  border-bottom: 1px solid rgba(17, 19, 22, 0.1);
+  padding: clamp(54px, 6vw, 84px) 0;
+}
+
+.clients-strip .section-head {
+  max-width: 760px;
+  margin-bottom: 26px;
+}
+
+.clients-strip .section-head h2 {
+  font-size: clamp(1.8rem, 3.8vw, 3.6rem);
+}
+
+.clients-strip__grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.clients-strip__grid span {
+  display: grid;
+  min-height: 74px;
+  place-items: center;
+  border: 1px solid rgba(17, 19, 22, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  color: #171a1f;
+  padding: 12px;
+  text-align: center;
+  font-weight: 900;
+  box-shadow: 0 12px 28px rgba(17, 19, 22, 0.06);
+}
+
 .services-overview {
   position: relative;
   overflow: hidden;
@@ -2723,6 +2757,10 @@ p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .clients-strip__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .service-card--featured {
     grid-column: span 1;
   }
@@ -2946,6 +2984,7 @@ p {
   }
 
   .metrics__grid,
+  .clients-strip__grid,
   .services-overview__grid,
   .process__grid,
   .journal__grid,
