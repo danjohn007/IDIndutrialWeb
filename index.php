@@ -242,8 +242,12 @@ include __DIR__ . '/includes/navbar.php';
     <div class="hero-carousel" data-carousel aria-label="Especialidades ID Industrial">
       <div class="hero-carousel__viewport">
         <?php foreach ($homeCarouselItems as $index => $item): ?>
-          <figure class="hero-carousel__slide <?php echo $index === 0 ? 'is-active' : ''; ?>" <?php echo $index === 0 ? 'style="--slide-image: url(\'' . htmlspecialchars($item['image']) . '\');"' : ''; ?> data-bg="<?php echo htmlspecialchars($item['image']); ?>" aria-hidden="<?php echo $index === 0 ? 'false' : 'true'; ?>" data-carousel-slide>
-            <img <?php echo $index === 0 ? 'src="' . htmlspecialchars($item['image']) . '" fetchpriority="high"' : 'data-src="' . htmlspecialchars($item['image']) . '" loading="lazy"'; ?> alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" decoding="async">
+          <?php
+            $slideImage = htmlspecialchars($item['image']);
+            $slideBackground = htmlspecialchars($assetUrlBase . $item['image']);
+          ?>
+          <figure class="hero-carousel__slide <?php echo $index === 0 ? 'is-active' : ''; ?>" <?php echo $index === 0 ? 'style="--slide-image: url(\'' . $slideBackground . '\');"' : ''; ?> data-bg="<?php echo $slideBackground; ?>" aria-hidden="<?php echo $index === 0 ? 'false' : 'true'; ?>" data-carousel-slide>
+            <img <?php echo $index === 0 ? 'src="' . $slideImage . '" fetchpriority="high"' : 'data-src="' . $slideImage . '" loading="lazy"'; ?> alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" decoding="async">
             <figcaption><?php echo htmlspecialchars($item['label']); ?></figcaption>
           </figure>
         <?php endforeach; ?>

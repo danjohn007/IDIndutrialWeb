@@ -11,7 +11,7 @@ function idindustrial_is_active_nav(string $href, string $currentPath, string $c
   $normalizedCurrentPath = preg_replace('#^sistema/#', '', $currentPath);
   $hrefFragment = parse_url($href, PHP_URL_FRAGMENT) ?? '';
 
-  if ($hrefPath !== '' && str_ends_with($normalizedCurrentPath, $hrefPath)) {
+  if ($hrefPath !== '' && substr($normalizedCurrentPath, -strlen($hrefPath)) === $hrefPath) {
     return true;
   }
 

@@ -27,8 +27,6 @@
   <meta name="twitter:description" content="<?php echo htmlspecialchars($description ?? 'Soluciones industriales en Querétaro.'); ?>">
   <meta name="twitter:image" content="<?php echo htmlspecialchars($publicAssetBase . 'assets/img/og-id-industrial.webp'); ?>">
   <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($assetBase); ?>assets/img/favicon-id-industrial.png">
-  <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroMobileImage ?? 'assets/img/hero-mobile.webp')); ?>" media="(max-width: 899px)" fetchpriority="high">
-  <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroDesktopImage ?? 'assets/img/hero-desktop.webp')); ?>" media="(min-width: 900px)" fetchpriority="high">
   <script>document.documentElement.classList.add('js');</script>
   <style>
     :root{--bg:#08090b;--ink:#f7f7f2;--yellow:#f3c623;--muted:#a7abb2;--container:min(1240px,calc(100vw - 40px))}
@@ -41,21 +39,21 @@
     .site-header{position:fixed;inset:0 0 auto;z-index:60;padding:12px 0}
     .nav{min-height:68px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px}
     .brand img{width:116px;height:auto}
-    .hero{position:relative;min-height:100svh;display:grid;align-items:center;overflow:hidden;background:#08090b}
+    .hero{position:relative;height:100svh;min-height:680px;max-height:100svh;display:grid;align-items:center;overflow:hidden;background:#08090b}
     .hero-carousel,.hero-carousel__viewport,.hero-carousel__slide,.hero__overlay{position:absolute;inset:0;width:100%;height:100%}
     .hero-carousel{overflow:hidden;background:#050607}.hero-carousel__slide{margin:0;opacity:0}.hero-carousel__slide.is-active{opacity:1}
     .hero-carousel__slide::before{content:"";position:absolute;inset:-26px;background-image:var(--slide-image);background-position:center;background-size:cover;filter:blur(14px) saturate(.85);opacity:.64;transform:scale(1.12)}
     .hero-carousel__slide img{position:relative;width:100%;height:100%;object-fit:cover;object-position:center;transform:scale(1.01)}
     .hero-carousel__slide figcaption{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
     .hero__overlay{z-index:1;background:linear-gradient(90deg,rgba(8,9,11,.96),rgba(8,9,11,.62) 48%,rgba(8,9,11,.26)),linear-gradient(0deg,rgba(8,9,11,.93),rgba(8,9,11,.38) 58%,rgba(8,9,11,.62))}
-    .hero__grid{position:relative;z-index:2;padding-top:104px}
+    .hero__grid{position:relative;z-index:2;padding:118px 0 54px}
     .eyebrow{margin:0 0 16px;color:var(--yellow);font-size:.76rem;font-weight:850;letter-spacing:.16em;text-transform:uppercase}
-    h1{margin:0 0 22px;max-width:980px;font-size:clamp(4.2rem,11vw,9.5rem);line-height:.9;font-weight:900}
+    h1{margin:0 0 22px;max-width:1120px;font-size:clamp(3.4rem,7.6vw,7.25rem);line-height:.92;font-weight:900}
     h1 span{display:block}
-    .hero__lead{max-width:760px;color:#e7e7e0;font-size:clamp(1.04rem,2vw,1.28rem)}
+    .hero__lead{max-width:720px;color:#e7e7e0;font-size:clamp(1rem,1.45vw,1.16rem)}
     .button{display:inline-flex;align-items:center;justify-content:center;min-height:54px;padding:0 28px;border-radius:999px;font-weight:900}
     .button--primary{background:linear-gradient(135deg,#ffd84d,#f3c623);color:#111316}
-    @media (max-width:899px){.nav{grid-template-columns:auto 1fr}.nav-toggle{grid-column:2;justify-self:end;order:0}.hero{min-height:auto}.hero__grid{padding-top:108px}h1{font-size:clamp(2.8rem,13.5vw,4.25rem)}}
+    @media (max-width:899px){.nav{grid-template-columns:auto 1fr}.nav-toggle{grid-column:2;justify-self:end;order:0}.hero{height:auto;min-height:100svh;max-height:none}.hero__grid{padding:96px 0 28px}h1{font-size:clamp(2.5rem,12.4vw,3.8rem);line-height:.94}}
   </style>
   <link rel="stylesheet" href="<?php echo htmlspecialchars($stylesHref); ?>">
   <script type="application/ld+json">

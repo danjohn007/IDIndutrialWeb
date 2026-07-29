@@ -61,6 +61,12 @@
   <a class="social-dock__link" href="mailto:contacto@idindustrial.com.mx" aria-label="Enviar correo a ID Industrial">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 3.2V17h16V8.2l-7.42 5.16a1 1 0 0 1-1.16 0L4 8.2Zm1.1-1.2 6.9 4.8L18.9 7H5.1Z"/></svg>
   </a>
+  <a class="social-dock__link" href="<?php echo htmlspecialchars($assetBase); ?>#contacto" aria-label="LinkedIn de ID Industrial">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.94 8.98H3.82V20h3.12V8.98ZM5.38 4a1.82 1.82 0 1 0 0 3.64A1.82 1.82 0 0 0 5.38 4Zm5.22 4.98H7.62V20h3.1v-5.44c0-1.44.28-2.84 2.06-2.84 1.76 0 1.78 1.64 1.78 2.94V20h3.1v-6.02c0-2.96-.64-5.24-4.1-5.24-1.66 0-2.78.92-3.24 1.78h-.04V8.98Z"/></svg>
+  </a>
+  <a class="social-dock__link" href="<?php echo htmlspecialchars($assetBase); ?>#contacto" aria-label="Instagram de ID Industrial">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.75 2h8.5A5.76 5.76 0 0 1 22 7.75v8.5A5.76 5.76 0 0 1 16.25 22h-8.5A5.76 5.76 0 0 1 2 16.25v-8.5A5.76 5.76 0 0 1 7.75 2Zm0 2A3.76 3.76 0 0 0 4 7.75v8.5A3.76 3.76 0 0 0 7.75 20h8.5A3.76 3.76 0 0 0 20 16.25v-8.5A3.76 3.76 0 0 0 16.25 4h-8.5ZM12 7.25A4.75 4.75 0 1 1 12 16.75 4.75 4.75 0 0 1 12 7.25Zm0 2A2.75 2.75 0 1 0 12 14.75 2.75 2.75 0 0 0 12 9.25Zm5-2.55a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2Z"/></svg>
+  </a>
 </aside>
 
 <script src="<?php echo htmlspecialchars($scriptHref); ?>" defer></script>
