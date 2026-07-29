@@ -62,7 +62,8 @@ revealItems.forEach((item) => revealObserver.observe(item));
 
 function animateCounter(el) {
   const target = Number(el.dataset.count || 0);
-  const suffix = target === 20 ? '+' : target === 24 ? '/7' : target === 100 ? '%' : '';
+  const suffix = el.dataset.suffix || '';
+  const finalText = el.textContent;
   const duration = 1200;
   const start = performance.now();
 
@@ -71,8 +72,10 @@ function animateCounter(el) {
     const eased = 1 - Math.pow(1 - progress, 3);
     el.textContent = `${Math.round(target * eased)}${suffix}`;
     if (progress < 1) requestAnimationFrame(tick);
+    else el.textContent = finalText;
   }
 
+  el.textContent = `0${suffix}`;
   requestAnimationFrame(tick);
 }
 
@@ -143,3 +146,13 @@ window.addEventListener('scroll', () => {
   });
 }, { passive: true });
 setHeaderState();
+
+document.querySelectorAll('[data-contact-form]').forEach((form) => {
+  form.addEventListener('submit', () => {
+    const button = form.querySelector('[type="submit"]');
+    if (!button) return;
+    button.disabled = true;
+    button.dataset.originalText = button.textContent;
+    button.textContent = 'Enviando solicitud...';
+  });
+});

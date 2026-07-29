@@ -14,14 +14,18 @@
   <meta name="description" content="<?php echo htmlspecialchars($description ?? 'Soluciones industriales en Querétaro.'); ?>">
   <meta name="keywords" content="<?php echo htmlspecialchars($keywords ?? 'ID Industrial'); ?>">
   <meta name="robots" content="index, follow, max-image-preview:large">
-  <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
+  <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/sistema/'); ?>">
   <meta name="theme-color" content="#0a0b0d">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="es_MX">
   <meta property="og:title" content="<?php echo htmlspecialchars($title ?? 'ID Industrial'); ?>">
   <meta property="og:description" content="<?php echo htmlspecialchars($description ?? 'Soluciones industriales en Querétaro.'); ?>">
-  <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
+  <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/sistema/'); ?>">
   <meta property="og:image" content="<?php echo htmlspecialchars($publicAssetBase . 'assets/img/og-id-industrial.webp'); ?>">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<?php echo htmlspecialchars($title ?? 'ID Industrial'); ?>">
+  <meta name="twitter:description" content="<?php echo htmlspecialchars($description ?? 'Soluciones industriales en Querétaro.'); ?>">
+  <meta name="twitter:image" content="<?php echo htmlspecialchars($publicAssetBase . 'assets/img/og-id-industrial.webp'); ?>">
   <link rel="icon" type="image/png" href="<?php echo htmlspecialchars($assetBase); ?>assets/img/favicon-id-industrial.png">
   <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroMobileImage ?? 'assets/img/hero-mobile.webp')); ?>" media="(max-width: 899px)" fetchpriority="high">
   <link rel="preload" as="image" href="<?php echo htmlspecialchars($assetBase . ($heroDesktopImage ?? 'assets/img/hero-desktop.webp')); ?>" media="(min-width: 900px)" fetchpriority="high">
@@ -45,12 +49,12 @@
     .hero__overlay{z-index:1;background:linear-gradient(90deg,rgba(8,9,11,.96),rgba(8,9,11,.62) 48%,rgba(8,9,11,.26)),linear-gradient(0deg,rgba(8,9,11,.93),rgba(8,9,11,.38) 58%,rgba(8,9,11,.62))}
     .hero__grid{position:relative;z-index:2;padding-top:104px}
     .eyebrow{margin:0 0 16px;color:var(--yellow);font-size:.76rem;font-weight:850;letter-spacing:.16em;text-transform:uppercase}
-    h1{margin:0 0 22px;max-width:820px;font-size:clamp(4.6rem,14vw,11rem);line-height:.86;font-weight:900}
+    h1{margin:0 0 22px;max-width:980px;font-size:clamp(4.2rem,11vw,9.5rem);line-height:.9;font-weight:900}
     h1 span{display:block}
-    .hero__lead{max-width:640px;color:#e7e7e0;font-size:clamp(1.04rem,2vw,1.28rem)}
+    .hero__lead{max-width:760px;color:#e7e7e0;font-size:clamp(1.04rem,2vw,1.28rem)}
     .button{display:inline-flex;align-items:center;justify-content:center;min-height:54px;padding:0 28px;border-radius:999px;font-weight:900}
     .button--primary{background:linear-gradient(135deg,#ffd84d,#f3c623);color:#111316}
-    @media (max-width:899px){.nav{grid-template-columns:auto 1fr}.nav-toggle{grid-column:2;justify-self:end;order:0}.hero{min-height:auto}.hero__grid{padding-top:108px}h1{font-size:clamp(3rem,16vw,4.25rem)}}
+    @media (max-width:899px){.nav{grid-template-columns:auto 1fr}.nav-toggle{grid-column:2;justify-self:end;order:0}.hero{min-height:auto}.hero__grid{padding-top:108px}h1{font-size:clamp(2.8rem,13.5vw,4.25rem)}}
   </style>
   <link rel="stylesheet" href="<?php echo htmlspecialchars($stylesHref); ?>">
   <script type="application/ld+json">
@@ -58,7 +62,7 @@
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     "name": "ID Industrial",
-    "url": "<?php echo htmlspecialchars($siteUrl ?? 'https://idindustrial.com.mx/'); ?>",
+    "url": "<?php echo htmlspecialchars($siteUrl ?? 'https://idindustrial.com.mx/sistema/'); ?>",
     "image": "<?php echo htmlspecialchars($publicAssetBase . 'assets/img/logo-idindustrial.webp'); ?>",
     "telephone": "<?php echo htmlspecialchars($phone ?? '+52 442 598 6318'); ?>",
     "email": "<?php echo htmlspecialchars($contactEmail ?? 'contacto@idindustrial.com.mx'); ?>",
@@ -68,8 +72,7 @@
       "addressRegion": "Querétaro",
       "addressCountry": "MX"
     },
-    "areaServed": ["Querétaro", "El Marqués", "Apaseo el Grande", "Bajío"],
-    "sameAs": ["https://idindustrial.com.mx/"],
+    "areaServed": ["Querétaro", "El Marqués", "Corregidora", "Bajío"],
     "knowsAbout": [
       "cableado estructurado industrial",
       "fibra óptica",
@@ -77,10 +80,7 @@
       "CCTV industrial",
       "control de accesos",
       "HVAC industrial",
-      "subestaciones eléctricas",
-      "sistemas contra incendio",
-      "SCADA",
-      "IIoT"
+      "detección de incendios"
     ],
     "hasOfferCatalog": {
       "@type": "OfferCatalog",

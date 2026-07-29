@@ -6,33 +6,29 @@ $canonicalUrl = 'https://idindustrial.com.mx/sistema/control-de-acceso-de-person
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
-$heroMobileImage = 'assets/imagesnew/BANNERS/CONTROL%20DE%20ACCESOS/LANDING%20ID%20INDUSTRIAL_1.jpg';
-$heroDesktopImage = 'assets/imagesnew/BANNERS%20VER2/CONTROL%20DE%20ACCESO/PAGINA%20WEB%20ID%20INDUSTRIAL_13.jpg';
+$heroMobileImage = 'assets/img/optimized/service-control-acceso.jpg';
+$heroDesktopImage = 'assets/img/optimized/service-control-acceso.jpg';
 
-$title = 'Control de acceso de personal Querétaro | Biométricos, CCTV y Nómina';
-$description = 'Instalación de control de acceso de personal en Querétaro para empresas industriales y corporativos. Sistemas biométricos, tarjetas RFID, CCTV y nómina.';
-$keywords = 'control de acceso de personal queretaro, control de acceso biométrico queretaro, sistema de control de acceso en queretaro, control de acceso para puertas, control de acceso con tarjeta, control de accesos biométrico, puertas de seguridad precios, puertas de alta seguridad, puerta de control de acceso, seguridad para puertas parque industrial queretaro, control de acceso de personal el marques, control de acceso para puertas sjr, control de acceso con tarjeta qro, integración control de accesos y nómina, control de acceso conectado a CCTV, seguridad industrial inteligente, control de asistencia biométrico, sistemas de acceso para empresas industriales';
+$title = 'Control de acceso de personal en Querétaro | ID Industrial';
+$description = 'Control de acceso para empresas en Querétaro: biometría, tarjetas, visitantes, horarios, CCTV e integración con asistencia y nómina.';
+$keywords = 'control de acceso Querétaro, control de acceso de personal, biometría industrial, control de asistencia, acceso con CCTV';
 
 $faqItems = [
   [
-    'q' => '¿Cómo evitar robos internos con sistemas de control de acceso y CCTV?',
-    'a' => 'Los sistemas biométricos conectados a CCTV registran quién entra, sale y permanece en áreas críticas, reduciendo robo hormiga, accesos no autorizados y pérdida de inventario.',
-  ],
-  [
-    'q' => '¿Qué tipo de control de acceso ayuda a evitar ingreso de personas no autorizadas?',
-    'a' => 'Las empresas industriales utilizan reconocimiento facial, tarjetas RFID cifradas, puertas de alta seguridad y monitoreo centralizado para validar identidad y bloquear accesos no autorizados.',
+    'q' => '¿Qué zonas conviene controlar en una planta o edificio?',
+    'a' => 'Accesos principales, almacenes, sites, laboratorios, cuartos técnicos, andenes, estacionamientos y áreas donde se requiere registro por usuario, horario o perfil.',
   ],
   [
     'q' => '¿Se puede conectar control de acceso con nómina?',
-    'a' => 'Sí. Los sistemas modernos se integran con plataformas de recursos humanos, ERP y nómina para sincronizar horarios, incidencias, permisos y asistencia automáticamente.',
+    'a' => 'Sí. El sistema puede registrar asistencia, turnos, incidencias y permisos para alimentar procesos internos de RH o exportar reportes operativos.',
   ],
   [
-    'q' => '¿Cómo proteger almacenes, sites o laboratorios dentro de una empresa?',
-    'a' => 'Las áreas críticas requieren puertas de alta seguridad, acceso biométrico y CCTV con inteligencia artificial para detectar movimientos sospechosos y generar alertas.',
+    'q' => '¿Qué diferencia hay entre tarjeta, huella y reconocimiento facial?',
+    'a' => 'Cada tecnología tiene ventajas según flujo de personas, higiene, velocidad, nivel de control y condiciones del sitio. La selección se define durante el levantamiento.',
   ],
   [
-    'q' => '¿Qué ventajas tiene integrar control de acceso, CCTV y asistencia en una sola plataforma?',
-    'a' => 'Permite centralizar seguridad, asistencia y monitoreo operativo en tiempo real, facilitando auditorías, evidencia visual automática y administración remota.',
+    'q' => '¿Se puede integrar con CCTV?',
+    'a' => 'Sí. La integración permite revisar video asociado a eventos de acceso, intentos fallidos, horarios especiales o entradas a zonas restringidas.',
   ],
 ];
 
@@ -45,36 +41,36 @@ include __DIR__ . '/../includes/navbar.php';
     <div class="service-hero__media" aria-hidden="true">
       <picture>
         <source srcset="<?php echo htmlspecialchars($basePath . $heroDesktopImage); ?>" media="(min-width: 900px)">
-        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>" alt="" width="1920" height="500" fetchpriority="high" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>" alt="" width="1920" height="800" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="service-hero__overlay" aria-hidden="true"></div>
     <div class="container service-hero__content reveal">
-      <p class="eyebrow">Control de acceso de personal Querétaro</p>
-      <h1><span>Control de acceso</span><span>de personal</span><span>en Querétaro</span></h1>
-      <p>Sistemas biométricos, tarjetas RFID, puertas de alta seguridad, CCTV inteligente e integración con nómina para empresas industriales, corporativos, clínicas, escuelas y edificios inteligentes.</p>
+      <p class="eyebrow">Control de acceso Querétaro</p>
+      <h1><span>Control de acceso</span><span>de personal para</span><span>empresas industriales</span></h1>
+      <p>Implementamos accesos por perfil, horario y zona para mejorar trazabilidad, asistencia, visitas y seguridad operativa en plantas, corporativos y edificios técnicos.</p>
       <div class="hero__actions">
-        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>#contacto">Cotizar proyecto</a>
-        <a class="button button--ghost" href="#tecnologia">Ver tecnología</a>
+        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=accesos#contacto">Solicitar evaluación</a>
+        <a class="button button--ghost" href="#alcance-accesos">Ver alcance</a>
       </div>
     </div>
   </section>
 
-  <section id="tecnologia" class="detail-section section-light section-pad">
+  <section id="alcance-accesos" class="detail-section section-light section-pad">
     <div class="container detail-grid">
       <div class="detail-copy reveal">
-        <p class="eyebrow">Seguridad y trazabilidad</p>
-        <h2>Control de acceso para empresas que necesitan restringir, automatizar y auditar.</h2>
-        <p>Implementamos soluciones para responsables de RH, gerentes de compras, CEOs industriales, seguridad patrimonial, TICs y administradores de infraestructura que buscan reducir riesgos y centralizar información operativa.</p>
+        <p class="eyebrow">Trazabilidad y operación</p>
+        <h2>Accesos claros para saber quién entra, cuándo y a qué zona.</h2>
+        <p>El objetivo no es llenar la planta de barreras, sino ordenar entradas, salidas, visitantes y zonas críticas con reglas fáciles de administrar y evidencia disponible cuando se necesita.</p>
       </div>
       <div class="detail-panel reveal reveal--delay">
         <h3>Objetivos del sistema</h3>
         <ul>
-          <li>Evitar robos internos y accesos indebidos</li>
-          <li>Restringir áreas críticas por perfil u horario</li>
-          <li>Automatizar asistencia, turnos y nómina</li>
-          <li>Integrar CCTV y monitoreo inteligente</li>
-          <li>Instalar tecnología nueva y certificada</li>
+          <li>Restringir áreas por perfil u horario</li>
+          <li>Registrar asistencia, entradas y salidas</li>
+          <li>Administrar visitantes y proveedores</li>
+          <li>Asociar eventos con CCTV cuando aplica</li>
+          <li>Generar reportes para RH y seguridad</li>
         </ul>
       </div>
     </div>
@@ -83,47 +79,46 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="detail-section section-dark section-pad">
     <div class="container split">
       <div class="split__content reveal">
-        <p class="eyebrow">Tecnología de última generación</p>
-        <h2>Biometría, tarjetas RFID y monitoreo centralizado.</h2>
-        <p>Trabajamos con soluciones de acceso facial, huella, palma, tarjetas cifradas, cerraduras electromagnéticas, puertas de alta seguridad e inteligencia artificial para reconocimiento y alertas.</p>
+        <p class="eyebrow">Tecnología por necesidad</p>
+        <h2>Biometría, tarjetas, torniquetes y barreras conectadas.</h2>
+        <p>Seleccionamos lectores y mecanismos según flujo, condiciones del sitio, tipo de usuario y nivel de control requerido. La arquitectura puede crecer por etapas sin perder administración centralizada.</p>
         <ul class="service-list">
-          <li>Reconocimiento facial con IA</li>
-          <li>Lectores de huella, palma y RFID</li>
-          <li>Puertas, torniquetes y barreras vehiculares</li>
-          <li>Control de acceso conectado a CCTV</li>
+          <li>Lectores faciales, huella, palma o RFID</li>
+          <li>Puertas, chapas, torniquetes y barreras vehiculares</li>
+          <li>Perfiles por horario, zona y tipo de usuario</li>
+          <li>Integración con CCTV, red y reportes</li>
         </ul>
       </div>
       <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CONTROL%20DE%20ACCESOS/PAGINA%20WEB%20ID%20INDUSTRIAL_4.jpg" alt="Control de acceso con tarjeta en Querétaro" width="1920" height="800" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/service-control-acceso.jpg" alt="Control de acceso biométrico para empresa industrial" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
 
-  <section class="service-banner" aria-label="Control de acceso RH conectado a cálculo de nómina">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS/CONTROL%20DE%20ACCESOS/LANDING%20ID%20INDUSTRIAL_4.jpg" alt="Control de asistencia biométrico conectado a nómina" width="1920" height="500" loading="lazy" decoding="async">
+  <section class="service-banner service-banner--contain" aria-label="Control de asistencia y visitantes">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/home-hero-control-acceso.jpg" alt="Control de accesos conectado con CCTV y monitoreo" width="1920" height="500" loading="lazy" decoding="async">
     <div>
-      <p>RH, asistencia y seguridad en una sola plataforma</p>
-      <h2>Control de acceso conectado a nómina</h2>
+      <p>Usuarios, horarios y evidencia en una sola operación</p>
+      <h2>Acceso, asistencia y visitas sin procesos duplicados</h2>
     </div>
   </section>
 
   <section class="detail-section section-light section-pad">
     <div class="container detail-grid detail-grid--reverse">
       <div class="detail-panel reveal">
-        <h3>Funcionalidades para corporativos</h3>
+        <h3>Entregables esperados</h3>
         <ul>
-          <li>Registro automático de asistencia</li>
-          <li>Entradas, salidas, reingresos y turnos</li>
-          <li>Estadísticas, reportes y alertas en tiempo real</li>
-          <li>Validación biométrica de personal</li>
-          <li>Control de visitantes y proveedores</li>
-          <li>Integración con ERP, RH y nómina</li>
+          <li>Levantamiento de accesos y flujos</li>
+          <li>Arquitectura de dispositivos y red</li>
+          <li>Configuración de usuarios y perfiles</li>
+          <li>Pruebas de apertura, evento y reporte</li>
+          <li>Capacitación básica y memoria técnica</li>
         </ul>
       </div>
       <div class="detail-copy reveal reveal--delay">
-        <p class="eyebrow">Automatización de RH</p>
-        <h2>Control de acceso de personal integrado con nómina y recursos humanos.</h2>
-        <p>La sincronización con plataformas administrativas reduce captura manual, errores en incidencias y tiempos de conciliación. Cada evento queda asociado a identidad, hora, zona y evidencia.</p>
+        <p class="eyebrow">Implementación ordenada</p>
+        <h2>Del levantamiento a una operación administrable.</h2>
+        <p>Documentamos el sistema para que recursos humanos, seguridad patrimonial, TI y mantenimiento sepan cómo operar, ajustar permisos y escalar el proyecto sin depender de improvisaciones.</p>
       </div>
     </div>
   </section>
@@ -131,35 +126,27 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="detail-section section-dark section-pad">
     <div class="container split">
       <figure class="service__image reveal">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS/CONTROL%20DE%20ACCESOS/LANDING%20ID%20INDUSTRIAL_9.jpg" alt="Puertas de alta seguridad y control de acceso" width="1920" height="500" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/service-cctv.jpg" alt="CCTV integrado con eventos de control de acceso" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
       <div class="split__content reveal reveal--delay">
-        <p class="eyebrow">Áreas críticas</p>
-        <h2>Puertas de alta seguridad y accesos inteligentes.</h2>
-        <p>Además de dispositivos electrónicos, instalamos soluciones físicas para almacenes, laboratorios, sites, cuartos de servidores y zonas restringidas.</p>
+        <p class="eyebrow">Integración con video</p>
+        <h2>Control de accesos conectado con CCTV industrial.</h2>
+        <p>La unión de identidad y video ayuda a revisar eventos puntuales sin perder tiempo buscando manualmente. Es útil para accesos especiales, visitantes, áreas restringidas y horarios fuera de operación normal.</p>
         <ul class="service-list">
-          <li>Puertas electromagnéticas y cerraduras industriales</li>
-          <li>Torniquetes y barreras vehiculares</li>
-          <li>Accesos biométricos híbridos</li>
-          <li>Puertas inteligentes con CCTV</li>
+          <li>Eventos asociados a usuario y cámara</li>
+          <li>Alertas por intentos fallidos o horarios especiales</li>
+          <li>Monitoreo remoto con permisos definidos</li>
+          <li>Reportes para auditoría interna</li>
         </ul>
       </div>
     </div>
   </section>
 
-  <section class="service-banner" aria-label="CCTV industrial conectado a accesos">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/BANNERS%20VER2/CCTV/PAGINA%20WEB%20ID%20INDUSTRIAL_11.jpg" alt="Control de acceso conectado a CCTV industrial" width="1920" height="500" loading="lazy" decoding="async">
-    <div>
-      <p>CCTV industrial conectado a accesos y monitoreo</p>
-      <h2>Video, identidad y alertas en tiempo real</h2>
-    </div>
-  </section>
-
-  <section class="faq-section section-dark section-pad">
+  <section class="faq-section section-light section-pad">
     <div class="container">
       <div class="section-head reveal">
         <p class="eyebrow">Preguntas técnicas</p>
-        <h2>Seguridad, robo interno, nómina y monitoreo inteligente.</h2>
+        <h2>Accesos, asistencia, visitantes e integración con CCTV.</h2>
       </div>
       <div class="faq-list">
         <?php foreach ($faqItems as $item): ?>
@@ -176,9 +163,9 @@ include __DIR__ . '/../includes/navbar.php';
     <div class="container cta-strip__inner reveal">
       <div>
         <p class="eyebrow">Propuesta técnica</p>
-        <h2>Recibe una propuesta de control de acceso conectada con CCTV y nómina.</h2>
+        <h2>Recibe una propuesta de control de acceso conectada con operación, CCTV y reportes.</h2>
       </div>
-      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>#contacto">Solicitar cotización</a>
+      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=accesos#contacto">Solicitar cotización</a>
     </div>
   </section>
 </main>
@@ -189,38 +176,34 @@ include __DIR__ . '/../includes/navbar.php';
   "@graph": [
     {
       "@type": "Service",
-      "@id": "https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/#service",
-      "name": "Control de acceso de personal Querétaro",
-      "serviceType": "Sistema de control de acceso biométrico",
+      "@id": "https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/#service",
+      "name": "Control de acceso de personal en Querétaro",
+      "serviceType": "Control de acceso, asistencia e integración con CCTV",
       "provider": {
         "@type": "Organization",
-        "@id": "https://idindustrial.com.mx/#organization",
+        "@id": "https://idindustrial.com.mx/sistema/#organization",
         "name": "ID Industrial",
-        "url": "https://idindustrial.com.mx/"
+        "url": "https://idindustrial.com.mx/sistema/"
       },
       "areaServed": {
         "@type": "Place",
         "name": "Querétaro"
       },
-      "audience": {
-        "@type": "Audience",
-        "audienceType": "Recursos Humanos, Seguridad Patrimonial, CEOs"
-      },
+      "description": "Implementación de control de acceso para empresas industriales con biometría, RFID, visitantes, horarios, reportes e integración con CCTV.",
       "hasOfferCatalog": {
         "@type": "OfferCatalog",
-        "name": "Soluciones de seguridad industrial",
+        "name": "Alcances de control de acceso",
         "itemListElement": [
-          {"@type": "Service", "name": "Control de acceso biométrico"},
-          {"@type": "Service", "name": "CCTV industrial"},
-          {"@type": "Service", "name": "Puertas de alta seguridad"},
-          {"@type": "Service", "name": "Control de asistencia biométrico"},
-          {"@type": "Service", "name": "Integración control de accesos y nómina"}
+          {"@type": "Service", "name": "Control biométrico y RFID"},
+          {"@type": "Service", "name": "Control de asistencia"},
+          {"@type": "Service", "name": "Administración de visitantes"},
+          {"@type": "Service", "name": "Integración con CCTV"}
         ]
       }
     },
     {
       "@type": "FAQPage",
-      "@id": "https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/#faq",
+      "@id": "https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/#faq",
       "mainEntity": [
         <?php foreach ($faqItems as $index => $item): ?>
           {
@@ -236,10 +219,10 @@ include __DIR__ . '/../includes/navbar.php';
     },
     {
       "@type": "BreadcrumbList",
-      "@id": "https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/#breadcrumb",
+      "@id": "https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/#breadcrumb",
       "itemListElement": [
-        {"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://idindustrial.com.mx/"},
-        {"@type": "ListItem", "position": 2, "name": "Control de acceso de personal Querétaro", "item": "https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/"}
+        {"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://idindustrial.com.mx/sistema/"},
+        {"@type": "ListItem", "position": 2, "name": "Control de acceso", "item": "https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/"}
       ]
     }
   ]

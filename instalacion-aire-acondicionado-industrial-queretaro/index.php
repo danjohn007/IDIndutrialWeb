@@ -6,8 +6,8 @@ $canonicalUrl = 'https://idindustrial.com.mx/sistema/instalacion-aire-acondicion
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
-$heroMobileImage = 'assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg';
-$heroDesktopImage = 'assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg';
+$heroMobileImage = 'assets/img/optimized/card-hvac.jpg';
+$heroDesktopImage = 'assets/img/optimized/card-hvac.jpg';
 
 $title = 'Instalación de Aire Acondicionado Industrial en Querétaro | HVAC y Chillers';
 $description = 'Soluciones HVAC industrial en Querétaro: instalación de aire acondicionado, chillers, ventilación y climatización para naves industriales, hospitales y corporativos.';
@@ -66,7 +66,7 @@ include __DIR__ . '/../includes/navbar.php';
       <h1><span>Instalación de</span><span>aire acondicionado</span><span>industrial</span></h1>
       <p>Diseñamos e implementamos sistemas HVAC, chillers, ventilación y climatización industrial para empresas que requieren control térmico preciso, eficiencia energética y continuidad operativa.</p>
       <div class="hero__actions">
-        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>#contacto">Cotizar proyecto</a>
+        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=hvac#contacto">Cotizar proyecto</a>
         <a class="button button--ghost" href="#soluciones">Ver soluciones</a>
       </div>
     </div>
@@ -96,8 +96,8 @@ include __DIR__ . '/../includes/navbar.php';
     <div class="container split">
       <div class="split__content reveal">
         <p class="eyebrow">Ahorro energético</p>
-        <h2>Hasta 40% de ahorro mediante ingeniería, automatización y equipos eficientes.</h2>
-        <p>Reducimos costos energéticos con selección correcta de equipos, rediseño de distribución de aire, termostatos de bajo consumo, variadores de frecuencia e integración con IoT industrial.</p>
+        <h2>Eficiencia energética mediante ingeniería, automatización y equipos bien dimensionados.</h2>
+        <p>Ayudamos a reducir consumo y fallas recurrentes con selección correcta de equipos, rediseño de distribución de aire, controles adecuados, variadores de frecuencia e integración con monitoreo industrial.</p>
         <ul class="service-list">
           <li>Cálculo de carga térmica y selección de capacidad</li>
           <li>Chillers de alta eficiencia y sistemas VRF</li>
@@ -106,13 +106,13 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg" alt="Chillers industriales en Querétaro" width="1920" height="500" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/card-hvac.jpg" alt="Sistemas HVAC industriales en Querétaro" width="1920" height="500" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
 
   <section class="service-banner" aria-label="Operación continua HVAC para plantas">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/AIRE%20ACONDICIONADO/ID%20INDUSTRIAL%20WEB_7.jpg" alt="Operación continua HVAC para plantas industriales" width="1920" height="500" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/card-hvac.jpg" alt="Operación continua HVAC para plantas industriales" width="1920" height="500" loading="lazy" decoding="async">
     <div>
       <p>Operación continua HVAC para plantas 24/7</p>
       <h2>Redundancia, monitoreo y mantenimiento preventivo</h2>
@@ -134,9 +134,9 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <div class="detail-copy reveal reveal--delay">
-        <p class="eyebrow">Experiencia TIER 1</p>
-        <h2>Proyectos HVAC para industria automotriz, electrónica y manufactura avanzada.</h2>
-        <p>Hemos participado en proyectos vinculados a cadenas industriales TIER 1 y operaciones en Querétaro, Guanajuato y Monterrey, con cuadrillas técnicas especializadas y proveedores certificados HVAC.</p>
+        <p class="eyebrow">Experiencia industrial</p>
+        <h2>Proyectos HVAC para manufactura, edificios técnicos y operación continua.</h2>
+        <p>Atendemos proyectos industriales en Querétaro y corredores del Bajío con cuadrillas técnicas, documentación de instalación y enfoque de mantenimiento preventivo y correctivo.</p>
       </div>
     </div>
   </section>
@@ -144,7 +144,7 @@ include __DIR__ . '/../includes/navbar.php';
   <section class="detail-section section-dark section-pad">
     <div class="container split">
       <figure class="service__image reveal">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/INDUSTRIAL/ID%20INDUSTRIAL%20WEB_3.jpg" alt="Ventilación industrial en Querétaro" width="1920" height="800" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/home-industrial.jpg" alt="Ventilación industrial en Querétaro" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
       <div class="split__content reveal reveal--delay">
         <p class="eyebrow">Infraestructura integrada</p>
@@ -161,7 +161,7 @@ include __DIR__ . '/../includes/navbar.php';
   </section>
 
   <section class="service-banner" aria-label="Instalación de conductos comerciales e industriales">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/TECNOLOGIA%20EN%20LA%20CONSTRUCCION/PAGINA%20WEB%20ID%20INDUSTRIAL_9.jpg" alt="Instalación de conductos comerciales e industriales" width="1920" height="800" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/home-hero-logicas.jpg" alt="Instalación de conductos comerciales e industriales" width="1920" height="500" loading="lazy" decoding="async">
     <div>
       <p>Ambientes controlados para productividad y seguridad</p>
       <h2>Ductos, ventilación y climatización por zona</h2>
@@ -191,7 +191,7 @@ include __DIR__ . '/../includes/navbar.php';
         <p class="eyebrow">Diagnóstico técnico</p>
         <h2>Optimiza el control térmico de tu planta con una propuesta HVAC adaptada a tu operación.</h2>
       </div>
-      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>#contacto">Solicitar cotización</a>
+      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=hvac#contacto">Solicitar cotización</a>
     </div>
   </section>
 </main>
@@ -202,9 +202,9 @@ include __DIR__ . '/../includes/navbar.php';
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://idindustrial.com.mx/#organization",
+      "@id": "https://idindustrial.com.mx/sistema/#organization",
       "name": "ID Industrial",
-      "url": "https://idindustrial.com.mx/",
+      "url": "https://idindustrial.com.mx/sistema/",
       "areaServed": ["Querétaro", "Guanajuato", "Monterrey"],
       "knowsAbout": [
         "HVAC industrial",
@@ -220,11 +220,11 @@ include __DIR__ . '/../includes/navbar.php';
     },
     {
       "@type": "Service",
-      "@id": "https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/#service",
+      "@id": "https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/#service",
       "name": "Instalación de aire acondicionado industrial",
       "serviceType": "HVAC industrial",
       "provider": {
-        "@id": "https://idindustrial.com.mx/#organization"
+        "@id": "https://idindustrial.com.mx/sistema/#organization"
       },
       "areaServed": {
         "@type": "Place",
@@ -248,7 +248,7 @@ include __DIR__ . '/../includes/navbar.php';
     },
     {
       "@type": "FAQPage",
-      "@id": "https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/#faq",
+      "@id": "https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/#faq",
       "mainEntity": [
         <?php foreach ($faqItems as $index => $item): ?>
           {
@@ -264,10 +264,10 @@ include __DIR__ . '/../includes/navbar.php';
     },
     {
       "@type": "BreadcrumbList",
-      "@id": "https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/#breadcrumb",
+      "@id": "https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/#breadcrumb",
       "itemListElement": [
-        {"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://idindustrial.com.mx/"},
-        {"@type": "ListItem", "position": 2, "name": "Instalación de aire acondicionado industrial Querétaro", "item": "https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/"}
+        {"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://idindustrial.com.mx/sistema/"},
+        {"@type": "ListItem", "position": 2, "name": "Instalación de aire acondicionado industrial Querétaro", "item": "https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/"}
       ]
     }
   ]

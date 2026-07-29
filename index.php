@@ -5,258 +5,231 @@ $assetUrlBase = 'https://idindustrial.com.mx/sistema/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
+$currentSection = 'inicio';
 
-$title = 'ID Industrial | Ingeniería industrial, cableado, HVAC y seguridad en Querétaro';
-$description = 'Soluciones de ingeniería industrial en Querétaro: cableado estructurado, detección de incendios, sistemas HVAC, fibra óptica, control de accesos e infraestructura crítica.';
-$keywords = 'ID Industrial, cableado estructurado Querétaro, detección de incendios industrial, sistemas HVAC Querétaro, fibra óptica industrial, control de accesos Querétaro';
+$title = 'Infraestructura industrial en Querétaro | ID Industrial';
+$description = 'Ingeniería industrial en Querétaro para cableado estructurado, fibra óptica, CCTV, control de accesos, detección de incendios y sistemas HVAC.';
+$keywords = 'ID Industrial, infraestructura industrial Querétaro, cableado estructurado Querétaro, CCTV industrial, control de accesos Querétaro, HVAC industrial';
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
-$canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/' : $requestPath);
-$heroMobileImage = 'assets/img/hero-mobile.webp';
-$heroDesktopImage = 'assets/img/hero-desktop.webp';
-
-$navItems = [
-  ['label' => 'Inicio', 'href' => '#inicio'],
-  ['label' => 'Quiénes somos', 'href' => '#quienes-somos'],
-  ['label' => 'Cableado estructurado', 'href' => '#cableado-estructurado'],
-  ['label' => 'Detección de incendios', 'href' => '#deteccion-incendios'],
-  ['label' => 'Sistemas HVAC', 'href' => '#sistemas-hvac'],
-  ['label' => 'Fibra óptica', 'href' => '#fibra-optica'],
-  ['label' => 'Control de Accesos', 'href' => '#control-accesos'],
-  ['label' => 'Bitácora ID', 'href' => '#bitacora-id'],
-  ['label' => 'Contacto', 'href' => '#contacto'],
-];
-
-$services = [
-  [
-    'id' => 'cableado-estructurado',
-    'eyebrow' => 'Infraestructura de red',
-    'title' => 'Cableado estructurado para plantas, oficinas y sites industriales.',
-    'copy' => 'Diseñamos e instalamos nodos, racks, canalizaciones, puntos de voz y datos, etiquetado técnico y pruebas para redes preparadas para operación continua.',
-    'image' => 'assets/img/optimized/service-cableado.jpg',
-    'alt' => 'Instalación de cableado estructurado en Querétaro',
-    'width' => 1920,
-    'height' => 500,
-    'detailHref' => 'industriales/cableado-estructurado-queretaro/',
-    'detailLabel' => 'Ver más',
-    'bullets' => ['Cableado UTP, fibra y canalización', 'Racks, patch panels y ordenamiento', 'Memoria técnica y pruebas de enlace'],
-  ],
-  [
-    'id' => 'deteccion-incendios',
-    'eyebrow' => 'Protección temprana',
-    'title' => 'Detección de incendios con integración para áreas críticas.',
-    'copy' => 'Implementamos paneles, sensores, sirenas, estaciones manuales y lógica de alerta para reducir tiempos de respuesta y proteger activos estratégicos.',
-    'image' => 'assets/img/optimized/card-incendios.jpg',
-    'alt' => 'Sistema de detección de incendios industrial',
-    'width' => 1920,
-    'height' => 500,
-    'detailHref' => '#contacto',
-    'detailLabel' => 'Cotizar detección',
-    'bullets' => ['Paneles y sensores direccionables', 'Alarmamiento y supervisión', 'Diseño orientado a normativas aplicables'],
-  ],
-  [
-    'id' => 'sistemas-hvac',
-    'eyebrow' => 'Control ambiental',
-    'title' => 'Sistemas HVAC industriales para continuidad operativa.',
-    'copy' => 'Integramos climatización, ventilación, chillers y mantenimiento para oficinas, cuartos técnicos, procesos productivos y espacios de precisión.',
-    'image' => 'assets/img/optimized/card-hvac.jpg',
-    'alt' => 'Sistemas HVAC industriales en Querétaro',
-    'width' => 1920,
-    'height' => 500,
-    'detailHref' => 'instalacion-aire-acondicionado-industrial-queretaro/',
-    'detailLabel' => 'Ver más',
-    'bullets' => ['Instalación y mantenimiento', 'Ventilación y ductería', 'Sistemas de precisión para cuartos técnicos'],
-  ],
-  [
-    'id' => 'cctv-industrial',
-    'eyebrow' => 'Videovigilancia industrial',
-    'title' => 'CCTV industrial para monitoreo, evidencia y control operativo.',
-    'copy' => 'Diseñamos e instalamos cámaras IP, grabadores, almacenamiento, redes y monitoreo para plantas, oficinas, perímetros y naves industriales en Querétaro.',
-    'image' => 'assets/img/optimized/service-cctv.jpg',
-    'alt' => 'Centro de monitoreo CCTV industrial',
-    'width' => 1920,
-    'height' => 800,
-    'detailHref' => 'instalacion-camaras-seguridad-industrial-queretaro/',
-    'detailLabel' => 'Ver más',
-    'bullets' => ['Cámaras IP y grabación 24/7', 'Monitoreo remoto y evidencia', 'Integración con acceso, alarmas y red'],
-  ],
-  [
-    'id' => 'fibra-optica',
-    'eyebrow' => 'Alta disponibilidad',
-    'title' => 'Fibra óptica para comunicación industrial de alto desempeño.',
-    'copy' => 'Tendidos, fusiones, certificación y enlaces de fibra óptica para naves, campus industriales, edificios corporativos y redes críticas.',
-    'image' => 'assets/img/optimized/card-fibra.jpg',
-    'alt' => 'Instaladores de fibra óptica industrial',
-    'width' => 1920,
-    'height' => 500,
-    'detailHref' => '#contacto',
-    'detailLabel' => 'Cotizar fibra óptica',
-    'bullets' => ['Fusión y certificación', 'Backbone para naves y campus', 'Canalización y protección de enlace'],
-  ],
-  [
-    'id' => 'control-accesos',
-    'eyebrow' => 'Seguridad y trazabilidad',
-    'title' => 'Control de accesos conectado con operación y vigilancia.',
-    'copy' => 'Integramos biométricos, tarjetas, plumas, torniquetes, CCTV y monitoreo para controlar personal, proveedores y perímetros industriales.',
-    'image' => 'assets/img/optimized/service-control-acceso.jpg',
-    'alt' => 'Control de accesos conectado a CCTV',
-    'width' => 1920,
-    'height' => 800,
-    'detailHref' => 'control-de-acceso-de-personal-queretaro/',
-    'detailLabel' => 'Ver más',
-    'bullets' => ['Biométricos, tarjetas y plumas', 'Integración con CCTV y nómina', 'Trazabilidad de entradas y salidas'],
-  ],
-];
-
-$bitacora = [
-  [
-    'tag' => 'Checklist',
-    'title' => 'Antes de intervenir una red industrial',
-    'copy' => 'Levantamiento, rutas, densidad de nodos, energía disponible y ventanas de paro definen una ejecución limpia.',
-  ],
-  [
-    'tag' => 'Mantenimiento',
-    'title' => 'Señales de alerta en sistemas HVAC',
-    'copy' => 'Variaciones térmicas, ruido, humedad y consumo elevado suelen anticipar fallas que afectan continuidad operativa.',
-  ],
-  [
-    'tag' => 'Seguridad',
-    'title' => 'Por qué integrar acceso, CCTV y bitácoras',
-    'copy' => 'La seguridad industrial mejora cuando cada evento deja evidencia, responsable, hora y punto de control.',
-  ],
-];
-
-$serviceOverview = [
-  [
-    'title' => 'Cableado estructurado',
-    'copy' => 'Redes industriales, voz y datos, racks, servidores, sites y fibra óptica para operación estable.',
-    'href' => 'industriales/cableado-estructurado-queretaro/',
-    'image' => 'assets/img/optimized/card-cableado.jpg',
-    'alt' => 'Cableado estructurado industrial en Querétaro',
-    'width' => 1920,
-    'height' => 500,
-    'badge' => 'Página técnica',
-    'featured' => true,
-  ],
-  [
-    'title' => 'Detección de incendios',
-    'copy' => 'Paneles, sensores, estaciones manuales y alarmamiento para áreas críticas y procesos productivos.',
-    'href' => '#deteccion-incendios',
-    'image' => 'assets/img/optimized/card-incendios.jpg',
-    'alt' => 'Panel de detección de incendios industrial',
-    'width' => 1920,
-    'height' => 500,
-    'badge' => 'Resumen',
-    'featured' => false,
-  ],
-  [
-    'title' => 'Sistemas HVAC',
-    'copy' => 'Climatización, ventilación, chillers y soporte para cuartos técnicos, oficinas y producción.',
-    'href' => 'instalacion-aire-acondicionado-industrial-queretaro/',
-    'image' => 'assets/img/optimized/card-hvac.jpg',
-    'alt' => 'Sistemas HVAC industriales',
-    'width' => 1920,
-    'height' => 500,
-    'badge' => 'Resumen',
-    'featured' => false,
-  ],
-  [
-    'title' => 'CCTV industrial',
-    'copy' => 'Instalación de cámaras de seguridad, videovigilancia y monitoreo para plantas, oficinas y naves industriales.',
-    'href' => 'instalacion-camaras-seguridad-industrial-queretaro/',
-    'image' => 'assets/img/optimized/home-hero-cctv.jpg',
-    'alt' => 'Sistema de CCTV industrial en Querétaro',
-    'width' => 1920,
-    'height' => 500,
-    'badge' => 'Página técnica',
-    'featured' => true,
-  ],
-  [
-    'title' => 'Fibra óptica',
-    'copy' => 'Backbone, fusiones, certificación e interconexión de edificios para redes de alto desempeño.',
-    'href' => '#fibra-optica',
-    'image' => 'assets/img/optimized/card-fibra.jpg',
-    'alt' => 'Instalación de fibra óptica en Querétaro',
-    'width' => 1920,
-    'height' => 500,
-    'badge' => 'Resumen',
-    'featured' => false,
-  ],
-  [
-    'title' => 'Control de Accesos',
-    'copy' => 'Biométricos, tarjetas, plumas, CCTV y trazabilidad para personal, proveedores y perímetros.',
-    'href' => 'control-de-acceso-de-personal-queretaro/',
-    'image' => 'assets/img/optimized/home-hero-control-acceso.jpg',
-    'alt' => 'Control de accesos biométrico industrial',
-    'width' => 1920,
-    'height' => 500,
-    'badge' => 'Página técnica',
-    'featured' => true,
-  ],
-];
+$canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/sistema/' : $requestPath);
 
 $homeCarouselItems = [
   [
     'image' => 'assets/img/optimized/home-hero-cableado.jpg',
-    'alt' => 'Cableado estructurado para infraestructura industrial',
+    'alt' => '',
     'width' => 1920,
     'height' => 500,
     'label' => 'Cableado estructurado',
   ],
   [
     'image' => 'assets/img/optimized/home-hero-cctv.jpg',
-    'alt' => 'CCTV industrial y monitoreo de seguridad',
+    'alt' => '',
     'width' => 1920,
     'height' => 500,
     'label' => 'CCTV industrial',
   ],
   [
     'image' => 'assets/img/optimized/home-hero-control-acceso.jpg',
-    'alt' => 'Control de acceso industrial para personal',
+    'alt' => '',
     'width' => 1920,
     'height' => 500,
     'label' => 'Control de accesos',
   ],
   [
     'image' => 'assets/img/optimized/home-hero-servidores.jpg',
-    'alt' => 'Servidores y sites para operación industrial',
+    'alt' => '',
     'width' => 1920,
     'height' => 500,
     'label' => 'Servidores y sites',
   ],
   [
     'image' => 'assets/img/optimized/home-hero-logicas.jpg',
-    'alt' => 'Lógicas industriales e integración operativa',
+    'alt' => '',
     'width' => 1920,
     'height' => 500,
     'label' => 'Lógicas industriales',
   ],
 ];
 
-$serviceOverview = array_slice($serviceOverview, 0, 6);
 $heroDesktopImage = $homeCarouselItems[0]['image'];
 $heroMobileImage = $homeCarouselItems[0]['image'];
 
+$serviceOverview = [
+  [
+    'id' => 'cableado-estructurado',
+    'title' => 'Cableado estructurado',
+    'copy' => 'Redes de voz y datos, racks, canalización, fibra óptica y pruebas para operación estable.',
+    'application' => 'Aplicación: plantas, oficinas, sites y naves industriales.',
+    'href' => 'industriales/cableado-estructurado-queretaro/',
+    'image' => 'assets/img/optimized/card-cableado.jpg',
+    'alt' => 'Cableado estructurado industrial en Querétaro',
+    'width' => 1920,
+    'height' => 500,
+    'badge' => 'Infraestructura',
+    'linkText' => 'Conocer soluciones de cableado estructurado',
+  ],
+  [
+    'id' => 'deteccion-incendios',
+    'title' => 'Detección de incendios',
+    'copy' => 'Paneles, sensores, estaciones manuales y alarmamiento para áreas críticas.',
+    'application' => 'Aplicación: producción, almacenes, cuartos técnicos y corporativos.',
+    'href' => '#contacto',
+    'image' => 'assets/img/optimized/card-incendios.jpg',
+    'alt' => 'Panel de detección de incendios industrial',
+    'width' => 1920,
+    'height' => 500,
+    'badge' => 'Seguridad',
+    'linkText' => 'Consultar detección de incendios',
+  ],
+  [
+    'id' => 'sistemas-hvac',
+    'title' => 'Sistemas HVAC',
+    'copy' => 'Climatización, ventilación, chillers y soporte técnico para continuidad operativa.',
+    'application' => 'Aplicación: oficinas, cuartos técnicos y procesos de precisión.',
+    'href' => 'instalacion-aire-acondicionado-industrial-queretaro/',
+    'image' => 'assets/img/optimized/card-hvac.jpg',
+    'alt' => 'Sistemas HVAC industriales',
+    'width' => 1920,
+    'height' => 500,
+    'badge' => 'Climatización',
+    'linkText' => 'Consultar sistemas HVAC industriales',
+  ],
+  [
+    'id' => 'cctv-industrial',
+    'title' => 'CCTV industrial',
+    'copy' => 'Videovigilancia, grabación, monitoreo e integración con red y accesos.',
+    'application' => 'Aplicación: perímetros, casetas, producción y edificios corporativos.',
+    'href' => 'instalacion-camaras-seguridad-industrial-queretaro/',
+    'image' => 'assets/img/optimized/home-hero-cctv.jpg',
+    'alt' => 'Sistema de CCTV industrial en Querétaro',
+    'width' => 1920,
+    'height' => 500,
+    'badge' => 'Videovigilancia',
+    'linkText' => 'Ver soluciones de CCTV industrial',
+  ],
+  [
+    'id' => 'fibra-optica',
+    'title' => 'Fibra óptica',
+    'copy' => 'Backbone, fusiones, enlaces y certificación para redes de alto desempeño.',
+    'application' => 'Aplicación: campus industriales, naves y edificios conectados.',
+    'href' => '#contacto',
+    'image' => 'assets/img/optimized/card-fibra.jpg',
+    'alt' => 'Instalación de fibra óptica en Querétaro',
+    'width' => 1920,
+    'height' => 500,
+    'badge' => 'Conectividad',
+    'linkText' => 'Explorar soluciones de fibra óptica',
+  ],
+  [
+    'id' => 'control-accesos',
+    'title' => 'Control de Accesos',
+    'copy' => 'Biométricos, tarjetas, plumas, perfiles de acceso, registros e integración con CCTV.',
+    'application' => 'Aplicación: personal, proveedores, visitantes y áreas restringidas.',
+    'href' => 'control-de-acceso-de-personal-queretaro/',
+    'image' => 'assets/img/optimized/home-hero-control-acceso.jpg',
+    'alt' => 'Control de accesos biométrico industrial',
+    'width' => 1920,
+    'height' => 500,
+    'badge' => 'Trazabilidad',
+    'linkText' => 'Conocer control de acceso para empresas',
+  ],
+];
+
+$trustItems = [
+  'Levantamiento técnico en sitio para definir rutas, puntos críticos y condiciones reales de operación.',
+  'Soluciones adaptadas a la infraestructura existente y al crecimiento previsto de cada planta o edificio.',
+  'Instalación, pruebas y puesta en marcha con entregables técnicos para mantenimiento posterior.',
+  'Integración entre redes, CCTV, accesos, HVAC y sistemas de seguridad cuando el proyecto lo requiere.',
+  'Mantenimiento preventivo y correctivo para conservar disponibilidad y trazabilidad.',
+  'Documentación clara para operación, soporte y futuras ampliaciones.',
+];
+
+$processSteps = [
+  ['title' => 'Levantamiento y diagnóstico técnico', 'copy' => 'Visitamos sitio, revisamos infraestructura existente, riesgos operativos, rutas y puntos críticos.'],
+  ['title' => 'Ingeniería y propuesta de solución', 'copy' => 'Definimos alcance, materiales, arquitectura, prioridades y criterios técnicos para instalación.'],
+  ['title' => 'Suministro e instalación', 'copy' => 'Ejecutamos canalización, montaje, cableado, configuración e integración con orden de obra.'],
+  ['title' => 'Pruebas y puesta en operación', 'copy' => 'Validamos funcionamiento, cobertura, conectividad, alarmas, registros y continuidad del sistema.'],
+  ['title' => 'Documentación, capacitación y soporte', 'copy' => 'Entregamos memoria técnica, recomendaciones de operación y ruta de mantenimiento.'],
+];
+
+$recommendations = [
+  [
+    'tag' => 'Red industrial',
+    'title' => 'Qué revisar antes de intervenir una red industrial',
+    'copy' => 'Ubicación de racks, rutas disponibles, energía, etiquetado, densidad de nodos y ventanas de trabajo.',
+  ],
+  [
+    'tag' => 'HVAC',
+    'title' => 'Señales de alerta en un sistema HVAC',
+    'copy' => 'Variaciones térmicas, ruido, humedad, consumo inusual o paros intermitentes suelen anticipar fallas.',
+  ],
+  [
+    'tag' => 'Seguridad',
+    'title' => 'Ventajas de integrar accesos, CCTV y bitácoras',
+    'copy' => 'Cada evento queda asociado a persona, hora, zona y evidencia visual para auditoría y operación diaria.',
+  ],
+];
+
+$serviceOptions = [
+  'Cableado estructurado',
+  'Detección de incendios',
+  'Sistemas HVAC',
+  'CCTV industrial',
+  'Fibra óptica',
+  'Control de Accesos',
+];
+
+$serviceParamMap = [
+  'cableado' => 'Cableado estructurado',
+  'incendios' => 'Detección de incendios',
+  'hvac' => 'Sistemas HVAC',
+  'cctv' => 'CCTV industrial',
+  'fibra' => 'Fibra óptica',
+  'accesos' => 'Control de Accesos',
+];
+
 $formStatus = null;
+$formErrors = [];
+$formData = [
+  'name' => '',
+  'email' => '',
+  'phone' => '',
+  'service' => $serviceParamMap[$_GET['servicio'] ?? ''] ?? '',
+  'message' => '',
+];
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-  $name = trim($_POST['name'] ?? '');
-  $email = trim($_POST['email'] ?? '');
-  $projectPhone = trim($_POST['phone'] ?? '');
-  $serviceInterest = trim($_POST['service'] ?? '');
-  $message = trim($_POST['message'] ?? '');
+  $formData['name'] = trim($_POST['name'] ?? '');
+  $formData['email'] = trim($_POST['email'] ?? '');
+  $formData['phone'] = trim($_POST['phone'] ?? '');
+  $formData['service'] = trim($_POST['service'] ?? '');
+  $formData['message'] = trim($_POST['message'] ?? '');
   $honeypot = trim($_POST['company_site'] ?? '');
 
   if ($honeypot !== '') {
     $formStatus = ['type' => 'ok', 'text' => 'Gracias. Recibimos tu solicitud.'];
-  } elseif ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || $message === '') {
-    $formStatus = ['type' => 'error', 'text' => 'Por favor completa nombre, correo válido y mensaje.'];
   } else {
-    $subject = 'Nueva solicitud desde idindustrial.com.mx';
-    $body = "Nombre: {$name}\nCorreo: {$email}\nTeléfono: {$projectPhone}\nServicio de interés: {$serviceInterest}\n\nMensaje:\n{$message}";
-    $headers = "From: {$contactEmail}\r\nReply-To: {$email}\r\nContent-Type: text/plain; charset=UTF-8";
-    $sent = @mail($contactEmail, $subject, $body, $headers);
-    $formStatus = $sent
-      ? ['type' => 'ok', 'text' => 'Gracias. Tu solicitud fue enviada correctamente.']
-      : ['type' => 'error', 'text' => 'No se pudo enviar desde el servidor. Escríbenos por WhatsApp y te atendemos.'];
+    if ($formData['name'] === '') {
+      $formErrors['name'] = 'Indica tu nombre y empresa.';
+    }
+    if (!filter_var($formData['email'], FILTER_VALIDATE_EMAIL)) {
+      $formErrors['email'] = 'Ingresa un correo válido.';
+    }
+    if ($formData['message'] === '') {
+      $formErrors['message'] = 'Cuéntanos brevemente qué necesitas instalar o mejorar.';
+    }
+
+    if ($formErrors) {
+      $formStatus = ['type' => 'error', 'text' => 'Revisa los campos marcados para enviar tu solicitud.'];
+    } else {
+      $subject = 'Nueva solicitud desde idindustrial.com.mx';
+      $body = "Nombre: {$formData['name']}\nCorreo: {$formData['email']}\nTeléfono: {$formData['phone']}\nServicio de interés: {$formData['service']}\n\nMensaje:\n{$formData['message']}";
+      $headers = "From: {$contactEmail}\r\nReply-To: {$formData['email']}\r\nContent-Type: text/plain; charset=UTF-8";
+      $sent = @mail($contactEmail, $subject, $body, $headers);
+      $formStatus = $sent
+        ? ['type' => 'ok', 'text' => 'Gracias. Tu solicitud fue enviada correctamente.']
+        : ['type' => 'error', 'text' => 'No se pudo enviar desde el servidor. Escríbenos por WhatsApp y te atendemos.'];
+    }
   }
 }
 
@@ -290,92 +263,60 @@ include __DIR__ . '/includes/navbar.php';
     <div class="hero__overlay" aria-hidden="true"></div>
     <div class="container hero__grid">
       <div class="hero__copy reveal">
-        <p class="eyebrow">Ingeniería industrial en Querétaro y Bajío</p>
-        <h1 id="hero-title"><span>ID</span><span>Industrial</span></h1>
-        <p class="hero__lead">Integramos infraestructura crítica para plantas, naves y edificios corporativos: redes, seguridad, detección de incendios, HVAC y fibra óptica.</p>
+        <p class="eyebrow">ID Industrial · Querétaro y Bajío</p>
+        <h1 id="hero-title"><span>Infraestructura e ingeniería</span><span>industrial en Querétaro</span></h1>
+        <p class="hero__lead">Diseñamos e implementamos soluciones de cableado estructurado, fibra óptica, CCTV, control de accesos, detección de incendios y sistemas HVAC para plantas, naves industriales y edificios corporativos.</p>
         <div class="hero__actions">
-          <a class="button button--primary" href="#contacto">Cotizar proyecto</a>
-          <a class="button button--ghost" href="#quienes-somos">Ver capacidades</a>
+          <a class="button button--primary" href="#contacto">Solicitar evaluación técnica</a>
+          <a class="button button--ghost" href="#servicios">Conocer servicios</a>
         </div>
       </div>
       <div class="hero__panel reveal reveal--delay">
         <span class="status-dot"></span>
-        <p>Operación técnica llave en mano</p>
-        <strong>Diagnóstico, ejecución, documentación y soporte.</strong>
+        <p>Soluciones llave en mano</p>
+        <strong>Diagnóstico, ingeniería, instalación, documentación y soporte técnico.</strong>
       </div>
     </div>
   </section>
 
-  <section class="metrics section-light" aria-label="Indicadores de ID Industrial">
+  <section class="metrics section-light" aria-label="Indicadores de confianza de ID Industrial">
     <div class="container metrics__grid">
       <div class="metric reveal">
-        <span data-count="20">0</span>
+        <span data-count="20" data-suffix="+">20+</span>
         <p>Años de experiencia técnica</p>
       </div>
       <div class="metric reveal">
-        <span data-count="5">0</span>
-        <p>Especialidades integradas</p>
+        <span data-count="6">6</span>
+        <p>Especialidades industriales</p>
       </div>
       <div class="metric reveal">
-        <span data-count="24">0</span>
-        <p>Enfoque en continuidad operativa</p>
+        <span>QRO</span>
+        <p>Cobertura en Querétaro y el Bajío</p>
       </div>
       <div class="metric reveal">
-        <span data-count="100">0</span>
-        <p>Proyectos documentados y trazables</p>
+        <span>MPC</span>
+        <p>Soporte preventivo y correctivo</p>
       </div>
     </div>
   </section>
-
-  <?php if (false): ?>
-  <section class="project-carousel project-carousel--home section-dark section-pad" aria-labelledby="home-carousel-title">
-    <div class="container">
-      <div class="section-head reveal">
-        <p class="eyebrow">Áreas ID Industrial</p>
-        <h2 id="home-carousel-title">Especialidades segmentadas para operación, seguridad e infraestructura.</h2>
-      </div>
-      <div class="media-carousel media-carousel--panoramic reveal" data-carousel>
-        <div class="media-carousel__viewport">
-          <?php foreach ($homeCarouselItems as $index => $item): ?>
-            <figure class="media-carousel__slide <?php echo $index === 0 ? 'is-active' : ''; ?>" aria-hidden="<?php echo $index === 0 ? 'false' : 'true'; ?>" data-carousel-slide>
-              <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
-              <figcaption><?php echo htmlspecialchars($item['label']); ?></figcaption>
-            </figure>
-          <?php endforeach; ?>
-        </div>
-        <button class="media-carousel__arrow media-carousel__arrow--prev" type="button" aria-label="Imagen anterior" data-carousel-prev>
-          <span aria-hidden="true"></span>
-        </button>
-        <button class="media-carousel__arrow media-carousel__arrow--next" type="button" aria-label="Imagen siguiente" data-carousel-next>
-          <span aria-hidden="true"></span>
-        </button>
-        <div class="media-carousel__dots" aria-label="Seleccionar imagen">
-          <?php foreach ($homeCarouselItems as $index => $item): ?>
-            <button class="media-carousel__dot <?php echo $index === 0 ? 'is-active' : ''; ?>" type="button" aria-label="Ver <?php echo htmlspecialchars($item['label']); ?>" aria-current="<?php echo $index === 0 ? 'true' : 'false'; ?>" data-carousel-dot="<?php echo (int) $index; ?>"></button>
-          <?php endforeach; ?>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <?php endif; ?>
 
   <section id="servicios" class="services-overview section-dark section-pad">
     <div class="container">
       <div class="section-head reveal">
-        <p class="eyebrow">Servicios</p>
-        <h2>Soluciones industriales para infraestructura, seguridad y continuidad operativa.</h2>
-        <p>Explora primero el alcance dentro de esta página. En los servicios con landing técnica podrás entrar a una página exclusiva con información SEO, preguntas frecuentes, normativas y criterios de compra.</p>
+        <p class="eyebrow">Servicios principales</p>
+        <h2>Soluciones para infraestructura, seguridad y continuidad operativa.</h2>
+        <p>Un solo equipo técnico para coordinar sistemas que normalmente se instalan por separado.</p>
       </div>
 
       <div class="services-overview__grid">
-        <?php foreach (array_slice($serviceOverview, 0, 6) as $item): ?>
-          <article class="service-card <?php echo !empty($item['featured']) ? 'service-card--featured' : ''; ?> <?php echo (int) $item['height'] <= 500 ? 'service-card--wide' : ''; ?> reveal">
-            <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async" fetchpriority="low">
+        <?php foreach ($serviceOverview as $item): ?>
+          <article id="<?php echo htmlspecialchars($item['id']); ?>" class="service-card service-card--wide reveal">
+            <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
             <em><?php echo htmlspecialchars($item['badge']); ?></em>
             <span><?php echo htmlspecialchars($item['title']); ?></span>
             <p><?php echo htmlspecialchars($item['copy']); ?></p>
-            <a class="service-card__more" href="<?php echo htmlspecialchars($item['href']); ?>" aria-label="Ver más sobre <?php echo htmlspecialchars($item['title']); ?>">Ver más</a>
+            <small><?php echo htmlspecialchars($item['application']); ?></small>
+            <a class="service-card__more" href="<?php echo htmlspecialchars($item['href']); ?>" aria-label="<?php echo htmlspecialchars($item['linkText']); ?>"><?php echo htmlspecialchars($item['linkText']); ?></a>
           </article>
         <?php endforeach; ?>
       </div>
@@ -385,19 +326,18 @@ include __DIR__ . '/includes/navbar.php';
   <section id="quienes-somos" class="about section-dark section-pad">
     <div class="container split">
       <div class="split__content reveal">
-        <p class="eyebrow">Quiénes somos</p>
-        <h2>Somos el equipo que conecta infraestructura, seguridad y operación.</h2>
-        <p>ID Industrial desarrolla soluciones técnicas para entornos donde una falla cuesta producción, seguridad o confianza. Trabajamos con cuadrillas capacitadas, enfoque preventivo y documentación clara para que cada instalación pueda mantenerse, escalarse y auditarse.</p>
+        <p class="eyebrow">Por qué elegir ID Industrial</p>
+        <h2>Coordinamos infraestructura, seguridad y operación con criterio técnico.</h2>
+        <p>Trabajamos para entornos donde una falla puede afectar producción, seguridad o continuidad. Nuestro enfoque combina levantamiento en sitio, instalación profesional, pruebas y documentación clara.</p>
         <div class="check-grid">
-          <span>Levantamiento en sitio</span>
-          <span>Ingeniería y suministro</span>
-          <span>Instalación profesional</span>
-          <span>Soporte y mantenimiento</span>
+          <?php foreach ($trustItems as $item): ?>
+            <span><?php echo htmlspecialchars($item); ?></span>
+          <?php endforeach; ?>
         </div>
       </div>
       <figure class="image-lockup reveal reveal--delay">
-        <img src="assets/img/optimized/home-industrial.jpg" alt="Personal capacitado de ID Industrial" width="1920" height="800" loading="lazy" decoding="async">
-        <figcaption>Cuadrillas técnicas para ejecución industrial con orden, seguridad y trazabilidad.</figcaption>
+        <img src="assets/img/optimized/home-industrial.jpg" alt="Equipo técnico trabajando en infraestructura industrial" width="1920" height="800" loading="lazy" decoding="async">
+        <figcaption>Instalaciones preparadas para operar, mantenerse y crecer con orden técnico.</figcaption>
       </figure>
     </div>
   </section>
@@ -405,25 +345,17 @@ include __DIR__ . '/includes/navbar.php';
   <section class="process section-light section-pad" aria-labelledby="process-title">
     <div class="container">
       <div class="section-head reveal">
-        <p class="eyebrow">Proceso de mejora</p>
-        <h2 id="process-title">Una página más clara para clientes que comparan proveedores técnicos.</h2>
+        <p class="eyebrow">Nuestro proceso de trabajo</p>
+        <h2 id="process-title">De la visita técnica a la puesta en operación.</h2>
       </div>
-      <div class="process__grid">
-        <article class="process-step reveal">
-          <span>01</span>
-          <h3>Mensaje directo</h3>
-          <p>Se prioriza qué hace ID Industrial, dónde opera y qué problemas resuelve.</p>
-        </article>
-        <article class="process-step reveal">
-          <span>02</span>
-          <h3>Navegación por servicios</h3>
-          <p>Cada solución clave tiene su propio bloque, imagen, beneficios y llamada a contacto.</p>
-        </article>
-        <article class="process-step reveal">
-          <span>03</span>
-          <h3>Base técnica SEO/GEO</h3>
-          <p>Metadatos, datos estructurados, contenido semántico y archivos de rastreo listos.</p>
-        </article>
+      <div class="process__grid process__grid--five">
+        <?php foreach ($processSteps as $index => $step): ?>
+          <article class="process-step reveal">
+            <span><?php echo str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT); ?></span>
+            <h3><?php echo htmlspecialchars($step['title']); ?></h3>
+            <p><?php echo htmlspecialchars($step['copy']); ?></p>
+          </article>
+        <?php endforeach; ?>
       </div>
     </div>
   </section>
@@ -438,59 +370,40 @@ include __DIR__ . '/includes/navbar.php';
       <div class="lamp-line" aria-hidden="true"></div>
       <div class="lamp-mask" aria-hidden="true"></div>
       <div class="lamp-content">
-        <p class="eyebrow">Infraestructura crítica conectada</p>
+        <p class="eyebrow">Capacidad destacada</p>
         <h2 id="lamp-title">Sistemas industriales que trabajan como una sola operación.</h2>
-        <p>Redes, fibra, HVAC, incendio y accesos con una arquitectura pensada para continuidad, trazabilidad y crecimiento.</p>
+        <p>Redes, fibra, HVAC, detección, CCTV y accesos con una arquitectura pensada para continuidad, trazabilidad y crecimiento.</p>
         <a class="button button--primary" href="#contacto">Evaluar proyecto</a>
       </div>
     </div>
   </section>
 
-  <?php foreach ($services as $index => $service): ?>
-    <section id="<?php echo htmlspecialchars($service['id']); ?>" class="service section-dark section-pad <?php echo $index % 2 ? 'service--reverse' : ''; ?>">
-      <div class="container split">
-        <div class="split__content reveal">
-          <p class="eyebrow"><?php echo htmlspecialchars($service['eyebrow']); ?></p>
-          <h2><?php echo htmlspecialchars($service['title']); ?></h2>
-          <p><?php echo htmlspecialchars($service['copy']); ?></p>
-          <ul class="service-list">
-            <?php foreach ($service['bullets'] as $bullet): ?>
-              <li><?php echo htmlspecialchars($bullet); ?></li>
-            <?php endforeach; ?>
-          </ul>
-          <div class="service-actions">
-            <a class="text-link" href="<?php echo htmlspecialchars($service['detailHref']); ?>"><?php echo htmlspecialchars($service['detailLabel']); ?></a>
-            <a class="text-link text-link--muted" href="#contacto">Solicitar evaluación técnica</a>
-          </div>
-        </div>
-        <figure class="service__image reveal reveal--delay">
-          <img src="<?php echo htmlspecialchars($service['image']); ?>" alt="<?php echo htmlspecialchars($service['alt']); ?>" width="<?php echo (int) $service['width']; ?>" height="<?php echo (int) $service['height']; ?>" loading="lazy" decoding="async">
-        </figure>
-      </div>
-    </section>
-  <?php endforeach; ?>
-
-  <section class="integration section-light section-pad" aria-labelledby="integration-title">
+  <section class="integration section-light section-pad" aria-labelledby="coverage-title">
     <div class="container integration__grid">
       <div class="section-head reveal">
-        <p class="eyebrow">Integración industrial</p>
-        <h2 id="integration-title">Un solo criterio técnico para sistemas que normalmente se instalan por separado.</h2>
-        <p>Cuando redes, HVAC, seguridad, control de accesos y detección trabajan con una misma lógica de operación, el mantenimiento es más claro y las decisiones se toman con mejor información.</p>
+        <p class="eyebrow">Cobertura</p>
+        <h2 id="coverage-title">Atención técnica para Querétaro y polos industriales del Bajío.</h2>
+        <p>Atendemos proyectos en zonas industriales, corporativos y edificios técnicos donde se requiere coordinación entre infraestructura, seguridad y mantenimiento.</p>
+        <ul class="coverage-list">
+          <li>Querétaro y Corregidora</li>
+          <li>El Marqués, Colón y parques industriales cercanos</li>
+          <li>Apaseo el Grande, Celaya y corredores del Bajío</li>
+        </ul>
       </div>
       <div class="integration__visual reveal reveal--delay">
-        <img src="assets/img/optimized/home-servidores.jpg" alt="Centro de monitoreo inteligente industrial" width="1920" height="800" loading="lazy" decoding="async">
+        <img src="assets/img/optimized/home-servidores.jpg" alt="Infraestructura de servidores y site industrial" width="1920" height="800" loading="lazy" decoding="async">
       </div>
     </div>
   </section>
 
-  <section id="bitacora-id" class="journal section-dark section-pad">
+  <section id="recomendaciones-tecnicas" class="journal section-dark section-pad">
     <div class="container">
       <div class="section-head reveal">
-        <p class="eyebrow">Bitácora ID</p>
-        <h2>Notas prácticas para mantener infraestructura crítica bajo control.</h2>
+        <p class="eyebrow">Recomendaciones técnicas</p>
+        <h2>Decisiones prácticas antes de intervenir infraestructura crítica.</h2>
       </div>
       <div class="journal__grid">
-        <?php foreach ($bitacora as $entry): ?>
+        <?php foreach ($recommendations as $entry): ?>
           <article class="journal-card reveal">
             <span><?php echo htmlspecialchars($entry['tag']); ?></span>
             <h3><?php echo htmlspecialchars($entry['title']); ?></h3>
@@ -509,12 +422,12 @@ include __DIR__ . '/includes/navbar.php';
         <p>Respondemos con una ruta de atención clara: diagnóstico, alcance técnico, tiempos y próximos pasos.</p>
         <div class="contact-proof">
           <div>
-            <strong>24/7</strong>
-            <span>Atención a operación crítica</span>
-          </div>
-          <div>
             <strong>QRO</strong>
             <span>Cobertura en polos industriales</span>
+          </div>
+          <div>
+            <strong>MPC</strong>
+            <span>Mantenimiento preventivo y correctivo</span>
           </div>
         </div>
         <div class="contact-methods">
@@ -525,7 +438,7 @@ include __DIR__ . '/includes/navbar.php';
             <span class="contact-methods__label">Teléfono</span>
             <strong><?php echo htmlspecialchars($phone); ?></strong>
           </a>
-          <a href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20cotizar%20un%20proyecto" target="_blank" rel="noopener" aria-label="Contactar por WhatsApp">
+          <a href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20solicitar%20una%20evaluaci%C3%B3n%20t%C3%A9cnica" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
             <span class="contact-methods__icon contact-methods__icon--whatsapp" aria-hidden="true">
               <svg viewBox="0 0 32 32"><path d="M16.04 3.2A12.72 12.72 0 0 0 5.2 22.6L4 29l6.56-1.72A12.72 12.72 0 1 0 16.04 3.2Zm0 22.84a10.1 10.1 0 0 1-5.14-1.4l-.36-.22-3.9 1.02 1.04-3.78-.24-.4A10.08 10.08 0 1 1 16.04 26.04Zm5.52-7.54c-.3-.16-1.8-.9-2.08-1-.28-.1-.48-.16-.68.16-.2.3-.78 1-.96 1.2-.18.2-.36.22-.66.08-.3-.16-1.28-.48-2.44-1.52-.9-.8-1.5-1.78-1.68-2.08-.18-.3-.02-.46.14-.62.14-.14.3-.36.46-.54.16-.18.2-.3.3-.5.1-.2.06-.38-.02-.54-.08-.16-.68-1.64-.94-2.24-.24-.58-.5-.5-.68-.5h-.58c-.2 0-.52.08-.8.38-.28.3-1.06 1.04-1.06 2.54s1.1 2.94 1.24 3.14c.16.2 2.16 3.3 5.24 4.62.74.32 1.3.5 1.74.64.74.24 1.4.2 1.94.12.6-.1 1.8-.74 2.06-1.46.26-.72.26-1.34.18-1.46-.08-.14-.28-.22-.58-.38Z"/></svg>
             </span>
@@ -542,51 +455,52 @@ include __DIR__ . '/includes/navbar.php';
         </div>
       </div>
 
-      <form class="contact-form reveal reveal--delay" action="#contacto" method="post">
+      <form class="contact-form reveal reveal--delay" action="#contacto" method="post" data-contact-form novalidate>
         <div class="form-head">
           <span>Solicitud técnica</span>
           <h3>Agenda una evaluación</h3>
           <p>Déjanos los datos clave y te contactamos para aterrizar alcance, prioridad y visita.</p>
         </div>
         <?php if ($formStatus): ?>
-          <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>"><?php echo htmlspecialchars($formStatus['text']); ?></p>
+          <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="status"><?php echo htmlspecialchars($formStatus['text']); ?></p>
         <?php endif; ?>
         <div class="form-row">
-          <label>
-            <span class="field-pill">Nombre</span>
-            <input type="text" name="name" autocomplete="name" placeholder="Nombre y empresa" required>
+          <label for="contact-name">
+            <span class="field-pill">Nombre y empresa *</span>
+            <input id="contact-name" type="text" name="name" autocomplete="name" placeholder="Nombre y empresa" value="<?php echo htmlspecialchars($formData['name']); ?>" required aria-invalid="<?php echo isset($formErrors['name']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['name']) ? 'contact-name-error' : ''; ?>">
+            <?php if (isset($formErrors['name'])): ?><span class="field-error" id="contact-name-error"><?php echo htmlspecialchars($formErrors['name']); ?></span><?php endif; ?>
           </label>
-          <label>
-            <span class="field-pill">Correo</span>
-            <input type="email" name="email" autocomplete="email" placeholder="correo@empresa.com" required>
+          <label for="contact-email">
+            <span class="field-pill">Correo *</span>
+            <input id="contact-email" type="email" name="email" autocomplete="email" placeholder="correo@empresa.com" value="<?php echo htmlspecialchars($formData['email']); ?>" required aria-invalid="<?php echo isset($formErrors['email']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['email']) ? 'contact-email-error' : ''; ?>">
+            <?php if (isset($formErrors['email'])): ?><span class="field-error" id="contact-email-error"><?php echo htmlspecialchars($formErrors['email']); ?></span><?php endif; ?>
           </label>
         </div>
         <div class="form-row">
-          <label>
+          <label for="contact-phone">
             <span class="field-pill">Teléfono</span>
-            <input type="tel" name="phone" autocomplete="tel" placeholder="+52 442 000 0000">
+            <input id="contact-phone" type="tel" name="phone" autocomplete="tel" placeholder="+52 442 000 0000" value="<?php echo htmlspecialchars($formData['phone']); ?>">
           </label>
-          <label>
-            <span class="field-pill">Servicio</span>
-            <select name="service">
+          <label for="contact-service">
+            <span class="field-pill">Servicio de interés</span>
+            <select id="contact-service" name="service">
               <option value="">Seleccionar</option>
-              <option value="Cableado estructurado">Cableado estructurado</option>
-              <option value="Detección de incendios">Detección de incendios</option>
-              <option value="Sistemas HVAC">Sistemas HVAC</option>
-              <option value="CCTV industrial">CCTV industrial</option>
-              <option value="Fibra óptica">Fibra óptica</option>
-              <option value="Control de Accesos">Control de Accesos</option>
+              <?php foreach ($serviceOptions as $option): ?>
+                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['service'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
+              <?php endforeach; ?>
             </select>
           </label>
         </div>
-        <label class="honeypot">
+        <label class="honeypot" for="company-site">
           Sitio
-          <input type="text" name="company_site" tabindex="-1" autocomplete="off">
+          <input id="company-site" type="text" name="company_site" tabindex="-1" autocomplete="off">
         </label>
-        <label>
-          <span class="field-pill">Mensaje</span>
-          <textarea name="message" rows="5" placeholder="Cuéntanos ubicación, tipo de instalación y prioridad del proyecto." required></textarea>
+        <label for="contact-message">
+          <span class="field-pill">Mensaje *</span>
+          <textarea id="contact-message" name="message" rows="5" placeholder="Cuéntanos ubicación, tipo de instalación y prioridad del proyecto." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['message']) ? 'contact-message-error' : ''; ?>"><?php echo htmlspecialchars($formData['message']); ?></textarea>
+          <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
         </label>
+        <p class="form-privacy">Al enviar esta solicitud, reconoces haber leído el <a href="aviso-de-privacidad/">Aviso de Privacidad</a> y autorizas el tratamiento de tus datos para atender tu cotización.</p>
         <button class="button button--primary" type="submit">Enviar solicitud</button>
       </form>
     </div>

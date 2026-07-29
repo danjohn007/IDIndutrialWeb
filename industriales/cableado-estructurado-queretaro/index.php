@@ -6,8 +6,8 @@ $canonicalUrl = 'https://idindustrial.com.mx/sistema/industriales/cableado-estru
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
-$heroMobileImage = 'assets/imagesnew/BANNERS/CABLEADO%20ESTRUCTURADO/LANDING%20ID%20INDUSTRIAL_10.jpg';
-$heroDesktopImage = 'assets/imagesnew/BANNERS%20VER2/CABLEADO%20ESTRUCTURADO/PAGINA%20WEB%20ID%20INDUSTRIAL_10.jpg';
+$heroMobileImage = 'assets/img/optimized/home-hero-cableado.jpg';
+$heroDesktopImage = 'assets/img/optimized/home-hero-cableado.jpg';
 
 $title = 'Empresas de Cableado Estructurado en Querétaro | Redes, fibra óptica, sites, servidores';
 $description = 'Instalación de cableado estructurado en Querétaro para empresas industriales: redes, fibra óptica, servidores y voz y datos. +20 años de experiencia.';
@@ -50,7 +50,7 @@ include __DIR__ . '/../../includes/navbar.php';
       <h1><span>Empresa de</span><span>cableado</span><span>estructurado</span><span>en Querétaro</span></h1>
       <p>Diseño, instalación y mantenimiento de redes industriales con fibra óptica, servidores, CCTV, control de accesos y equipo de cómputo para sistemas críticos.</p>
       <div class="hero__actions">
-        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>#contacto">Cotizar proyecto</a>
+        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cableado#contacto">Cotizar proyecto</a>
         <a class="button button--ghost" href="#alcance">Ver alcance técnico</a>
       </div>
     </div>
@@ -90,13 +90,13 @@ include __DIR__ . '/../../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CABLEADO%20ESTRUCTURADO/PAGINA%20WEB%20ID%20INDUSTRIAL_1.jpg" alt="Cableado estructurado industrial con fibra óptica" width="1920" height="800" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/service-cableado.jpg" alt="Cableado estructurado industrial con fibra óptica" width="1920" height="800" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
 
   <section class="service-banner" aria-label="Cableado estructurado industrial">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/imagesnew/SLIDES2/CABLEADO%20ESTRUCTURADO/ID%20INDUSTRIAL%20WEB_5.jpg" alt="Instalación de voz y datos Querétaro" width="1920" height="500" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/card-cableado.jpg" alt="Instalación de voz y datos Querétaro" width="1920" height="500" loading="lazy" decoding="async">
     <div>
       <p>Diseño e instalación de redes con fibra óptica</p>
       <h2>Cableado estructurado industrial</h2>
@@ -148,7 +148,7 @@ include __DIR__ . '/../../includes/navbar.php';
         <p class="eyebrow">Evaluación técnica</p>
         <h2>Planea una red estable, escalable y preparada para crecimiento industrial.</h2>
       </div>
-      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>#contacto">Solicitar cotización</a>
+      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cableado#contacto">Solicitar cotización</a>
     </div>
   </section>
 </main>
@@ -159,9 +159,9 @@ include __DIR__ . '/../../includes/navbar.php';
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://idindustrial.com.mx/#organization",
+      "@id": "https://idindustrial.com.mx/sistema/#organization",
       "name": "ID Industrial",
-      "url": "https://idindustrial.com.mx/",
+      "url": "https://idindustrial.com.mx/sistema/",
       "areaServed": "Querétaro",
       "knowsAbout": [
         "cableado estructurado industrial",
@@ -189,11 +189,11 @@ include __DIR__ . '/../../includes/navbar.php';
     },
     {
       "@type": "Service",
-      "@id": "https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/#service",
+      "@id": "https://idindustrial.com.mx/sistema/industriales/cableado-estructurado-queretaro/#service",
       "name": "Instalación de cableado estructurado y fibra óptica",
       "serviceType": "Infraestructura de red industrial",
       "provider": {
-        "@id": "https://idindustrial.com.mx/#organization"
+        "@id": "https://idindustrial.com.mx/sistema/#organization"
       },
       "areaServed": "Querétaro",
       "audience": {
@@ -214,7 +214,7 @@ include __DIR__ . '/../../includes/navbar.php';
     },
     {
       "@type": "FAQPage",
-      "@id": "https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/#faq",
+      "@id": "https://idindustrial.com.mx/sistema/industriales/cableado-estructurado-queretaro/#faq",
       "mainEntity": [
         <?php foreach ($faqItems as $index => $item): ?>
           {
@@ -241,13 +241,13 @@ include __DIR__ . '/../../includes/navbar.php';
       "@type": "ListItem",
       "position": 1,
       "name": "Inicio",
-      "item": "https://idindustrial.com.mx/"
+      "item": "https://idindustrial.com.mx/sistema/"
     },
     {
       "@type": "ListItem",
       "position": 2,
       "name": "Cableado estructurado Querétaro",
-      "item": "https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/"
+      "item": "https://idindustrial.com.mx/sistema/industriales/cableado-estructurado-queretaro/"
     }
   ]
 }

@@ -1,21 +1,39 @@
 <?php
 $assetBase = $basePath ?? '';
+$currentPath = trim(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '', '/');
+$currentSection = $currentSection ?? '';
+
+function idindustrial_is_active_nav(string $href, string $currentPath, string $currentSection): bool
+{
+  $hrefPath = trim(parse_url($href, PHP_URL_PATH) ?? '', '/');
+  $hrefPath = trim(str_replace('../', '', $hrefPath), '/');
+  $hrefPath = preg_replace('#^sistema/#', '', $hrefPath);
+  $normalizedCurrentPath = preg_replace('#^sistema/#', '', $currentPath);
+  $hrefFragment = parse_url($href, PHP_URL_FRAGMENT) ?? '';
+
+  if ($hrefPath !== '' && str_ends_with($normalizedCurrentPath, $hrefPath)) {
+    return true;
+  }
+
+  return $hrefFragment !== '' && $hrefFragment === $currentSection;
+}
+
 $primaryNavItems = [
   ['label' => 'Inicio', 'href' => $assetBase . '#inicio'],
   ['label' => 'Quiénes somos', 'href' => $assetBase . '#quienes-somos'],
-  ['label' => 'Cableado estructurado', 'href' => $assetBase . '#cableado-estructurado'],
+  ['label' => 'Cableado estructurado', 'href' => $assetBase . 'industriales/cableado-estructurado-queretaro/'],
   ['label' => 'Detección de incendios', 'href' => $assetBase . '#deteccion-incendios'],
 ];
 
 $moreServiceItems = [
-  ['label' => 'Sistemas HVAC', 'href' => $assetBase . '#sistemas-hvac'],
-  ['label' => 'CCTV industrial', 'href' => $assetBase . '#cctv-industrial'],
+  ['label' => 'Sistemas HVAC', 'href' => $assetBase . 'instalacion-aire-acondicionado-industrial-queretaro/'],
+  ['label' => 'CCTV industrial', 'href' => $assetBase . 'instalacion-camaras-seguridad-industrial-queretaro/'],
   ['label' => 'Fibra óptica', 'href' => $assetBase . '#fibra-optica'],
-  ['label' => 'Control de Accesos', 'href' => $assetBase . '#control-accesos'],
+  ['label' => 'Control de Accesos', 'href' => $assetBase . 'control-de-acceso-de-personal-queretaro/'],
 ];
 
 $secondaryNavItems = [
-  ['label' => 'Bitácora ID', 'href' => $assetBase . '#bitacora-id'],
+  ['label' => 'Recomendaciones', 'href' => $assetBase . '#recomendaciones-tecnicas'],
   ['label' => 'Contacto', 'href' => $assetBase . '#contacto'],
 ];
 ?>
@@ -32,7 +50,8 @@ $secondaryNavItems = [
     </button>
     <div class="nav-menu" id="main-menu" data-nav-menu>
       <?php foreach ($primaryNavItems as $item): ?>
-        <a href="<?php echo htmlspecialchars($item['href']); ?>"><?php echo htmlspecialchars($item['label']); ?></a>
+        <?php $isActive = idindustrial_is_active_nav($item['href'], $currentPath, $currentSection); ?>
+        <a href="<?php echo htmlspecialchars($item['href']); ?>" <?php echo $isActive ? 'class="is-active" aria-current="page"' : ''; ?>><?php echo htmlspecialchars($item['label']); ?></a>
       <?php endforeach; ?>
 
       <div class="nav-dropdown" data-dropdown>
@@ -42,13 +61,15 @@ $secondaryNavItems = [
         </button>
         <div class="nav-dropdown__menu" id="services-menu" data-dropdown-menu>
           <?php foreach ($moreServiceItems as $item): ?>
-            <a href="<?php echo htmlspecialchars($item['href']); ?>"><?php echo htmlspecialchars($item['label']); ?></a>
+            <?php $isActive = idindustrial_is_active_nav($item['href'], $currentPath, $currentSection); ?>
+            <a href="<?php echo htmlspecialchars($item['href']); ?>" <?php echo $isActive ? 'class="is-active" aria-current="page"' : ''; ?>><?php echo htmlspecialchars($item['label']); ?></a>
           <?php endforeach; ?>
         </div>
       </div>
 
       <?php foreach ($secondaryNavItems as $item): ?>
-        <a href="<?php echo htmlspecialchars($item['href']); ?>"><?php echo htmlspecialchars($item['label']); ?></a>
+        <?php $isActive = idindustrial_is_active_nav($item['href'], $currentPath, $currentSection); ?>
+        <a href="<?php echo htmlspecialchars($item['href']); ?>" <?php echo $isActive ? 'class="is-active" aria-current="page"' : ''; ?>><?php echo htmlspecialchars($item['label']); ?></a>
       <?php endforeach; ?>
     </div>
     <a class="nav-cta" href="<?php echo htmlspecialchars($assetBase); ?>#contacto">Cotizar</a>
