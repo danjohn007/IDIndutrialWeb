@@ -55,7 +55,8 @@
     .button--primary{background:linear-gradient(135deg,#ffd84d,#f3c623);color:#111316}
     @media (max-width:899px){.nav{grid-template-columns:auto 1fr}.nav-toggle{grid-column:2;justify-self:end;order:0}.hero{height:auto;min-height:100svh;max-height:none}.hero__grid{padding:96px 0 28px}h1{font-size:clamp(2.5rem,12.4vw,3.8rem);line-height:.94}}
   </style>
-  <link rel="stylesheet" href="<?php echo htmlspecialchars($stylesHref); ?>">
+  <link rel="preload" href="<?php echo htmlspecialchars($stylesHref); ?>" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="<?php echo htmlspecialchars($stylesHref); ?>"></noscript>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",

@@ -1,8 +1,11 @@
 Options -Indexes
-DirectoryIndex index.php index.html
+DirectoryIndex index.html index.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteCond %{QUERY_STRING} (^|&)servicio= [NC]
+  RewriteRule ^$ index.php [L]
+
   RewriteCond %{HTTPS} !=on
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 

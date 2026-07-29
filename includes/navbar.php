@@ -41,7 +41,7 @@ $secondaryNavItems = [
 <header class="site-header" data-header>
   <nav class="nav container" aria-label="Mapa de navegación principal">
     <a class="brand" href="<?php echo htmlspecialchars($assetBase); ?>#inicio" aria-label="ID Industrial inicio">
-      <img src="<?php echo htmlspecialchars($assetBase); ?>assets/img/logo-idindustrial-small.webp" alt="ID Industrial" width="280" height="74">
+      <img src="<?php echo htmlspecialchars($assetBase); ?>assets/img/logo-idindustrial-small.webp" alt="ID Industrial" width="280" height="74" fetchpriority="high" decoding="async">
     </a>
     <button class="nav-toggle" type="button" aria-label="Abrir menú de navegación" aria-controls="main-menu" aria-expanded="false" data-nav-toggle>
       <span></span>

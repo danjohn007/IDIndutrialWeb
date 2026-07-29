@@ -13,6 +13,12 @@ $keywords = 'ID Industrial, infraestructura industrial Querétaro, cableado estr
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
 $canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/sistema/' : $requestPath);
 
+function idindustrial_mobile_image($image)
+{
+  $candidate = str_replace('assets/img/optimized/', 'assets/img/optimized/mobile/', $image);
+  return is_file(__DIR__ . '/' . $candidate) ? $candidate : $image;
+}
+
 $homeCarouselItems = [
   [
     'image' => 'assets/img/optimized/home-hero-cableado.jpg',
@@ -244,10 +250,19 @@ include __DIR__ . '/includes/navbar.php';
         <?php foreach ($homeCarouselItems as $index => $item): ?>
           <?php
             $slideImage = htmlspecialchars($item['image']);
+            $slideMobileImage = htmlspecialchars(idindustrial_mobile_image($item['image']));
             $slideBackground = htmlspecialchars($assetUrlBase . $item['image']);
+            $slideMobileBackground = htmlspecialchars($assetUrlBase . idindustrial_mobile_image($item['image']));
           ?>
-          <figure class="hero-carousel__slide <?php echo $index === 0 ? 'is-active' : ''; ?>" <?php echo $index === 0 ? 'style="--slide-image: url(\'' . $slideBackground . '\');"' : ''; ?> data-bg="<?php echo $slideBackground; ?>" aria-hidden="<?php echo $index === 0 ? 'false' : 'true'; ?>" data-carousel-slide>
-            <img <?php echo $index === 0 ? 'src="' . $slideImage . '" fetchpriority="high"' : 'data-src="' . $slideImage . '" loading="lazy"'; ?> alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" decoding="async">
+          <figure class="hero-carousel__slide <?php echo $index === 0 ? 'is-active' : ''; ?>" <?php echo $index === 0 ? 'style="--slide-image: url(\'' . $slideBackground . '\'); --slide-image-mobile: url(\'' . $slideMobileBackground . '\');"' : ''; ?> data-bg="<?php echo $slideBackground; ?>" data-bg-mobile="<?php echo $slideMobileBackground; ?>" aria-hidden="<?php echo $index === 0 ? 'false' : 'true'; ?>" data-carousel-slide>
+            <?php if ($index === 0): ?>
+              <picture>
+                <source media="(max-width: 640px)" srcset="<?php echo $slideMobileImage; ?>">
+                <img src="<?php echo $slideImage; ?>" srcset="<?php echo $slideMobileImage; ?> 960w, <?php echo $slideImage; ?> 1920w" sizes="100vw" fetchpriority="high" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" decoding="async">
+              </picture>
+            <?php else: ?>
+              <img data-src="<?php echo $slideImage; ?>" data-srcset="<?php echo $slideMobileImage; ?> 960w, <?php echo $slideImage; ?> 1920w" sizes="100vw" loading="lazy" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" decoding="async">
+            <?php endif; ?>
             <figcaption><?php echo htmlspecialchars($item['label']); ?></figcaption>
           </figure>
         <?php endforeach; ?>
@@ -315,7 +330,7 @@ include __DIR__ . '/includes/navbar.php';
       <div class="services-overview__grid">
         <?php foreach ($serviceOverview as $item): ?>
           <article id="<?php echo htmlspecialchars($item['id']); ?>" class="service-card service-card--wide reveal">
-            <img src="<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
+            <img src="<?php echo htmlspecialchars($item['image']); ?>" srcset="<?php echo htmlspecialchars(idindustrial_mobile_image($item['image'])); ?> 960w, <?php echo htmlspecialchars($item['image']); ?> 1920w" sizes="(max-width: 640px) calc(100vw - 28px), (max-width: 1120px) 33vw, 390px" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
             <em><?php echo htmlspecialchars($item['badge']); ?></em>
             <span><?php echo htmlspecialchars($item['title']); ?></span>
             <p><?php echo htmlspecialchars($item['copy']); ?></p>
@@ -459,7 +474,7 @@ include __DIR__ . '/includes/navbar.php';
         </div>
       </div>
 
-      <form class="contact-form reveal reveal--delay" action="#contacto" method="post" data-contact-form novalidate>
+      <form class="contact-form reveal reveal--delay" action="index.php#contacto" method="post" data-contact-form novalidate>
         <div class="form-head">
           <span>Solicitud técnica</span>
           <h3>Agenda una evaluación</h3>

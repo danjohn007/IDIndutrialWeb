@@ -122,12 +122,20 @@ carousels.forEach((carousel) => {
   function loadSlide(slide) {
     const image = slide?.querySelector('img[data-src]');
     if (image) {
+      if (image.dataset.srcset) {
+        image.srcset = image.dataset.srcset;
+        image.removeAttribute('data-srcset');
+      }
       image.src = image.dataset.src;
       image.removeAttribute('data-src');
     }
 
     if (slide?.dataset.bg && !slide.style.getPropertyValue('--slide-image')) {
       slide.style.setProperty('--slide-image', `url('${slide.dataset.bg}')`);
+    }
+
+    if (slide?.dataset.bgMobile && !slide.style.getPropertyValue('--slide-image-mobile')) {
+      slide.style.setProperty('--slide-image-mobile', `url('${slide.dataset.bgMobile}')`);
     }
   }
 
