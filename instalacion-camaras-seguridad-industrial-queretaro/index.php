@@ -81,7 +81,7 @@ include __DIR__ . '/../includes/navbar.php';
       <h1><span>Instalación de cámaras</span><span>de seguridad industrial</span><span>en Querétaro</span></h1>
       <p>Diseñamos e instalamos videovigilancia para naves, plantas, oficinas, almacenes y perímetros donde la evidencia, el monitoreo y la continuidad operativa importan.</p>
       <div class="hero__actions">
-        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cctv#contacto">Solicitar evaluación</a>
+        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cctv#cotizacion">Solicitar evaluación</a>
         <a class="button button--ghost" href="#criterios-cctv">Ver criterios técnicos</a>
       </div>
     </div>
@@ -194,7 +194,7 @@ include __DIR__ . '/../includes/navbar.php';
         <p class="eyebrow">Levantamiento técnico</p>
         <h2>Recibe una propuesta de CCTV industrial conectada con operación, accesos y red.</h2>
       </div>
-      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cctv#contacto">Solicitar cotización</a>
+      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cctv#cotizacion">Solicitar cotización</a>
     </div>
   </section>
 </main>

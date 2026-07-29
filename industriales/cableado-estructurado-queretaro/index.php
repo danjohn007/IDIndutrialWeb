@@ -50,7 +50,7 @@ include __DIR__ . '/../../includes/navbar.php';
       <h1><span>Empresa de</span><span>cableado</span><span>estructurado</span><span>en Querétaro</span></h1>
       <p>Diseño, instalación y mantenimiento de redes industriales con fibra óptica, servidores, CCTV, control de accesos y equipo de cómputo para sistemas críticos.</p>
       <div class="hero__actions">
-        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cableado#contacto">Cotizar proyecto</a>
+        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cableado#cotizacion">Cotizar proyecto</a>
         <a class="button button--ghost" href="#alcance">Ver alcance técnico</a>
       </div>
     </div>
@@ -148,7 +148,7 @@ include __DIR__ . '/../../includes/navbar.php';
         <p class="eyebrow">Evaluación técnica</p>
         <h2>Planea una red estable, escalable y preparada para crecimiento industrial.</h2>
       </div>
-      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cableado#contacto">Solicitar cotización</a>
+      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=cableado#cotizacion">Solicitar cotización</a>
     </div>
   </section>
 </main>

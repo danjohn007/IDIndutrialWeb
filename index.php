@@ -286,7 +286,7 @@ include __DIR__ . '/includes/navbar.php';
         <h1 id="hero-title"><span>Infraestructura e ingeniería</span><span>industrial en Querétaro</span></h1>
         <p class="hero__lead">Diseñamos e implementamos soluciones de cableado estructurado, fibra óptica, CCTV, control de accesos, detección de incendios y sistemas HVAC para plantas, naves industriales y edificios corporativos.</p>
         <div class="hero__actions">
-          <a class="button button--primary" href="#contacto">Solicitar evaluación técnica</a>
+          <a class="button button--primary" href="#cotizacion">Solicitar evaluación técnica</a>
           <a class="button button--ghost" href="#servicios">Conocer servicios</a>
         </div>
       </div>
@@ -392,7 +392,7 @@ include __DIR__ . '/includes/navbar.php';
         <p class="eyebrow">Capacidad destacada</p>
         <h2 id="lamp-title">Sistemas industriales que trabajan como una sola operación.</h2>
         <p>Redes, fibra, HVAC, detección, CCTV y accesos con una arquitectura pensada para continuidad, trazabilidad y crecimiento.</p>
-        <a class="button button--primary" href="#contacto">Evaluar proyecto</a>
+        <a class="button button--primary" href="#cotizacion">Evaluar proyecto</a>
       </div>
     </div>
   </section>
@@ -474,7 +474,7 @@ include __DIR__ . '/includes/navbar.php';
         </div>
       </div>
 
-      <form class="contact-form reveal reveal--delay" action="index.php#contacto" method="post" data-contact-form novalidate>
+      <form id="cotizacion" class="contact-form reveal reveal--delay" action="index.php#cotizacion" method="post" data-contact-form novalidate>
         <div class="form-head">
           <span>Solicitud técnica</span>
           <h3>Agenda una evaluación</h3>

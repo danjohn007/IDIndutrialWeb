@@ -66,7 +66,7 @@ include __DIR__ . '/../includes/navbar.php';
       <h1><span>Instalación de</span><span>aire acondicionado</span><span>industrial</span></h1>
       <p>Diseñamos e implementamos sistemas HVAC, chillers, ventilación y climatización industrial para empresas que requieren control térmico preciso, eficiencia energética y continuidad operativa.</p>
       <div class="hero__actions">
-        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=hvac#contacto">Cotizar proyecto</a>
+        <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=hvac#cotizacion">Cotizar proyecto</a>
         <a class="button button--ghost" href="#soluciones">Ver soluciones</a>
       </div>
     </div>
@@ -191,7 +191,7 @@ include __DIR__ . '/../includes/navbar.php';
         <p class="eyebrow">Diagnóstico técnico</p>
         <h2>Optimiza el control térmico de tu planta con una propuesta HVAC adaptada a tu operación.</h2>
       </div>
-      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=hvac#contacto">Solicitar cotización</a>
+      <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=hvac#cotizacion">Solicitar cotización</a>
     </div>
   </section>
 </main>
