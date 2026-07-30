@@ -239,7 +239,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
       $body = "Nombre: {$formData['name']}\nCorreo: {$formData['email']}\nTeléfono: {$formData['phone']}\nServicio de interés: {$formData['service']}\n\nMensaje:\n{$formData['message']}";
       $headers = "From: {$contactEmail}\r\nReply-To: {$formData['email']}\r\nContent-Type: text/plain; charset=UTF-8";
       $sent = @mail($contactEmail, $subject, $body, $headers);
-      crm_capture_public_lead([
+      $crmCaptured = crm_capture_public_lead([
         'company_name' => $formData['name'],
         'contact_name' => $formData['name'],
         'contact_email' => $formData['email'],
@@ -247,9 +247,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         'service' => $formData['service'],
         'notes' => $formData['message'],
       ]);
-      $formStatus = $sent
-        ? ['type' => 'ok', 'text' => 'Gracias. Tu solicitud fue enviada correctamente.']
-        : ['type' => 'error', 'text' => 'No se pudo enviar desde el servidor. Escríbenos por WhatsApp y te atendemos.'];
+      $formStatus = ($sent || $crmCaptured)
+        ? ['type' => 'ok', 'text' => 'Gracias. Recibimos tu solicitud y te contactaremos para preparar la cotizacion.']
+        : ['type' => 'error', 'text' => 'No se pudo registrar desde el servidor. Escríbenos por WhatsApp y te atendemos.'];
     }
   }
 }

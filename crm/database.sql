@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS clients (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(190) NOT NULL,
   segment VARCHAR(120) NOT NULL DEFAULT 'Industrial',
+  lifecycle_stage VARCHAR(40) NOT NULL DEFAULT 'Cliente',
   city VARCHAR(120) NULL,
   contact_name VARCHAR(160) NULL,
   contact_email VARCHAR(190) NULL,

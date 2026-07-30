@@ -73,12 +73,40 @@ function crm_migrate(PDO $pdo): void
 {
   if (crm_driver($pdo) === 'mysql') {
     crm_migrate_mysql($pdo);
-    return;
+  } else {
+    crm_migrate_sqlite($pdo);
   }
 
-  crm_migrate_sqlite($pdo);
+  crm_ensure_columns($pdo);
 }
 
+
+function crm_column_exists(PDO $pdo, string $table, string $column): bool
+{
+  if (crm_driver($pdo) === 'mysql') {
+    $stmt = $pdo->prepare("SHOW COLUMNS FROM {$table} LIKE ?");
+    $stmt->execute([$column]);
+    return (bool) $stmt->fetch();
+  }
+
+  $stmt = $pdo->query("PRAGMA table_info({$table})");
+  foreach ($stmt->fetchAll() as $field) {
+    if (($field['name'] ?? '') === $column) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function crm_ensure_columns(PDO $pdo): void
+{
+  if (!crm_column_exists($pdo, 'clients', 'lifecycle_stage')) {
+    $definition = crm_driver($pdo) === 'mysql'
+      ? "ALTER TABLE clients ADD COLUMN lifecycle_stage VARCHAR(40) NOT NULL DEFAULT 'Cliente' AFTER segment"
+      : "ALTER TABLE clients ADD COLUMN lifecycle_stage TEXT NOT NULL DEFAULT 'Cliente'";
+    $pdo->exec($definition);
+  }
+}
 function crm_migrate_sqlite(PDO $pdo): void
 {
   $pdo->exec("
@@ -95,6 +123,7 @@ function crm_migrate_sqlite(PDO $pdo): void
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       segment TEXT NOT NULL DEFAULT 'Industrial',
+      lifecycle_stage TEXT NOT NULL DEFAULT 'Cliente',
       city TEXT,
       contact_name TEXT,
       contact_email TEXT,
@@ -217,6 +246,7 @@ function crm_migrate_mysql(PDO $pdo): void
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       name VARCHAR(190) NOT NULL,
       segment VARCHAR(120) NOT NULL DEFAULT 'Industrial',
+      lifecycle_stage VARCHAR(40) NOT NULL DEFAULT 'Cliente',
       city VARCHAR(120) NULL,
       contact_name VARCHAR(160) NULL,
       contact_email VARCHAR(190) NULL,
@@ -396,36 +426,103 @@ function crm_seed(PDO $pdo): void
 
 function crm_public_clients(int $limit = 10): array
 {
-  $stmt = crm_db()->prepare('SELECT name, segment FROM clients WHERE is_public = 1 ORDER BY name LIMIT ?');
+  $stmt = crm_db()->prepare("SELECT name, segment FROM clients WHERE is_public = 1 AND lifecycle_stage = 'Cliente' ORDER BY name LIMIT ?");
   $stmt->bindValue(1, $limit, PDO::PARAM_INT);
   $stmt->execute();
   return $stmt->fetchAll();
 }
 
-function crm_capture_public_lead(array $data): void
+function crm_next_quote_code(PDO $pdo, string $prefix = 'ID'): string
+{
+  $year = date('Y');
+  $like = $prefix . '-' . $year . '-%';
+  $stmt = $pdo->prepare('SELECT COUNT(*) FROM quotes WHERE quote_code LIKE ?');
+  $stmt->execute([$like]);
+  $nextNumber = (int) $stmt->fetchColumn() + 1;
+  do {
+    $quoteCode = $prefix . '-' . $year . '-' . str_pad((string) $nextNumber, 3, '0', STR_PAD_LEFT);
+    $exists = $pdo->prepare('SELECT COUNT(*) FROM quotes WHERE quote_code = ?');
+    $exists->execute([$quoteCode]);
+    $nextNumber++;
+  } while ((int) $exists->fetchColumn() > 0);
+  return $quoteCode;
+}
+
+function crm_find_or_create_prospect_client(PDO $pdo, array $data): int
+{
+  $name = trim((string) ($data['company_name'] ?? '')) ?: trim((string) ($data['contact_name'] ?? 'Prospecto web'));
+  $email = trim((string) ($data['contact_email'] ?? ''));
+  $phone = trim((string) ($data['contact_phone'] ?? ''));
+  $contactName = trim((string) ($data['contact_name'] ?? $name));
+
+  if ($email !== '') {
+    $stmt = $pdo->prepare('SELECT id FROM clients WHERE contact_email = ? LIMIT 1');
+    $stmt->execute([$email]);
+    $clientId = (int) $stmt->fetchColumn();
+    if ($clientId > 0) {
+      $update = $pdo->prepare('UPDATE clients SET contact_name = ?, contact_phone = ?, notes = ? WHERE id = ?');
+      $update->execute([$contactName, $phone, 'Prospecto actualizado desde formulario web.', $clientId]);
+      return $clientId;
+    }
+  }
+
+  $stmt = $pdo->prepare('SELECT id FROM clients WHERE name = ? LIMIT 1');
+  $stmt->execute([$name]);
+  $clientId = (int) $stmt->fetchColumn();
+  if ($clientId > 0) {
+    $update = $pdo->prepare('UPDATE clients SET contact_name = ?, contact_email = ?, contact_phone = ?, notes = ? WHERE id = ?');
+    $update->execute([$contactName, $email, $phone, 'Prospecto actualizado desde formulario web.', $clientId]);
+    return $clientId;
+  }
+
+  $insert = $pdo->prepare('INSERT INTO clients (name, segment, lifecycle_stage, city, contact_name, contact_email, contact_phone, notes, is_public) VALUES (?, "Prospecto", "Prospecto", "", ?, ?, ?, ?, 0)');
+  $insert->execute([$name, $contactName, $email, $phone, 'Solicitud recibida desde el formulario publico.']);
+  return (int) $pdo->lastInsertId();
+}
+
+function crm_capture_public_lead(array $data): bool
 {
   try {
     $pdo = crm_db();
+    $pdo->beginTransaction();
+    $clientId = crm_find_or_create_prospect_client($pdo, $data);
+    $companyName = trim((string) ($data['company_name'] ?? '')) ?: 'Prospecto web';
+    $contactName = trim((string) ($data['contact_name'] ?? '')) ?: $companyName;
+    $service = trim((string) ($data['service'] ?? '')) ?: 'Por definir';
+    $notes = trim((string) ($data['notes'] ?? ''));
+
     $stmt = $pdo->prepare('
-      INSERT INTO opportunities (company_name, contact_name, contact_email, contact_phone, service, source, status, priority, estimated_value, next_action_date, notes)
-      VALUES (?, ?, ?, ?, ?, "Formulario web", "Nueva solicitud", "Alta", 0, ?, ?)
+      INSERT INTO opportunities (client_id, company_name, contact_name, contact_email, contact_phone, service, source, status, priority, estimated_value, next_action_date, notes)
+      VALUES (?, ?, ?, ?, ?, ?, "Formulario web", "Nueva solicitud", "Alta", 0, ?, ?)
     ');
     $stmt->execute([
-      trim((string) ($data['company_name'] ?? 'Sin empresa')),
-      trim((string) ($data['contact_name'] ?? 'Contacto web')),
+      $clientId,
+      $companyName,
+      $contactName,
       trim((string) ($data['contact_email'] ?? '')),
       trim((string) ($data['contact_phone'] ?? '')),
-      trim((string) ($data['service'] ?? 'Por definir')),
+      $service,
       date('Y-m-d', strtotime('+1 day')),
-      trim((string) ($data['notes'] ?? '')),
+      $notes,
     ]);
     $opportunityId = (int) $pdo->lastInsertId();
-    $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Primer contacto", "Contactar lead recibido desde el sitio.", ?)');
+
+    $quote = $pdo->prepare('INSERT INTO quotes (opportunity_id, quote_code, amount, status, probability, sent_at, valid_until) VALUES (?, ?, 0, "Solicitud recibida", 10, NULL, NULL)');
+    $quote->execute([$opportunityId, crm_next_quote_code($pdo, 'SOL')]);
+
+    $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Primer contacto", "Contactar prospecto y preparar cotizacion.", ?)');
     $activity->execute([$opportunityId, date('Y-m-d', strtotime('+1 day'))]);
+    $pdo->commit();
+    return true;
   } catch (Throwable $error) {
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+      $pdo->rollBack();
+    }
     error_log('CRM lead capture failed: ' . $error->getMessage());
+    return false;
   }
 }
+
 function crm_random_password(int $length = 12): string
 {
   $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';

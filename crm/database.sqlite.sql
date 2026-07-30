@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS clients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
   segment TEXT NOT NULL DEFAULT 'Industrial',
+  lifecycle_stage TEXT NOT NULL DEFAULT 'Cliente',
   city TEXT,
   contact_name TEXT,
   contact_email TEXT,
