@@ -64,3 +64,45 @@ CREATE TABLE IF NOT EXISTS activities (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS client_portal_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  opportunity_id INTEGER NOT NULL UNIQUE,
+  client_id INTEGER,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_login_at TEXT,
+  FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+  FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  opportunity_id INTEGER NOT NULL,
+  portal_user_id INTEGER,
+  type TEXT NOT NULL DEFAULT 'Mantenimiento',
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Programado',
+  scheduled_date TEXT,
+  completed_at TEXT,
+  notes TEXT,
+  visible_to_client INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+  FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS client_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  opportunity_id INTEGER NOT NULL,
+  portal_user_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Recibida',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+  FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
+);

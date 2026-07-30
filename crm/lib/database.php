@@ -147,10 +147,55 @@ function crm_migrate_sqlite(PDO $pdo): void
       FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS client_portal_users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      opportunity_id INTEGER NOT NULL UNIQUE,
+      client_id INTEGER,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_login_at TEXT,
+      FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+      FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS maintenance_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      opportunity_id INTEGER NOT NULL,
+      portal_user_id INTEGER,
+      type TEXT NOT NULL DEFAULT 'Mantenimiento',
+      title TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Programado',
+      scheduled_date TEXT,
+      completed_at TEXT,
+      notes TEXT,
+      visible_to_client INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+      FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS client_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      opportunity_id INTEGER NOT NULL,
+      portal_user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Recibida',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+      FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_opportunities_status ON opportunities(status);
     CREATE INDEX IF NOT EXISTS idx_opportunities_next_action ON opportunities(next_action_date);
     CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
     CREATE INDEX IF NOT EXISTS idx_activities_due ON activities(completed_at, due_date);
+    CREATE INDEX IF NOT EXISTS idx_maintenance_logs_opportunity ON maintenance_logs(opportunity_id, scheduled_date);
+    CREATE INDEX IF NOT EXISTS idx_client_requests_portal ON client_requests(portal_user_id, created_at);
   ");
 }
 
@@ -235,6 +280,59 @@ function crm_migrate_mysql(PDO $pdo): void
       KEY idx_activities_opportunity (opportunity_id),
       KEY idx_activities_due (completed_at, due_date),
       CONSTRAINT fk_activities_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS client_portal_users (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      opportunity_id INT UNSIGNED NOT NULL,
+      client_id INT UNSIGNED NULL,
+      username VARCHAR(190) NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      last_login_at DATETIME NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_client_portal_opportunity (opportunity_id),
+      UNIQUE KEY uq_client_portal_username (username),
+      KEY idx_client_portal_client (client_id),
+      CONSTRAINT fk_client_portal_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+      CONSTRAINT fk_client_portal_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS maintenance_logs (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      opportunity_id INT UNSIGNED NOT NULL,
+      portal_user_id INT UNSIGNED NULL,
+      type VARCHAR(80) NOT NULL DEFAULT 'Mantenimiento',
+      title VARCHAR(190) NOT NULL,
+      status VARCHAR(80) NOT NULL DEFAULT 'Programado',
+      scheduled_date DATE NULL,
+      completed_at DATETIME NULL,
+      notes TEXT NULL,
+      visible_to_client TINYINT(1) NOT NULL DEFAULT 1,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_maintenance_logs_opportunity (opportunity_id, scheduled_date),
+      KEY idx_maintenance_logs_portal (portal_user_id),
+      CONSTRAINT fk_maintenance_logs_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+      CONSTRAINT fk_maintenance_logs_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS client_requests (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      opportunity_id INT UNSIGNED NOT NULL,
+      portal_user_id INT UNSIGNED NOT NULL,
+      title VARCHAR(190) NOT NULL,
+      message TEXT NOT NULL,
+      status VARCHAR(80) NOT NULL DEFAULT 'Recibida',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_client_requests_portal (portal_user_id, created_at),
+      KEY idx_client_requests_opportunity (opportunity_id),
+      CONSTRAINT fk_client_requests_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+      CONSTRAINT fk_client_requests_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   ");
 }
@@ -327,4 +425,122 @@ function crm_capture_public_lead(array $data): void
   } catch (Throwable $error) {
     error_log('CRM lead capture failed: ' . $error->getMessage());
   }
+}
+function crm_random_password(int $length = 12): string
+{
+  $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  $password = '';
+  $max = strlen($alphabet) - 1;
+  for ($i = 0; $i < $length; $i++) {
+    $password .= $alphabet[random_int(0, $max)];
+  }
+  return $password;
+}
+
+function crm_slug(string $value): string
+{
+  $value = strtolower(trim($value));
+  $value = preg_replace('/[^a-z0-9]+/i', '.', $value) ?: 'cliente';
+  return trim($value, '.') ?: 'cliente';
+}
+
+function crm_unique_portal_username(PDO $pdo, array $opportunity): string
+{
+  $email = trim((string) ($opportunity['contact_email'] ?? ''));
+  $base = filter_var($email, FILTER_VALIDATE_EMAIL)
+    ? strtolower($email)
+    : crm_slug((string) ($opportunity['company_name'] ?? 'cliente')) . '.' . (int) $opportunity['id'] . '@bitacora.id';
+
+  $username = $base;
+  $suffix = 1;
+  $stmt = $pdo->prepare('SELECT COUNT(*) FROM client_portal_users WHERE username = ?');
+  while (true) {
+    $stmt->execute([$username]);
+    if ((int) $stmt->fetchColumn() === 0) {
+      return $username;
+    }
+    $suffix++;
+    $username = preg_replace('/@/', '+' . $suffix . '@', $base, 1) ?: ($base . '.' . $suffix);
+  }
+}
+
+function crm_enable_client_portal(PDO $pdo, int $opportunityId): array
+{
+  $stmt = $pdo->prepare('SELECT * FROM opportunities WHERE id = ? LIMIT 1');
+  $stmt->execute([$opportunityId]);
+  $opportunity = $stmt->fetch();
+  if (!$opportunity) {
+    throw new RuntimeException('No se encontro la oportunidad para activar Bitacora ID.');
+  }
+
+  $existingStmt = $pdo->prepare('SELECT * FROM client_portal_users WHERE opportunity_id = ? LIMIT 1');
+  $existingStmt->execute([$opportunityId]);
+  $existing = $existingStmt->fetch();
+  if ($existing && (int) $existing['is_active'] === 1) {
+    return ['created' => false, 'username' => $existing['username'], 'password' => null, 'opportunity' => $opportunity];
+  }
+
+  $password = crm_random_password();
+  $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+  if ($existing) {
+    $update = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $update->execute([$passwordHash, (int) $existing['id']]);
+    $username = (string) $existing['username'];
+    $portalUserId = (int) $existing['id'];
+  } else {
+    $username = crm_unique_portal_username($pdo, $opportunity);
+    $insert = $pdo->prepare('INSERT INTO client_portal_users (opportunity_id, client_id, username, password_hash, is_active) VALUES (?, ?, ?, ?, 1)');
+    $insert->execute([$opportunityId, $opportunity['client_id'] ?: null, $username, $passwordHash]);
+    $portalUserId = (int) $pdo->lastInsertId();
+  }
+
+  $log = $pdo->prepare('INSERT INTO maintenance_logs (opportunity_id, portal_user_id, type, title, status, scheduled_date, notes, visible_to_client) VALUES (?, ?, "Entrega", "Bitacora ID activada", "Activo", ?, "Portal de mantenimiento habilitado para el cliente.", 1)');
+  $log->execute([$opportunityId, $portalUserId, date('Y-m-d')]);
+
+  return ['created' => true, 'username' => $username, 'password' => $password, 'opportunity' => $opportunity];
+}
+
+function crm_reset_client_portal_password(PDO $pdo, int $portalUserId): array
+{
+  $stmt = $pdo->prepare('
+    SELECT cpu.*, o.company_name, o.id AS opportunity_id
+    FROM client_portal_users cpu
+    JOIN opportunities o ON o.id = cpu.opportunity_id
+    WHERE cpu.id = ?
+    LIMIT 1
+  ');
+  $stmt->execute([$portalUserId]);
+  $portalUser = $stmt->fetch();
+  if (!$portalUser) {
+    throw new RuntimeException('No se encontro el acceso Bitacora ID.');
+  }
+
+  $password = crm_random_password();
+  $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+  $update = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+  $update->execute([$passwordHash, $portalUserId]);
+
+  $log = $pdo->prepare('INSERT INTO maintenance_logs (opportunity_id, portal_user_id, type, title, status, scheduled_date, notes, visible_to_client) VALUES (?, ?, "Acceso", "Password Bitacora ID regenerado", "Activo", ?, "El equipo administrativo regenero el acceso del cliente.", 0)');
+  $log->execute([(int) $portalUser['opportunity_id'], $portalUserId, date('Y-m-d')]);
+
+  return ['username' => $portalUser['username'], 'password' => $password, 'company_name' => $portalUser['company_name']];
+}
+function crm_portal_user_by_username(PDO $pdo, string $username): ?array
+{
+  $stmt = $pdo->prepare('
+    SELECT cpu.*, o.company_name, o.contact_name, o.contact_email, o.contact_phone, o.service, o.status AS opportunity_status, o.next_action_date, o.notes AS opportunity_notes
+    FROM client_portal_users cpu
+    JOIN opportunities o ON o.id = cpu.opportunity_id
+    WHERE cpu.username = ? AND cpu.is_active = 1
+    LIMIT 1
+  ');
+  $stmt->execute([trim($username)]);
+  $user = $stmt->fetch();
+  return $user ?: null;
+}
+
+function crm_update_portal_last_login(PDO $pdo, int $portalUserId): void
+{
+  $stmt = $pdo->prepare('UPDATE client_portal_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?');
+  $stmt->execute([$portalUserId]);
 }

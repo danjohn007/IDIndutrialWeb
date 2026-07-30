@@ -84,6 +84,59 @@ CREATE TABLE IF NOT EXISTS activities (
   CONSTRAINT fk_activities_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS client_portal_users (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  opportunity_id INT UNSIGNED NOT NULL,
+  client_id INT UNSIGNED NULL,
+  username VARCHAR(190) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  last_login_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_client_portal_opportunity (opportunity_id),
+  UNIQUE KEY uq_client_portal_username (username),
+  KEY idx_client_portal_client (client_id),
+  CONSTRAINT fk_client_portal_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+  CONSTRAINT fk_client_portal_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS maintenance_logs (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  opportunity_id INT UNSIGNED NOT NULL,
+  portal_user_id INT UNSIGNED NULL,
+  type VARCHAR(80) NOT NULL DEFAULT 'Mantenimiento',
+  title VARCHAR(190) NOT NULL,
+  status VARCHAR(80) NOT NULL DEFAULT 'Programado',
+  scheduled_date DATE NULL,
+  completed_at DATETIME NULL,
+  notes TEXT NULL,
+  visible_to_client TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_maintenance_logs_opportunity (opportunity_id, scheduled_date),
+  KEY idx_maintenance_logs_portal (portal_user_id),
+  CONSTRAINT fk_maintenance_logs_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+  CONSTRAINT fk_maintenance_logs_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS client_requests (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  opportunity_id INT UNSIGNED NOT NULL,
+  portal_user_id INT UNSIGNED NOT NULL,
+  title VARCHAR(190) NOT NULL,
+  message TEXT NOT NULL,
+  status VARCHAR(80) NOT NULL DEFAULT 'Recibida',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_client_requests_portal (portal_user_id, created_at),
+  KEY idx_client_requests_opportunity (opportunity_id),
+  CONSTRAINT fk_client_requests_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+  CONSTRAINT fk_client_requests_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT IGNORE INTO users (name, email, password_hash, role)
 VALUES (
   'Administrador',
