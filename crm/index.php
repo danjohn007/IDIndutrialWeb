@@ -311,7 +311,8 @@ if (($_POST['action'] ?? '') === 'update_opportunity') {
       ];
   }
 
-  header('Location: index.php?view=opportunities');
+  $redirect = ($_POST['return_to'] ?? '') === 'opportunity' ? 'index.php?view=opportunity&id=' . $opportunityId : 'index.php?view=opportunities';
+  header('Location: ' . $redirect);
   exit;
 }
 
@@ -355,9 +356,10 @@ if (($_POST['action'] ?? '') === 'create_quote') {
 
   $stmt = $pdo->prepare('INSERT INTO quotes (opportunity_id, quote_code, amount, status, probability, sent_at, valid_until) VALUES (?, ?, ?, ?, ?, ?, ?)');
   $stmt->execute([$opportunityId, $quoteCode, $amount, $status, $probability, $status === 'Enviada' ? date('Y-m-d') : null, $validUntil]);
+  $quoteId = (int) $pdo->lastInsertId();
   $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Cotizacion", ?, ?)');
   $activity->execute([$opportunityId, 'Cotizacion creada: ' . $quoteCode, $validUntil]);
-  header('Location: index.php?view=quotes');
+  header('Location: index.php?view=quote&id=' . $quoteId);
   exit;
 }
 if (($_POST['action'] ?? '') === 'update_quote') {
@@ -380,7 +382,8 @@ if (($_POST['action'] ?? '') === 'update_quote') {
     $pdo->prepare('UPDATE opportunities SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = (SELECT opportunity_id FROM quotes WHERE id = ?)')->execute(['Proyecto perdido', $quoteId]);
   }
 
-  header('Location: index.php?view=quotes');
+  $redirect = ($_POST['return_to'] ?? '') === 'quote' ? 'index.php?view=quote&id=' . $quoteId : 'index.php?view=quotes';
+  header('Location: ' . $redirect);
   exit;
 }
 
@@ -405,6 +408,30 @@ $opportunities = $pdo->query('
   LEFT JOIN client_portal_users cpu ON cpu.opportunity_id = o.id
   ORDER BY o.updated_at DESC, o.created_at DESC
 ')->fetchAll();
+$selectedOpportunity = null;
+$selectedOpportunityQuotes = [];
+$selectedOpportunityActivities = [];
+if ($view === 'opportunity') {
+  $opportunityId = max(0, (int) ($_GET['id'] ?? 0));
+  $stmt = $pdo->prepare('
+    SELECT o.*, c.lifecycle_stage, c.segment, cpu.username AS portal_username, cpu.is_active AS portal_active
+    FROM opportunities o
+    LEFT JOIN clients c ON c.id = o.client_id
+    LEFT JOIN client_portal_users cpu ON cpu.opportunity_id = o.id
+    WHERE o.id = ?
+    LIMIT 1
+  ');
+  $stmt->execute([$opportunityId]);
+  $selectedOpportunity = $stmt->fetch() ?: null;
+  if ($selectedOpportunity) {
+    $quoteStmt = $pdo->prepare('SELECT id, quote_code, amount, status, probability, valid_until, created_at FROM quotes WHERE opportunity_id = ? ORDER BY created_at DESC');
+    $quoteStmt->execute([(int) $selectedOpportunity['id']]);
+    $selectedOpportunityQuotes = $quoteStmt->fetchAll();
+    $activityStmt = $pdo->prepare('SELECT type, summary, due_date, completed_at, created_at FROM activities WHERE opportunity_id = ? ORDER BY created_at DESC LIMIT 8');
+    $activityStmt->execute([(int) $selectedOpportunity['id']]);
+    $selectedOpportunityActivities = $activityStmt->fetchAll();
+  }
+}
 $quotes = $pdo->query('
   SELECT q.*, o.company_name, o.service, o.status AS opportunity_status
   FROM quotes q
@@ -412,6 +439,26 @@ $quotes = $pdo->query('
   ORDER BY q.created_at DESC
 ')->fetchAll();
 $quoteableOpportunities = $pdo->query("SELECT id, company_name, service, estimated_value FROM opportunities WHERE status NOT IN ('Proyecto perdido') ORDER BY updated_at DESC, created_at DESC")->fetchAll();
+$selectedQuote = null;
+$selectedQuoteActivities = [];
+if ($view === 'quote') {
+  $quoteId = max(0, (int) ($_GET['id'] ?? 0));
+  $stmt = $pdo->prepare('
+    SELECT q.*, o.company_name, o.contact_name, o.contact_email, o.contact_phone, o.service, o.source, o.status AS opportunity_status, o.priority, o.estimated_value, o.next_action_date, o.notes AS opportunity_notes, o.created_at AS opportunity_created_at, c.lifecycle_stage, c.segment
+    FROM quotes q
+    JOIN opportunities o ON o.id = q.opportunity_id
+    LEFT JOIN clients c ON c.id = o.client_id
+    WHERE q.id = ?
+    LIMIT 1
+  ');
+  $stmt->execute([$quoteId]);
+  $selectedQuote = $stmt->fetch() ?: null;
+  if ($selectedQuote) {
+    $activityStmt = $pdo->prepare('SELECT type, summary, due_date, completed_at, created_at FROM activities WHERE opportunity_id = ? ORDER BY created_at DESC LIMIT 8');
+    $activityStmt->execute([(int) $selectedQuote['opportunity_id']]);
+    $selectedQuoteActivities = $activityStmt->fetchAll();
+  }
+}
 $clients = $pdo->query("SELECT * FROM clients ORDER BY CASE WHEN lifecycle_stage = 'Prospecto' THEN 0 ELSE 1 END, created_at DESC, name")->fetchAll();
 $portalUsers = $pdo->query('
   SELECT cpu.*, o.company_name, o.contact_name, o.contact_email, o.service, o.status AS opportunity_status
@@ -552,7 +599,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             <div>
               <p class="eyebrow">Pipeline</p>
               <h1>Oportunidades</h1>
-              <p>Captura y seguimiento de proyectos industriales.</p>
+              <p>Lista resumida. Abre cada oportunidad para actualizar estatus y activar Bitacora ID.</p>
             </div>
           </div>
 
@@ -580,8 +627,8 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
           <article class="crm-card">
             <h2>Seguimiento activo</h2>
             <div class="crm-table-wrap">
-              <table class="crm-table">
-                <thead><tr><th>Empresa</th><th>Contacto</th><th>Servicio</th><th>Estatus</th><th>Bitacora ID</th><th>Valor</th><th>Siguiente accion</th><th>Actualizar</th></tr></thead>
+              <table class="crm-table crm-table--compact">
+                <thead><tr><th>Empresa</th><th>Contacto</th><th>Servicio</th><th>Estatus</th><th>Ver</th></tr></thead>
                 <tbody>
                   <?php foreach ($opportunities as $opportunity): ?>
                     <tr>
@@ -589,30 +636,99 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                       <td><?php echo h($opportunity['contact_name']); ?><br><small><?php echo h($opportunity['contact_phone']); ?></small></td>
                       <td><?php echo h($opportunity['service']); ?></td>
                       <td><span class="crm-pill <?php echo h(crm_pill_class((string) $opportunity['status'])); ?>"><?php echo h($opportunity['status']); ?></span></td>
-                      <td><?php if (!empty($opportunity['portal_username'])): ?><span class="crm-pill crm-pill--success">Activa</span><br><small><?php echo h($opportunity['portal_username']); ?></small><?php elseif ($opportunity['status'] === 'Proyecto entregado'): ?><span class="crm-pill crm-pill--warning">Pendiente</span><?php else: ?><span class="crm-pill crm-pill--neutral">No aplica</span><?php endif; ?></td>
-                      <td><?php echo crm_money($opportunity['estimated_value']); ?></td>
-                      <td><?php echo h($opportunity['next_action_date'] ?: 'Sin fecha'); ?></td>
-                      <td>
-                        <form class="crm-actions" method="post">
-                          <input type="hidden" name="token" value="<?php echo h($token); ?>">
-                          <input type="hidden" name="action" value="update_opportunity">
-                          <input type="hidden" name="opportunity_id" value="<?php echo (int) $opportunity['id']; ?>">
-                          <select name="status"><?php foreach ($statuses as $status): ?><option <?php echo $status === $opportunity['status'] ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select>
-                          <select name="priority"><option <?php echo $opportunity['priority'] === 'Alta' ? 'selected' : ''; ?>>Alta</option><option <?php echo $opportunity['priority'] === 'Media' ? 'selected' : ''; ?>>Media</option><option <?php echo $opportunity['priority'] === 'Baja' ? 'selected' : ''; ?>>Baja</option></select>
-                          <input type="number" name="estimated_value" value="<?php echo h($opportunity['estimated_value']); ?>" class="crm-input--money">
-                          <input type="date" name="next_action_date" value="<?php echo h($opportunity['next_action_date']); ?>">
-                          <input type="hidden" name="notes" value="<?php echo h($opportunity['notes']); ?>">
-                          <button class="crm-button crm-button--ghost" type="submit">Guardar</button>
-                        </form>
-                      </td>
+                      <td><a class="crm-button crm-button--ghost" href="index.php?view=opportunity&id=<?php echo (int) $opportunity['id']; ?>">Ver</a></td>
                     </tr>
                   <?php endforeach; ?>
+                  <?php if (!$opportunities): ?>
+                    <tr><td colspan="5">Aun no hay oportunidades registradas.</td></tr>
+                  <?php endif; ?>
                 </tbody>
               </table>
             </div>
           </article>
-        <?php elseif ($view === 'quotes'): ?>
-          <div class="crm-head"><div><p class="eyebrow">Propuestas</p><h1>Cotizaciones</h1><p>Alta, estatus economico y probabilidad de cierre.</p></div></div>
+        <?php elseif ($view === 'opportunity'): ?>
+          <?php if (!$selectedOpportunity): ?>
+            <div class="crm-head"><div><p class="eyebrow">Pipeline</p><h1>Oportunidad no encontrada</h1><p>El registro solicitado no existe o fue eliminado.</p></div><a class="crm-button crm-button--ghost" href="index.php?view=opportunities">Volver</a></div>
+          <?php else: ?>
+            <div class="crm-head">
+              <div>
+                <p class="eyebrow">Detalle de oportunidad</p>
+                <h1><?php echo h($selectedOpportunity['company_name']); ?></h1>
+                <p><?php echo h($selectedOpportunity['service']); ?> - <?php echo h($selectedOpportunity['contact_name']); ?></p>
+              </div>
+              <a class="crm-button crm-button--ghost" href="index.php?view=opportunities">Volver</a>
+            </div>
+
+            <div class="crm-kpis crm-kpis--secondary">
+              <article class="crm-card"><h2>Estatus</h2><p><span class="crm-pill <?php echo h(crm_pill_class((string) $selectedOpportunity['status'])); ?>"><?php echo h($selectedOpportunity['status']); ?></span></p></article>
+              <article class="crm-card"><h2>Valor</h2><p><?php echo crm_money($selectedOpportunity['estimated_value']); ?></p></article>
+              <article class="crm-card"><h2>Siguiente accion</h2><p><?php echo h($selectedOpportunity['next_action_date'] ?: 'Sin fecha'); ?></p></article>
+              <article class="crm-card"><h2>Bitacora ID</h2><p><?php if (!empty($selectedOpportunity['portal_username'])): ?><span class="crm-pill crm-pill--success">Activa</span><?php elseif ($selectedOpportunity['status'] === 'Proyecto entregado'): ?><span class="crm-pill crm-pill--warning">Pendiente</span><?php else: ?><span class="crm-pill crm-pill--neutral">No aplica</span><?php endif; ?></p></article>
+            </div>
+
+            <div class="crm-grid">
+              <article class="crm-card">
+                <h2>Datos del contacto</h2>
+                <div class="crm-list crm-list--compact">
+                  <div class="crm-list__item"><strong>Empresa</strong><span><?php echo h($selectedOpportunity['company_name']); ?></span></div>
+                  <div class="crm-list__item"><strong>Contacto</strong><span><?php echo h($selectedOpportunity['contact_name']); ?></span></div>
+                  <div class="crm-list__item"><strong>Correo</strong><span><?php echo h($selectedOpportunity['contact_email'] ?: 'Sin correo'); ?></span></div>
+                  <div class="crm-list__item"><strong>Telefono</strong><span><?php echo h($selectedOpportunity['contact_phone'] ?: 'Sin telefono'); ?></span></div>
+                  <div class="crm-list__item"><strong>Origen</strong><span><?php echo h($selectedOpportunity['source']); ?></span></div>
+                </div>
+              </article>
+
+              <article class="crm-card crm-form-card">
+                <h2>Actualizar seguimiento</h2>
+                <form class="crm-form" method="post">
+                  <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                  <input type="hidden" name="action" value="update_opportunity">
+                  <input type="hidden" name="return_to" value="opportunity">
+                  <input type="hidden" name="opportunity_id" value="<?php echo (int) $selectedOpportunity['id']; ?>">
+                  <div class="crm-form-grid">
+                    <label class="crm-field">Estatus<select name="status"><?php foreach ($statuses as $status): ?><option <?php echo $status === $selectedOpportunity['status'] ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select></label>
+                    <label class="crm-field">Prioridad<select name="priority"><option <?php echo $selectedOpportunity['priority'] === 'Alta' ? 'selected' : ''; ?>>Alta</option><option <?php echo $selectedOpportunity['priority'] === 'Media' ? 'selected' : ''; ?>>Media</option><option <?php echo $selectedOpportunity['priority'] === 'Baja' ? 'selected' : ''; ?>>Baja</option></select></label>
+                    <label class="crm-field">Valor estimado<input type="number" name="estimated_value" value="<?php echo h($selectedOpportunity['estimated_value']); ?>" min="0" step="1000"></label>
+                    <label class="crm-field">Siguiente accion<input type="date" name="next_action_date" value="<?php echo h($selectedOpportunity['next_action_date']); ?>"></label>
+                    <label class="crm-field crm-field--wide">Notas<textarea name="notes" rows="4"><?php echo h($selectedOpportunity['notes']); ?></textarea></label>
+                  </div>
+                  <button class="crm-button" type="submit">Guardar seguimiento</button>
+                </form>
+              </article>
+            </div>
+
+            <div class="crm-grid">
+              <article class="crm-card">
+                <h2>Cotizaciones vinculadas</h2>
+                <div class="crm-list">
+                  <?php foreach ($selectedOpportunityQuotes as $quote): ?>
+                    <div class="crm-list__item">
+                      <span class="crm-pill <?php echo h(crm_pill_class((string) $quote['status'])); ?>"><?php echo h($quote['status']); ?></span>
+                      <strong><?php echo h($quote['quote_code']); ?> - <?php echo crm_money($quote['amount']); ?></strong>
+                      <small><?php echo (int) $quote['probability']; ?>% - <?php echo h($quote['valid_until'] ?: 'Sin vigencia'); ?></small>
+                      <a class="crm-button crm-button--ghost" href="index.php?view=quote&id=<?php echo (int) $quote['id']; ?>">Ver cotizacion</a>
+                    </div>
+                  <?php endforeach; ?>
+                  <?php if (!$selectedOpportunityQuotes): ?><p>No hay cotizaciones vinculadas.</p><?php endif; ?>
+                </div>
+              </article>
+
+              <article class="crm-card">
+                <h2>Actividad reciente</h2>
+                <div class="crm-list">
+                  <?php foreach ($selectedOpportunityActivities as $activity): ?>
+                    <div class="crm-list__item">
+                      <span class="crm-pill crm-pill--neutral"><?php echo h($activity['type']); ?></span>
+                      <strong><?php echo h($activity['summary']); ?></strong>
+                      <small><?php echo h($activity['created_at']); ?><?php if (!empty($activity['due_date'])): ?> - vence <?php echo h($activity['due_date']); ?><?php endif; ?></small>
+                    </div>
+                  <?php endforeach; ?>
+                  <?php if (!$selectedOpportunityActivities): ?><p>No hay actividad registrada.</p><?php endif; ?>
+                </div>
+              </article>
+            </div>
+          <?php endif; ?>        <?php elseif ($view === 'quotes'): ?>
+          <div class="crm-head"><div><p class="eyebrow">Propuestas</p><h1>Cotizaciones</h1><p>Solicitudes y propuestas resumidas. Abre cada registro para ver todos los datos.</p></div></div>
 
           <article class="crm-card crm-form-card">
             <h2>Nueva cotizacion</h2>
@@ -638,45 +754,106 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
 
           <article class="crm-card">
             <div class="crm-table-wrap">
-              <table class="crm-table crm-table--quotes">
-                <thead><tr><th>Folio</th><th>Empresa</th><th>Servicio</th><th>Monto</th><th>Estatus</th><th>Prob.</th><th>Vigencia</th><th>Actualizar</th></tr></thead>
+              <table class="crm-table crm-table--compact">
+                <thead><tr><th>Folio</th><th>Empresa</th><th>Servicio</th><th>Estatus</th><th>Ver</th></tr></thead>
                 <tbody>
                   <?php foreach ($quotes as $quote): ?>
-                    <?php
-                      $quoteStatus = trim((string) ($quote['status'] ?? '')) ?: 'En elaboracion';
-                      $quoteProbability = $quote['probability'] === null || $quote['probability'] === '' ? 40 : (int) $quote['probability'];
-                      $quoteValidUntil = trim((string) ($quote['valid_until'] ?? ''));
-                    ?>
+                    <?php $quoteStatus = trim((string) ($quote['status'] ?? '')) ?: 'En elaboracion'; ?>
                     <tr>
                       <td><strong><?php echo h($quote['quote_code']); ?></strong></td>
                       <td><?php echo h($quote['company_name']); ?></td>
                       <td><?php echo h($quote['service']); ?></td>
-                      <td><?php echo crm_money($quote['amount']); ?></td>
                       <td><span class="crm-pill <?php echo h(crm_pill_class($quoteStatus)); ?>"><?php echo h($quoteStatus); ?></span></td>
-                      <td><?php echo $quoteProbability; ?>%</td>
-                      <td><?php echo h($quoteValidUntil !== '' ? $quoteValidUntil : 'Sin vigencia'); ?></td>
-                      <td>
-                        <form class="crm-actions crm-actions--quote" method="post">
-                          <input type="hidden" name="token" value="<?php echo h($token); ?>">
-                          <input type="hidden" name="action" value="update_quote">
-                          <input type="hidden" name="quote_id" value="<?php echo (int) $quote['id']; ?>">
-                          <input type="number" name="amount" value="<?php echo h($quote['amount']); ?>" class="crm-input--money" min="0" step="1000">
-                          <select name="status"><?php foreach ($quoteStatuses as $status): ?><option <?php echo $status === $quoteStatus ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select>
-                          <input type="number" name="probability" min="0" max="100" value="<?php echo $quoteProbability; ?>" class="crm-input--probability">
-                          <input type="date" name="valid_until" value="<?php echo h($quoteValidUntil); ?>">
-                          <button class="crm-button crm-button--ghost" type="submit">Guardar</button>
-                        </form>
-                      </td>
+                      <td><a class="crm-button crm-button--ghost" href="index.php?view=quote&id=<?php echo (int) $quote['id']; ?>">Ver</a></td>
                     </tr>
                   <?php endforeach; ?>
                   <?php if (!$quotes): ?>
-                    <tr><td colspan="8">Aun no hay cotizaciones. Crea la primera desde una oportunidad activa.</td></tr>
+                    <tr><td colspan="5">Aun no hay cotizaciones. Crea la primera desde una oportunidad activa.</td></tr>
                   <?php endif; ?>
                 </tbody>
               </table>
             </div>
           </article>
-        <?php elseif ($view === 'clients'): ?>
+        <?php elseif ($view === 'quote'): ?>
+          <?php if (!$selectedQuote): ?>
+            <div class="crm-head"><div><p class="eyebrow">Propuestas</p><h1>Cotizacion no encontrada</h1><p>El registro solicitado no existe o fue eliminado.</p></div><a class="crm-button crm-button--ghost" href="index.php?view=quotes">Volver</a></div>
+          <?php else: ?>
+            <?php
+              $quoteStatus = trim((string) ($selectedQuote['status'] ?? '')) ?: 'En elaboracion';
+              $quoteProbability = $selectedQuote['probability'] === null || $selectedQuote['probability'] === '' ? 40 : (int) $selectedQuote['probability'];
+              $quoteValidUntil = trim((string) ($selectedQuote['valid_until'] ?? ''));
+            ?>
+            <div class="crm-head">
+              <div>
+                <p class="eyebrow">Detalle de cotizacion</p>
+                <h1><?php echo h($selectedQuote['quote_code']); ?></h1>
+                <p><?php echo h($selectedQuote['company_name']); ?> - <?php echo h($selectedQuote['service']); ?></p>
+              </div>
+              <a class="crm-button crm-button--ghost" href="index.php?view=quotes">Volver</a>
+            </div>
+
+            <div class="crm-kpis crm-kpis--secondary">
+              <article class="crm-card"><h2>Monto</h2><p><?php echo crm_money($selectedQuote['amount']); ?></p></article>
+              <article class="crm-card"><h2>Estatus</h2><p><span class="crm-pill <?php echo h(crm_pill_class($quoteStatus)); ?>"><?php echo h($quoteStatus); ?></span></p></article>
+              <article class="crm-card"><h2>Probabilidad</h2><p><?php echo $quoteProbability; ?>%</p></article>
+              <article class="crm-card"><h2>Vigencia</h2><p><?php echo h($quoteValidUntil !== '' ? $quoteValidUntil : 'Sin vigencia'); ?></p></article>
+            </div>
+
+            <div class="crm-grid">
+              <article class="crm-card">
+                <h2>Datos del prospecto</h2>
+                <div class="crm-list crm-list--compact">
+                  <div class="crm-list__item"><strong>Empresa</strong><span><?php echo h($selectedQuote['company_name']); ?></span></div>
+                  <div class="crm-list__item"><strong>Contacto</strong><span><?php echo h($selectedQuote['contact_name'] ?: 'Sin contacto'); ?></span></div>
+                  <div class="crm-list__item"><strong>Correo</strong><span><?php echo h($selectedQuote['contact_email'] ?: 'Sin correo'); ?></span></div>
+                  <div class="crm-list__item"><strong>Telefono</strong><span><?php echo h($selectedQuote['contact_phone'] ?: 'Sin telefono'); ?></span></div>
+                  <div class="crm-list__item"><strong>Etapa cliente</strong><span><?php echo h($selectedQuote['lifecycle_stage'] ?: 'Prospecto'); ?></span></div>
+                </div>
+              </article>
+
+              <article class="crm-card">
+                <h2>Datos de oportunidad</h2>
+                <div class="crm-list crm-list--compact">
+                  <div class="crm-list__item"><strong>Origen</strong><span><?php echo h($selectedQuote['source']); ?></span></div>
+                  <div class="crm-list__item"><strong>Estatus comercial</strong><span><?php echo h($selectedQuote['opportunity_status']); ?></span></div>
+                  <div class="crm-list__item"><strong>Prioridad</strong><span><?php echo h($selectedQuote['priority']); ?></span></div>
+                  <div class="crm-list__item"><strong>Siguiente accion</strong><span><?php echo h($selectedQuote['next_action_date'] ?: 'Sin fecha'); ?></span></div>
+                  <div class="crm-list__item"><strong>Notas</strong><span><?php echo h($selectedQuote['opportunity_notes'] ?: 'Sin notas'); ?></span></div>
+                </div>
+              </article>
+            </div>
+
+            <article class="crm-card crm-form-card">
+              <h2>Actualizar cotizacion</h2>
+              <form class="crm-form" method="post">
+                <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                <input type="hidden" name="action" value="update_quote">
+                <input type="hidden" name="return_to" value="quote">
+                <input type="hidden" name="quote_id" value="<?php echo (int) $selectedQuote['id']; ?>">
+                <div class="crm-form-grid crm-form-grid--quotes">
+                  <label class="crm-field">Monto<input type="number" name="amount" value="<?php echo h($selectedQuote['amount']); ?>" min="0" step="1000"></label>
+                  <label class="crm-field">Estatus<select name="status"><?php foreach ($quoteStatuses as $status): ?><option <?php echo $status === $quoteStatus ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select></label>
+                  <label class="crm-field">Probabilidad<input type="number" name="probability" min="0" max="100" value="<?php echo $quoteProbability; ?>"></label>
+                  <label class="crm-field">Vigencia<input type="date" name="valid_until" value="<?php echo h($quoteValidUntil); ?>"></label>
+                </div>
+                <button class="crm-button" type="submit">Guardar cambios</button>
+              </form>
+            </article>
+
+            <article class="crm-card">
+              <h2>Actividad reciente</h2>
+              <div class="crm-list">
+                <?php foreach ($selectedQuoteActivities as $activity): ?>
+                  <div class="crm-list__item">
+                    <span class="crm-pill crm-pill--neutral"><?php echo h($activity['type']); ?></span>
+                    <strong><?php echo h($activity['summary']); ?></strong>
+                    <small><?php echo h($activity['created_at']); ?><?php if (!empty($activity['due_date'])): ?> - vence <?php echo h($activity['due_date']); ?><?php endif; ?></small>
+                  </div>
+                <?php endforeach; ?>
+                <?php if (!$selectedQuoteActivities): ?><p>No hay actividad registrada para esta cotizacion.</p><?php endif; ?>
+              </div>
+            </article>
+          <?php endif; ?>        <?php elseif ($view === 'clients'): ?>
           <div class="crm-head"><div><p class="eyebrow">Cartera</p><h1>Clientes y prospectos</h1><p>Prospectos del sitio publico, clientes convertidos y referencias comerciales.</p></div></div>
           <article class="crm-card">
             <div class="crm-table-wrap">
@@ -726,9 +903,9 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
               <input type="hidden" name="action" value="change_password">
               <div class="crm-form-grid">
                 <label class="crm-field">Usuario<input value="<?php echo h($_SESSION['crm_user']['email']); ?>" disabled></label>
-                <label class="crm-field">Password actual<input type="password" name="current_password" autocomplete="current-password" required></label>
-                <label class="crm-field">Nuevo password<input type="password" name="new_password" autocomplete="new-password" minlength="10" required></label>
-                <label class="crm-field">Confirmar password<input type="password" name="confirm_password" autocomplete="new-password" minlength="10" required></label>
+                <label class="crm-field">Password actual<span class="crm-password-field"><input id="profile-current-password" type="password" name="current_password" autocomplete="current-password" required><button class="crm-password-toggle" type="button" aria-label="Mostrar password actual" aria-controls="profile-current-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
+                <label class="crm-field">Nuevo password<span class="crm-password-field"><input id="profile-new-password" type="password" name="new_password" autocomplete="new-password" minlength="10" required><button class="crm-password-toggle" type="button" aria-label="Mostrar nuevo password" aria-controls="profile-new-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
+                <label class="crm-field">Confirmar password<span class="crm-password-field"><input id="profile-confirm-password" type="password" name="confirm_password" autocomplete="new-password" minlength="10" required><button class="crm-password-toggle" type="button" aria-label="Mostrar confirmacion de password" aria-controls="profile-confirm-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
               </div>
               <button class="crm-button" type="submit">Actualizar password</button>
             </form>
@@ -791,5 +968,21 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
       </section>
     </main>
   </div>
+  <script>
+    (() => {
+      document.querySelectorAll('[data-password-toggle]').forEach((toggle) => {
+        const targetId = toggle.getAttribute('aria-controls');
+        const input = targetId ? document.getElementById(targetId) : null;
+        if (!input) return;
+
+        toggle.addEventListener('click', () => {
+          const showing = input.type === 'text';
+          input.type = showing ? 'password' : 'text';
+          toggle.setAttribute('aria-label', showing ? 'Mostrar password' : 'Ocultar password');
+          toggle.classList.toggle('is-active', !showing);
+        });
+      });
+    })();
+  </script>
 </body>
 </html>

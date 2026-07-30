@@ -581,6 +581,10 @@ button {
   border-collapse: collapse;
 }
 
+.crm-table--compact {
+  min-width: 640px;
+}
+
 .crm-table th,
 .crm-table td {
   border-bottom: 1px solid var(--crm-line);
