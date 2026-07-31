@@ -10,13 +10,24 @@ function crm_config(): array
     'username' => '',
     'password' => '',
     'charset' => 'utf8mb4',
+    'app_url' => 'https://idindustrial.com.mx/sistema/crm',
+    'smtp' => [
+      'enabled' => false,
+      'host' => 'mail.idindustrial.com.mx',
+      'port' => 465,
+      'secure' => 'ssl',
+      'username' => '',
+      'password' => '',
+      'from_email' => 'no-reply@idindustrial.com.mx',
+      'from_name' => 'ID Industrial',
+    ],
   ];
 
   $configPath = __DIR__ . '/../config.php';
   if (is_file($configPath)) {
     $customConfig = require $configPath;
     if (is_array($customConfig)) {
-      $config = array_replace($config, $customConfig);
+      $config = array_replace_recursive($config, $customConfig);
     }
   }
 
@@ -100,11 +111,38 @@ function crm_column_exists(PDO $pdo, string $table, string $column): bool
 
 function crm_ensure_columns(PDO $pdo): void
 {
-  if (!crm_column_exists($pdo, 'clients', 'lifecycle_stage')) {
-    $definition = crm_driver($pdo) === 'mysql'
-      ? "ALTER TABLE clients ADD COLUMN lifecycle_stage VARCHAR(40) NOT NULL DEFAULT 'Cliente' AFTER segment"
-      : "ALTER TABLE clients ADD COLUMN lifecycle_stage TEXT NOT NULL DEFAULT 'Cliente'";
-    $pdo->exec($definition);
+  $isMysql = crm_driver($pdo) === 'mysql';
+  $columns = [
+    'clients' => [
+      'lifecycle_stage' => $isMysql
+        ? "ALTER TABLE clients ADD COLUMN lifecycle_stage VARCHAR(40) NOT NULL DEFAULT 'Cliente' AFTER segment"
+        : "ALTER TABLE clients ADD COLUMN lifecycle_stage TEXT NOT NULL DEFAULT 'Cliente'",
+      'converted_at' => $isMysql
+        ? 'ALTER TABLE clients ADD COLUMN converted_at DATETIME NULL AFTER created_at'
+        : 'ALTER TABLE clients ADD COLUMN converted_at TEXT NULL',
+    ],
+    'client_requests' => [
+      'priority' => $isMysql
+        ? "ALTER TABLE client_requests ADD COLUMN priority VARCHAR(40) NOT NULL DEFAULT 'Media' AFTER status"
+        : "ALTER TABLE client_requests ADD COLUMN priority TEXT NOT NULL DEFAULT 'Media'",
+      'admin_response' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN admin_response TEXT NULL AFTER message'
+        : 'ALTER TABLE client_requests ADD COLUMN admin_response TEXT NULL',
+      'resolved_at' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN resolved_at DATETIME NULL AFTER updated_at'
+        : 'ALTER TABLE client_requests ADD COLUMN resolved_at TEXT NULL',
+      'last_admin_update_at' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN last_admin_update_at DATETIME NULL AFTER resolved_at'
+        : 'ALTER TABLE client_requests ADD COLUMN last_admin_update_at TEXT NULL',
+    ],
+  ];
+
+  foreach ($columns as $table => $tableColumns) {
+    foreach ($tableColumns as $column => $definition) {
+      if (!crm_column_exists($pdo, $table, $column)) {
+        $pdo->exec($definition);
+      }
+    }
   }
 }
 function crm_migrate_sqlite(PDO $pdo): void
@@ -212,9 +250,13 @@ function crm_migrate_sqlite(PDO $pdo): void
       portal_user_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       message TEXT NOT NULL,
+      admin_response TEXT,
       status TEXT NOT NULL DEFAULT 'Recibida',
+      priority TEXT NOT NULL DEFAULT 'Media',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      resolved_at TEXT,
+      last_admin_update_at TEXT,
       FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
       FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
     );
@@ -225,6 +267,7 @@ function crm_migrate_sqlite(PDO $pdo): void
     CREATE INDEX IF NOT EXISTS idx_activities_due ON activities(completed_at, due_date);
     CREATE INDEX IF NOT EXISTS idx_maintenance_logs_opportunity ON maintenance_logs(opportunity_id, scheduled_date);
     CREATE INDEX IF NOT EXISTS idx_client_requests_portal ON client_requests(portal_user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_client_requests_status ON client_requests(status, updated_at);
   ");
 }
 
@@ -355,12 +398,17 @@ function crm_migrate_mysql(PDO $pdo): void
       portal_user_id INT UNSIGNED NOT NULL,
       title VARCHAR(190) NOT NULL,
       message TEXT NOT NULL,
+      admin_response TEXT NULL,
       status VARCHAR(80) NOT NULL DEFAULT 'Recibida',
+      priority VARCHAR(40) NOT NULL DEFAULT 'Media',
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      resolved_at DATETIME NULL,
+      last_admin_update_at DATETIME NULL,
       PRIMARY KEY (id),
       KEY idx_client_requests_portal (portal_user_id, created_at),
       KEY idx_client_requests_opportunity (opportunity_id),
+      KEY idx_client_requests_status (status, updated_at),
       CONSTRAINT fk_client_requests_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
       CONSTRAINT fk_client_requests_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -600,7 +648,7 @@ function crm_enable_client_portal(PDO $pdo, int $opportunityId): array
 function crm_reset_client_portal_password(PDO $pdo, int $portalUserId): array
 {
   $stmt = $pdo->prepare('
-    SELECT cpu.*, o.company_name, o.id AS opportunity_id
+    SELECT cpu.*, o.company_name, o.contact_name, o.contact_email, o.service, o.id AS opportunity_id
     FROM client_portal_users cpu
     JOIN opportunities o ON o.id = cpu.opportunity_id
     WHERE cpu.id = ?
@@ -620,8 +668,150 @@ function crm_reset_client_portal_password(PDO $pdo, int $portalUserId): array
   $log = $pdo->prepare('INSERT INTO maintenance_logs (opportunity_id, portal_user_id, type, title, status, scheduled_date, notes, visible_to_client) VALUES (?, ?, "Acceso", "Password Bitacora ID regenerado", "Activo", ?, "El equipo administrativo regenero el acceso del cliente.", 0)');
   $log->execute([(int) $portalUser['opportunity_id'], $portalUserId, date('Y-m-d')]);
 
-  return ['username' => $portalUser['username'], 'password' => $password, 'company_name' => $portalUser['company_name']];
+  return ['username' => $portalUser['username'], 'password' => $password, 'company_name' => $portalUser['company_name'], 'contact_name' => $portalUser['contact_name'], 'contact_email' => $portalUser['contact_email'], 'service' => $portalUser['service']];
 }
+function crm_app_url(string $path = ''): string
+{
+  $base = rtrim((string) (crm_config()['app_url'] ?? 'https://idindustrial.com.mx/sistema/crm'), '/');
+  $path = ltrim($path, '/');
+  return $path === '' ? $base : $base . '/' . $path;
+}
+
+function crm_send_email(string $to, string $subject, string $body): bool
+{
+  $config = crm_config();
+  $smtp = is_array($config['smtp'] ?? null) ? $config['smtp'] : [];
+  if (!empty($smtp['enabled'])) {
+    return crm_smtp_mail($smtp, $to, $subject, $body);
+  }
+
+  $fromEmail = (string) ($smtp['from_email'] ?? 'no-reply@idindustrial.com.mx');
+  $fromName = (string) ($smtp['from_name'] ?? 'ID Industrial');
+  $headers = [
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=UTF-8',
+    'From: ' . $fromName . ' <' . $fromEmail . '>',
+  ];
+  return @mail($to, $subject, $body, implode("\r\n", $headers));
+}
+
+function crm_smtp_read($socket): string
+{
+  $response = '';
+  while (!feof($socket)) {
+    $line = fgets($socket, 515);
+    if ($line === false) {
+      break;
+    }
+    $response .= $line;
+    if (preg_match('/^\d{3} /', $line)) {
+      break;
+    }
+  }
+  return $response;
+}
+
+function crm_smtp_command($socket, string $command, array $codes): bool
+{
+  fwrite($socket, $command . "\r\n");
+  $response = crm_smtp_read($socket);
+  $code = (int) substr($response, 0, 3);
+  return in_array($code, $codes, true);
+}
+
+function crm_smtp_mail(array $smtp, string $to, string $subject, string $body): bool
+{
+  $host = (string) ($smtp['host'] ?? '');
+  $port = (int) ($smtp['port'] ?? 465);
+  $secure = strtolower((string) ($smtp['secure'] ?? 'ssl'));
+  $username = (string) ($smtp['username'] ?? '');
+  $password = (string) ($smtp['password'] ?? '');
+  $fromEmail = (string) ($smtp['from_email'] ?? $username);
+  $fromName = (string) ($smtp['from_name'] ?? 'ID Industrial');
+  if ($host === '' || $username === '' || $password === '' || $fromEmail === '') {
+    return false;
+  }
+
+  $target = ($secure === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
+  $socket = @stream_socket_client($target, $errno, $errstr, 20);
+  if (!$socket) {
+    error_log('CRM SMTP connection failed: ' . $errstr);
+    return false;
+  }
+  stream_set_timeout($socket, 20);
+  $ready = crm_smtp_read($socket);
+  if ((int) substr($ready, 0, 3) !== 220) {
+    fclose($socket);
+    return false;
+  }
+
+  $domain = preg_replace('/^mail\./', '', $host) ?: 'localhost';
+  if (!crm_smtp_command($socket, 'EHLO ' . $domain, [250])) {
+    fclose($socket);
+    return false;
+  }
+  if ($secure === 'tls') {
+    if (!crm_smtp_command($socket, 'STARTTLS', [220]) || !stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+      fclose($socket);
+      return false;
+    }
+    if (!crm_smtp_command($socket, 'EHLO ' . $domain, [250])) {
+      fclose($socket);
+      return false;
+    }
+  }
+
+  $ok = crm_smtp_command($socket, 'AUTH LOGIN', [334])
+    && crm_smtp_command($socket, base64_encode($username), [334])
+    && crm_smtp_command($socket, base64_encode($password), [235])
+    && crm_smtp_command($socket, 'MAIL FROM:<' . $fromEmail . '>', [250])
+    && crm_smtp_command($socket, 'RCPT TO:<' . $to . '>', [250, 251])
+    && crm_smtp_command($socket, 'DATA', [354]);
+  if (!$ok) {
+    fclose($socket);
+    return false;
+  }
+
+  $headers = [
+    'Date: ' . date('r'),
+    'From: ' . $fromName . ' <' . $fromEmail . '>',
+    'To: <' . $to . '>',
+    'Subject: ' . $subject,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=UTF-8',
+  ];
+  $message = implode("\r\n", $headers) . "\r\n\r\n" . $body;
+  $message = preg_replace('/^\./m', '..', $message);
+  fwrite($socket, $message . "\r\n.\r\n");
+  $sent = in_array((int) substr(crm_smtp_read($socket), 0, 3), [250], true);
+  crm_smtp_command($socket, 'QUIT', [221, 250]);
+  fclose($socket);
+  return $sent;
+}
+
+function crm_send_portal_credentials(array $opportunity, string $username, string $password): bool
+{
+  $email = trim((string) ($opportunity['contact_email'] ?? ''));
+  if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    return false;
+  }
+
+  $contact = trim((string) ($opportunity['contact_name'] ?? ''));
+  $company = trim((string) ($opportunity['company_name'] ?? ''));
+  $service = trim((string) ($opportunity['service'] ?? ''));
+  $name = $contact !== '' ? $contact : ($company !== '' ? $company : 'cliente');
+  $body = "Hola " . $name . ",\n\n"
+    . "Tu acceso a Bitacora ID ya esta activo.\n\n"
+    . "Proyecto: " . ($service !== '' ? $service : 'Mantenimiento ID Industrial') . "\n"
+    . "Link: " . crm_app_url('cliente.php') . "\n"
+    . "Usuario: " . $username . "\n"
+    . "Password: " . $password . "\n\n"
+    . "Por seguridad, conserva estos datos y no los compartas fuera de tu equipo autorizado.\n\n"
+    . "ID Industrial";
+
+  return crm_send_email($email, 'Acceso a Bitacora ID - ID Industrial', $body);
+}
+
 function crm_portal_user_by_username(PDO $pdo, string $username): ?array
 {
   $stmt = $pdo->prepare('

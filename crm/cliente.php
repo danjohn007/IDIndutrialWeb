@@ -16,6 +16,21 @@ function h($value): string
   return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+function bitacora_pill_class(string $value): string
+{
+  $key = strtolower($value);
+  if (strpos($key, 'resuelta') !== false || strpos($key, 'cerrada') !== false || strpos($key, 'activo') !== false) {
+    return 'crm-pill--success';
+  }
+  if (strpos($key, 'urgente') !== false || strpos($key, 'cancelada') !== false) {
+    return 'crm-pill--danger';
+  }
+  if (strpos($key, 'revision') !== false || strpos($key, 'programada') !== false || strpos($key, 'proceso') !== false || strpos($key, 'recibida') !== false) {
+    return 'crm-pill--warning';
+  }
+  return 'crm-pill--neutral';
+}
+
 function bitacora_token(): string
 {
   if (empty($_SESSION['bitacora_token'])) {
@@ -146,16 +161,21 @@ exit;
 endif;
 
 $portal = $_SESSION['bitacora_user'];
+$requestPriorities = ['Baja', 'Media', 'Alta', 'Urgente'];
 $notice = null;
 if (($_POST['action'] ?? '') === 'create_request') {
   bitacora_check_token();
   $title = trim((string) ($_POST['title'] ?? ''));
   $message = trim((string) ($_POST['message'] ?? ''));
+  $priority = trim((string) ($_POST['priority'] ?? 'Media'));
+  if (!in_array($priority, $requestPriorities, true)) {
+    $priority = 'Media';
+  }
   if ($title === '' || $message === '') {
     $notice = ['type' => 'error', 'text' => 'Completa asunto y descripcion de la solicitud.'];
   } else {
-    $stmt = $pdo->prepare('INSERT INTO client_requests (opportunity_id, portal_user_id, title, message, status) VALUES (?, ?, ?, ?, "Recibida")');
-    $stmt->execute([(int) $portal['opportunity_id'], (int) $portal['id'], $title, $message]);
+    $stmt = $pdo->prepare('INSERT INTO client_requests (opportunity_id, portal_user_id, title, message, status, priority) VALUES (?, ?, ?, ?, "Recibida", ?)');
+    $stmt->execute([(int) $portal['opportunity_id'], (int) $portal['id'], $title, $message, $priority]);
     $notice = ['type' => 'success', 'text' => 'Solicitud recibida. El equipo de ID Industrial dara seguimiento.'];
   }
 }
@@ -187,7 +207,7 @@ $requests = $requestsStmt->fetchAll();
         <img src="../assets/img/logo-idindustrial-small.webp" alt="ID Industrial" width="280" height="74">
         <p class="eyebrow">Bitacora ID</p>
         <h1><?php echo h($portal['company_name']); ?></h1>
-        <p><?php echo h($portal['service']); ?> · <?php echo h($project['status'] ?? 'Proyecto entregado'); ?></p>
+        <p><?php echo h($portal['service']); ?> - <?php echo h($project['status'] ?? 'Proyecto entregado'); ?></p>
       </div>
       <a class="crm-button crm-button--ghost" href="cliente.php?logout=1">Cerrar sesion</a>
     </header>
@@ -210,7 +230,7 @@ $requests = $requestsStmt->fetchAll();
               <span class="crm-pill crm-pill--success"><?php echo h($log['status']); ?></span>
               <strong><?php echo h($log['title']); ?></strong>
               <p><?php echo h($log['notes']); ?></p>
-              <small><?php echo h($log['type']); ?> · <?php echo h($log['scheduled_date'] ?: $log['created_at']); ?></small>
+              <small><?php echo h($log['type']); ?> - <?php echo h($log['scheduled_date'] ?: $log['created_at']); ?></small>
             </div>
           <?php endforeach; ?>
           <?php if (!$logs): ?><p>Aun no hay registros publicados para este proyecto.</p><?php endif; ?>
@@ -223,18 +243,32 @@ $requests = $requestsStmt->fetchAll();
           <input type="hidden" name="token" value="<?php echo h($token); ?>">
           <input type="hidden" name="action" value="create_request">
           <label class="crm-field">Asunto<input name="title" required></label>
+          <label class="crm-field">Prioridad
+            <select name="priority">
+              <?php foreach ($requestPriorities as $priority): ?><option><?php echo h($priority); ?></option><?php endforeach; ?>
+            </select>
+          </label>
           <label class="crm-field">Descripcion<textarea name="message" rows="5" required></textarea></label>
           <button class="crm-button" type="submit">Enviar solicitud</button>
         </form>
 
         <div class="crm-list crm-list--compact">
           <?php foreach ($requests as $request): ?>
-            <div class="crm-list__item">
-              <span class="crm-pill crm-pill--warning"><?php echo h($request['status']); ?></span>
+            <?php $requestStatus = trim((string) ($request['status'] ?? 'Recibida')) ?: 'Recibida'; ?>
+            <div class="crm-list__item crm-request-card">
+              <div class="crm-request-card__head">
+                <span class="crm-pill <?php echo h(bitacora_pill_class($requestStatus)); ?>"><?php echo h($requestStatus); ?></span>
+                <small><?php echo h($request['updated_at'] ?: $request['created_at']); ?></small>
+              </div>
               <strong><?php echo h($request['title']); ?></strong>
-              <small><?php echo h($request['created_at']); ?></small>
+              <p><?php echo h($request['message']); ?></p>
+              <small>Prioridad: <?php echo h($request['priority'] ?? 'Media'); ?><?php if (!empty($request['resolved_at'])): ?> - resuelta <?php echo h($request['resolved_at']); ?><?php endif; ?></small>
+              <?php if (!empty($request['admin_response'])): ?>
+                <div class="crm-response"><strong>Respuesta ID Industrial</strong><p><?php echo h($request['admin_response']); ?></p></div>
+              <?php endif; ?>
             </div>
           <?php endforeach; ?>
+          <?php if (!$requests): ?><p>Aun no has enviado solicitudes de mantenimiento.</p><?php endif; ?>
         </div>
       </article>
     </section>

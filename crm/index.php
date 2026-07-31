@@ -23,6 +23,8 @@ $statuses = [
   'Proyecto perdido',
 ];
 $quoteStatuses = ['Solicitud recibida', 'En elaboracion', 'Enviada', 'En revision cliente', 'Aprobada', 'Perdida'];
+$requestStatuses = ['Recibida', 'En revision', 'Programada', 'En proceso', 'Resuelta', 'Cerrada'];
+$requestPriorities = ['Baja', 'Media', 'Alta', 'Urgente'];
 
 function h($value): string
 {
@@ -34,16 +36,21 @@ function crm_money($value): string
   return '$' . number_format((float) $value, 2);
 }
 
+function crm_has_text(string $value, string $needle): bool
+{
+  return strpos($value, $needle) !== false;
+}
+
 function crm_pill_class(string $value): string
 {
   $key = strtolower($value);
-  if (str_contains($key, 'ganado') || str_contains($key, 'entregado') || str_contains($key, 'aprobada') || $key === 'enviada') {
+  if (crm_has_text($key, 'ganado') || crm_has_text($key, 'entregado') || crm_has_text($key, 'aprobada') || $key === 'enviada') {
     return 'crm-pill--success';
   }
-  if (str_contains($key, 'perdido') || str_contains($key, 'perdida')) {
+  if (crm_has_text($key, 'perdido') || crm_has_text($key, 'perdida')) {
     return 'crm-pill--danger';
   }
-  if (str_contains($key, 'solicitud') || str_contains($key, 'cotizacion') || str_contains($key, 'revision') || str_contains($key, 'negociacion')) {
+  if (crm_has_text($key, 'solicitud') || crm_has_text($key, 'cotizacion') || crm_has_text($key, 'revision') || crm_has_text($key, 'negociacion')) {
     return 'crm-pill--warning';
   }
   return 'crm-pill--neutral';
@@ -288,17 +295,20 @@ if (($_POST['action'] ?? '') === 'update_opportunity') {
   $activity->execute([$opportunityId, 'Estatus actualizado a ' . $newStatus, $_POST['next_action_date'] ?: null]);
 
   if (in_array($newStatus, ['Proyecto ganado', 'Proyecto entregado'], true)) {
-    $clientStmt = $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END WHERE id = (SELECT client_id FROM opportunities WHERE id = ?)');
+    $clientStmt = $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP) WHERE id = (SELECT client_id FROM opportunities WHERE id = ?)');
     $clientStmt->execute(['Cliente', 'Prospecto', 'Industrial', $opportunityId]);
   }
 
   if ($newStatus === 'Proyecto entregado') {
     $portal = crm_enable_client_portal($pdo, $opportunityId);
+    $emailSent = $portal['created'] && !empty($portal['password'])
+      ? crm_send_portal_credentials($portal['opportunity'], $portal['username'], $portal['password'])
+      : false;
     $_SESSION['crm_flash'] = $portal['created']
       ? [
         'type' => 'success',
         'title' => 'Bitacora ID activada',
-        'text' => 'Comparte estos accesos con el cliente. La contrasena se muestra una sola vez.',
+        'text' => $emailSent ? 'Accesos generados y enviados al correo del cliente.' : 'Accesos generados. Si SMTP aun no esta activo, compartelos manualmente; la contrasena se muestra una sola vez.',
         'username' => $portal['username'],
         'password' => $portal['password'],
       ]
@@ -319,7 +329,7 @@ if (($_POST['action'] ?? '') === 'update_opportunity') {
 if (($_POST['action'] ?? '') === 'convert_client') {
   crm_check_token();
   $clientId = (int) ($_POST['client_id'] ?? 0);
-  $stmt = $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, is_public = 0 WHERE id = ?');
+  $stmt = $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP), is_public = 0 WHERE id = ?');
   $stmt->execute(['Cliente', 'Prospecto', 'Industrial', $clientId]);
   $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) SELECT id, "Conversion", "Prospecto convertido a cliente.", NULL FROM opportunities WHERE client_id = ? ORDER BY created_at DESC LIMIT 1');
   $activity->execute([$clientId]);
@@ -334,13 +344,49 @@ if (($_POST['action'] ?? '') === 'convert_client') {
 if (($_POST['action'] ?? '') === 'reset_portal_access') {
   crm_check_token();
   $access = crm_reset_client_portal_password($pdo, (int) ($_POST['portal_user_id'] ?? 0));
+  $emailSent = crm_send_portal_credentials($access, $access['username'], $access['password']);
   $_SESSION['crm_flash'] = [
     'type' => 'success',
     'title' => 'Acceso Bitacora ID regenerado',
-    'text' => 'Comparte esta nueva contrasena con el cliente. Se muestra una sola vez.',
+    'text' => $emailSent ? 'Nueva contrasena enviada al correo del cliente.' : 'Comparte esta nueva contrasena con el cliente. Se muestra una sola vez.',
     'username' => $access['username'],
     'password' => $access['password'],
   ];
+  header('Location: index.php?view=bitacora');
+  exit;
+}
+
+if (($_POST['action'] ?? '') === 'update_client_request') {
+  crm_check_token();
+  $requestId = (int) ($_POST['request_id'] ?? 0);
+  $status = trim((string) ($_POST['status'] ?? 'Recibida'));
+  $priority = trim((string) ($_POST['priority'] ?? 'Media'));
+  $adminResponse = trim((string) ($_POST['admin_response'] ?? ''));
+  if (!in_array($status, $requestStatuses, true)) {
+    $status = 'Recibida';
+  }
+  if (!in_array($priority, $requestPriorities, true)) {
+    $priority = 'Media';
+  }
+
+  $requestStmt = $pdo->prepare('SELECT cr.*, o.company_name FROM client_requests cr JOIN opportunities o ON o.id = cr.opportunity_id WHERE cr.id = ? LIMIT 1');
+  $requestStmt->execute([$requestId]);
+  $request = $requestStmt->fetch();
+  if ($request) {
+    $resolvedAt = in_array($status, ['Resuelta', 'Cerrada'], true) ? date('Y-m-d H:i:s') : null;
+    $update = $pdo->prepare('UPDATE client_requests SET status = ?, priority = ?, admin_response = ?, resolved_at = ?, last_admin_update_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $update->execute([$status, $priority, $adminResponse !== '' ? $adminResponse : null, $resolvedAt, $requestId]);
+
+    $notes = $adminResponse !== '' ? $adminResponse : 'Estatus actualizado a ' . $status . '.';
+    $log = $pdo->prepare('INSERT INTO maintenance_logs (opportunity_id, portal_user_id, type, title, status, scheduled_date, notes, visible_to_client) VALUES (?, ?, "Solicitud", ?, ?, ?, ?, 1)');
+    $log->execute([(int) $request['opportunity_id'], (int) $request['portal_user_id'], 'Seguimiento: ' . $request['title'], $status, date('Y-m-d'), $notes]);
+
+    $_SESSION['crm_flash'] = [
+      'type' => 'success',
+      'title' => 'Solicitud actualizada',
+      'text' => 'El cliente ya puede ver el nuevo estatus y la respuesta en su perfil.',
+    ];
+  }
   header('Location: index.php?view=bitacora');
   exit;
 }
@@ -377,7 +423,7 @@ if (($_POST['action'] ?? '') === 'update_quote') {
 
   if ($status === 'Aprobada') {
     $pdo->prepare('UPDATE opportunities SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = (SELECT opportunity_id FROM quotes WHERE id = ?)')->execute(['Proyecto ganado', $quoteId]);
-    $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END WHERE id = (SELECT o.client_id FROM opportunities o JOIN quotes q ON q.opportunity_id = o.id WHERE q.id = ?)')->execute(['Cliente', 'Prospecto', 'Industrial', $quoteId]);
+    $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP) WHERE id = (SELECT o.client_id FROM opportunities o JOIN quotes q ON q.opportunity_id = o.id WHERE q.id = ?)')->execute(['Cliente', 'Prospecto', 'Industrial', $quoteId]);
   } elseif ($status === 'Perdida') {
     $pdo->prepare('UPDATE opportunities SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = (SELECT opportunity_id FROM quotes WHERE id = ?)')->execute(['Proyecto perdido', $quoteId]);
   }
@@ -473,6 +519,59 @@ $clientRequests = $pdo->query('
   JOIN client_portal_users cpu ON cpu.id = cr.portal_user_id
   ORDER BY cr.created_at DESC
 ')->fetchAll();
+$requestStatusTotals = array_fill_keys($requestStatuses, 0);
+$requestPriorityTotals = array_fill_keys($requestPriorities, 0);
+$requestMonthlyTotals = [];
+$maintenanceMetrics = [
+  'total' => count($clientRequests),
+  'open' => 0,
+  'urgent' => 0,
+  'resolved' => 0,
+  'answered' => 0,
+];
+
+for ($i = 5; $i >= 0; $i--) {
+  $key = date('Y-m', strtotime('-' . $i . ' months'));
+  $requestMonthlyTotals[$key] = 0;
+}
+
+foreach ($clientRequests as $request) {
+  $requestStatus = trim((string) ($request['status'] ?? 'Recibida')) ?: 'Recibida';
+  $requestPriority = trim((string) ($request['priority'] ?? 'Media')) ?: 'Media';
+  if (!isset($requestStatusTotals[$requestStatus])) {
+    $requestStatusTotals[$requestStatus] = 0;
+  }
+  if (!isset($requestPriorityTotals[$requestPriority])) {
+    $requestPriorityTotals[$requestPriority] = 0;
+  }
+  $requestStatusTotals[$requestStatus]++;
+  $requestPriorityTotals[$requestPriority]++;
+
+  if (!in_array($requestStatus, ['Resuelta', 'Cerrada'], true)) {
+    $maintenanceMetrics['open']++;
+  } else {
+    $maintenanceMetrics['resolved']++;
+  }
+  if ($requestPriority === 'Urgente') {
+    $maintenanceMetrics['urgent']++;
+  }
+  if (trim((string) ($request['admin_response'] ?? '')) !== '') {
+    $maintenanceMetrics['answered']++;
+  }
+
+  $createdAt = strtotime((string) ($request['created_at'] ?? '')) ?: time();
+  $monthKey = date('Y-m', $createdAt);
+  if (isset($requestMonthlyTotals[$monthKey])) {
+    $requestMonthlyTotals[$monthKey]++;
+  }
+}
+
+$maintenanceMetrics['response_rate'] = $maintenanceMetrics['total'] > 0
+  ? round(($maintenanceMetrics['answered'] / $maintenanceMetrics['total']) * 100)
+  : 0;
+$maxStatusTotal = max(1, ...array_values($requestStatusTotals));
+$maxPriorityTotal = max(1, ...array_values($requestPriorityTotals));
+$maxMonthlyTotal = max(1, ...array_values($requestMonthlyTotals));
 $pendingStmt = $pdo->prepare('SELECT COUNT(*) FROM activities WHERE completed_at IS NULL AND (due_date IS NULL OR due_date <= ?)');
 $pendingStmt->execute([date('Y-m-d', strtotime('+2 days'))]);
 $counts['pending'] = (int) $pendingStmt->fetchColumn();
@@ -758,13 +857,20 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <thead><tr><th>Folio</th><th>Empresa</th><th>Servicio</th><th>Estatus</th><th>Ver</th></tr></thead>
                 <tbody>
                   <?php foreach ($quotes as $quote): ?>
-                    <?php $quoteStatus = trim((string) ($quote['status'] ?? '')) ?: 'En elaboracion'; ?>
+                    <?php $quoteStatus = trim((string) ($quote['status'] ?? '')); ?>
+                    <?php if ($quoteStatus === '') { $quoteStatus = 'En elaboracion'; } ?>
                     <tr>
                       <td><strong><?php echo h($quote['quote_code']); ?></strong></td>
                       <td><?php echo h($quote['company_name']); ?></td>
                       <td><?php echo h($quote['service']); ?></td>
-                      <td><span class="crm-pill <?php echo h(crm_pill_class($quoteStatus)); ?>"><?php echo h($quoteStatus); ?></span></td>
-                      <td><a class="crm-button crm-button--ghost" href="index.php?view=quote&id=<?php echo (int) $quote['id']; ?>">Ver</a></td>
+                      <td><span class="crm-pill crm-pill--neutral"><?php echo h($quoteStatus); ?></span></td>
+                      <td>
+                        <form method="get" action="index.php">
+                          <input type="hidden" name="view" value="quote">
+                          <input type="hidden" name="id" value="<?php echo (int) $quote['id']; ?>">
+                          <button class="crm-button crm-button--ghost" type="submit">Ver</button>
+                        </form>
+                      </td>
                     </tr>
                   <?php endforeach; ?>
                   <?php if (!$quotes): ?>
@@ -911,14 +1017,73 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             </form>
           </article>
         <?php else: ?>
-          <div class="crm-head">
+          <div class="crm-head crm-report-head">
             <div>
               <p class="eyebrow">Mantenimiento continuo</p>
               <h1>Bitacora ID</h1>
-              <p>Accesos de clientes y solicitudes recibidas desde el panel de mantenimiento.</p>
+              <p>Accesos de clientes, reportes de mantenimiento y seguimiento operativo.</p>
             </div>
-            <a class="crm-button" href="cliente.php">Portal cliente</a>
+            <div class="crm-head__actions">
+              <button class="crm-button crm-button--ghost" type="button" data-print-report>Exportar PDF</button>
+              <a class="crm-button" href="cliente.php">Portal cliente</a>
+            </div>
           </div>
+
+          <section class="crm-report" aria-label="Reporte de mantenimiento">
+            <div class="crm-report__meta">
+              <strong>Reporte de mantenimiento</strong>
+              <span>Generado: <?php echo h(date('Y-m-d H:i')); ?></span>
+            </div>
+
+            <div class="crm-kpis crm-kpis--secondary">
+              <article class="crm-card crm-kpi"><span class="crm-kpi__icon">R</span><div><span>Reportes totales</span><strong><?php echo $maintenanceMetrics['total']; ?></strong></div></article>
+              <article class="crm-card crm-kpi"><span class="crm-kpi__icon">A</span><div><span>Abiertos</span><strong><?php echo $maintenanceMetrics['open']; ?></strong></div></article>
+              <article class="crm-card crm-kpi"><span class="crm-kpi__icon">U</span><div><span>Urgentes</span><strong><?php echo $maintenanceMetrics['urgent']; ?></strong></div></article>
+              <article class="crm-card crm-kpi"><span class="crm-kpi__icon">%</span><div><span>Con respuesta</span><strong><?php echo $maintenanceMetrics['response_rate']; ?>%</strong></div></article>
+            </div>
+
+            <div class="crm-report-grid">
+              <article class="crm-card crm-chart-card">
+                <h2>Estatus de reportes</h2>
+                <div class="crm-chart-bars">
+                  <?php foreach ($requestStatusTotals as $status => $total): ?>
+                    <?php $percent = $total > 0 ? max(6, round(($total / $maxStatusTotal) * 100)) : 0; ?>
+                    <div class="crm-chart-row">
+                      <div class="crm-chart-row__label"><span><?php echo h($status); ?></span><strong><?php echo (int) $total; ?></strong></div>
+                      <div class="crm-chart-row__track"><span style="width: <?php echo $percent; ?>%"></span></div>
+                    </div>
+                  <?php endforeach; ?>
+                </div>
+              </article>
+
+              <article class="crm-card crm-chart-card">
+                <h2>Prioridad</h2>
+                <div class="crm-chart-bars">
+                  <?php foreach ($requestPriorityTotals as $priority => $total): ?>
+                    <?php $percent = $total > 0 ? max(6, round(($total / $maxPriorityTotal) * 100)) : 0; ?>
+                    <div class="crm-chart-row">
+                      <div class="crm-chart-row__label"><span><?php echo h($priority); ?></span><strong><?php echo (int) $total; ?></strong></div>
+                      <div class="crm-chart-row__track"><span style="width: <?php echo $percent; ?>%"></span></div>
+                    </div>
+                  <?php endforeach; ?>
+                </div>
+              </article>
+
+              <article class="crm-card crm-chart-card">
+                <h2>Ultimos 6 meses</h2>
+                <div class="crm-month-chart">
+                  <?php foreach ($requestMonthlyTotals as $month => $total): ?>
+                    <?php $height = $total > 0 ? max(12, round(($total / $maxMonthlyTotal) * 100)) : 4; ?>
+                    <div class="crm-month-chart__bar">
+                      <span style="height: <?php echo $height; ?>%"></span>
+                      <strong><?php echo (int) $total; ?></strong>
+                      <small><?php echo h(date('M', strtotime($month . '-01'))); ?></small>
+                    </div>
+                  <?php endforeach; ?>
+                </div>
+              </article>
+            </div>
+          </section>
 
           <div class="crm-grid">
             <article class="crm-card">
@@ -951,14 +1116,32 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
 
             <article class="crm-card">
               <h2>Solicitudes del cliente</h2>
-              <div class="crm-list">
+              <div class="crm-list crm-list--requests">
                 <?php foreach ($clientRequests as $request): ?>
-                  <div class="crm-list__item">
-                    <span class="crm-pill crm-pill--warning"><?php echo h($request['status']); ?></span>
+                  <?php $requestStatus = trim((string) ($request['status'] ?? 'Recibida')) ?: 'Recibida'; ?>
+                  <?php $requestPriority = trim((string) ($request['priority'] ?? 'Media')) ?: 'Media'; ?>
+                  <form class="crm-list__item crm-request-card" method="post">
+                    <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                    <input type="hidden" name="action" value="update_client_request">
+                    <input type="hidden" name="request_id" value="<?php echo (int) $request['id']; ?>">
+                    <div class="crm-request-card__head">
+                      <span class="crm-pill <?php echo h(crm_pill_class($requestStatus)); ?>"><?php echo h($requestStatus); ?></span>
+                      <small><?php echo h($request['company_name']); ?> - <?php echo h($request['created_at']); ?></small>
+                    </div>
                     <strong><?php echo h($request['title']); ?></strong>
                     <p><?php echo h($request['message']); ?></p>
-                    <small><?php echo h($request['company_name']); ?> - <?php echo h($request['created_at']); ?></small>
-                  </div>
+                    <?php if (!empty($request['admin_response'])): ?><div class="crm-response"><strong>Respuesta actual</strong><p><?php echo h($request['admin_response']); ?></p></div><?php endif; ?>
+                    <div class="crm-form-grid crm-form-grid--request">
+                      <label class="crm-field">Estatus
+                        <select name="status"><?php foreach ($requestStatuses as $status): ?><option <?php echo $status === $requestStatus ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select>
+                      </label>
+                      <label class="crm-field">Prioridad
+                        <select name="priority"><?php foreach ($requestPriorities as $priority): ?><option <?php echo $priority === $requestPriority ? 'selected' : ''; ?>><?php echo h($priority); ?></option><?php endforeach; ?></select>
+                      </label>
+                      <label class="crm-field crm-field--wide">Respuesta para el cliente<textarea name="admin_response" rows="3"><?php echo h($request['admin_response'] ?? ''); ?></textarea></label>
+                    </div>
+                    <button class="crm-button crm-button--ghost" type="submit">Guardar seguimiento</button>
+                  </form>
                 <?php endforeach; ?>
                 <?php if (!$clientRequests): ?><p>No hay solicitudes de mantenimiento registradas.</p><?php endif; ?>
               </div>
@@ -982,6 +1165,18 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
           toggle.classList.toggle('is-active', !showing);
         });
       });
+
+      const printButton = document.querySelector('[data-print-report]');
+      if (printButton) {
+        printButton.addEventListener('click', () => {
+          const originalTitle = document.title;
+          document.title = 'Reporte Bitacora ID - ID Industrial';
+          window.print();
+          window.setTimeout(() => {
+            document.title = originalTitle;
+          }, 500);
+        });
+      }
     })();
   </script>
 </body>
