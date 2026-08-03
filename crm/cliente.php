@@ -156,11 +156,11 @@ if (($_POST['action'] ?? '') === 'client_login') {
   } elseif (!crm_validate_math_challenge($humanChallengeKey, $humanAnswer)) {
     $status = crm_record_login_failure($pdo, 'client', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
-    $loginError = !empty($status['locked']) ? crm_login_lock_message($status) : 'Confirma que eres humano resolviendo la suma.';
+    $loginError = crm_login_attempt_message('Confirma que eres humano resolviendo la suma.', $status);
   } elseif ($username === '' || strlen($password) < 8) {
     $status = crm_record_login_failure($pdo, 'client', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
-    $loginError = !empty($status['locked']) ? crm_login_lock_message($status) : 'Ingresa usuario y password validos.';
+    $loginError = crm_login_attempt_message('Ingresa usuario y password validos.', $status);
   } else {
     $portalUser = crm_portal_user_by_username($pdo, $username);
     if ($portalUser && password_verify($password, $portalUser['password_hash'])) {
@@ -242,8 +242,8 @@ if (empty($_SESSION['bitacora_user'])):
         <label class="crm-field crm-human-check">
           Verificacion humana
           <span class="crm-human-check__row">
-            <span class="crm-human-check__question"><?php echo h((string) $humanChallenge['a']); ?> + <?php echo h((string) $humanChallenge['b']); ?> =</span>
-            <input type="number" name="human_answer" inputmode="numeric" min="0" max="18" autocomplete="off" required data-human-answer>
+            <span class="crm-human-check__question"><?php echo h((string) $humanChallenge['a']); ?> + <?php echo h((string) $humanChallenge['b']); ?></span>
+            <input type="number" name="human_answer" inputmode="numeric" min="0" max="18" autocomplete="off" required data-human-answer placeholder="Resultado" aria-label="Resultado de la suma">
           </span>
           <span class="crm-field__error">Resuelve la suma para continuar.</span>
         </label>

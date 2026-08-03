@@ -247,17 +247,21 @@ function crm_login_lock_message(array $status): string
   return 'Demasiados intentos fallidos. Intenta nuevamente en ' . $minutes . ' min.';
 }
 
-function crm_login_failure_message(array $status): string
+function crm_login_attempt_message(string $message, array $status): string
 {
   if (!empty($status['locked'])) {
     return crm_login_lock_message($status);
   }
   $remaining = (int) ($status['remaining'] ?? 0);
   return $remaining > 0
-    ? 'Credenciales incorrectas. Te quedan ' . $remaining . ' intento(s).'
-    : 'Credenciales incorrectas.';
+    ? $message . ' Te quedan ' . $remaining . ' intento(s).'
+    : $message;
 }
 
+function crm_login_failure_message(array $status, string $message = 'Credenciales incorrectas.'): string
+{
+  return crm_login_attempt_message($message, $status);
+}
 function crm_refresh_math_challenge(string $key): array
 {
   $a = random_int(1, 9);

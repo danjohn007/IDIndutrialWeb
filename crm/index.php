@@ -226,15 +226,15 @@ if (($_POST['action'] ?? '') === 'login') {
   } elseif (!crm_validate_math_challenge($humanChallengeKey, $humanAnswer)) {
     $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
-    $loginError = !empty($status['locked']) ? crm_login_lock_message($status) : 'Confirma que eres humano resolviendo la suma.';
+    $loginError = crm_login_attempt_message('Confirma que eres humano resolviendo la suma.', $status);
   } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
-    $loginError = !empty($status['locked']) ? crm_login_lock_message($status) : 'Ingresa un correo valido.';
+    $loginError = crm_login_attempt_message('Ingresa un correo valido.', $status);
   } elseif (strlen($password) < 8) {
     $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
-    $loginError = !empty($status['locked']) ? crm_login_lock_message($status) : 'La contrasena debe tener al menos 8 caracteres.';
+    $loginError = crm_login_attempt_message('La contrasena debe tener al menos 8 caracteres.', $status);
   } else {
     $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
@@ -306,8 +306,8 @@ if (empty($_SESSION['crm_user'])):
         <label class="crm-field crm-human-check">
           Verificacion humana
           <span class="crm-human-check__row">
-            <span class="crm-human-check__question"><?php echo h((string) $humanChallenge['a']); ?> + <?php echo h((string) $humanChallenge['b']); ?> =</span>
-            <input type="number" name="human_answer" inputmode="numeric" min="0" max="18" autocomplete="off" required data-human-answer>
+            <span class="crm-human-check__question"><?php echo h((string) $humanChallenge['a']); ?> + <?php echo h((string) $humanChallenge['b']); ?></span>
+            <input type="number" name="human_answer" inputmode="numeric" min="0" max="18" autocomplete="off" required data-human-answer placeholder="Resultado" aria-label="Resultado de la suma">
           </span>
           <span class="crm-field__error">Resuelve la suma para continuar.</span>
         </label>
