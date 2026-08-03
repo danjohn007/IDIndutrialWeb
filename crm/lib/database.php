@@ -134,6 +134,18 @@ function crm_ensure_columns(PDO $pdo): void
       'last_admin_update_at' => $isMysql
         ? 'ALTER TABLE client_requests ADD COLUMN last_admin_update_at DATETIME NULL AFTER resolved_at'
         : 'ALTER TABLE client_requests ADD COLUMN last_admin_update_at TEXT NULL',
+      'due_date' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN due_date DATE NULL AFTER priority'
+        : 'ALTER TABLE client_requests ADD COLUMN due_date TEXT NULL',
+      'scheduled_date' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN scheduled_date DATE NULL AFTER due_date'
+        : 'ALTER TABLE client_requests ADD COLUMN scheduled_date TEXT NULL',
+      'assigned_to' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN assigned_to VARCHAR(160) NULL AFTER scheduled_date'
+        : 'ALTER TABLE client_requests ADD COLUMN assigned_to TEXT NULL',
+      'internal_notes' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN internal_notes TEXT NULL AFTER admin_response'
+        : 'ALTER TABLE client_requests ADD COLUMN internal_notes TEXT NULL',
     ],
   ];
 
@@ -253,6 +265,10 @@ function crm_migrate_sqlite(PDO $pdo): void
       admin_response TEXT,
       status TEXT NOT NULL DEFAULT 'Recibida',
       priority TEXT NOT NULL DEFAULT 'Media',
+      due_date TEXT,
+      scheduled_date TEXT,
+      assigned_to TEXT,
+      internal_notes TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       resolved_at TEXT,
@@ -401,6 +417,10 @@ function crm_migrate_mysql(PDO $pdo): void
       admin_response TEXT NULL,
       status VARCHAR(80) NOT NULL DEFAULT 'Recibida',
       priority VARCHAR(40) NOT NULL DEFAULT 'Media',
+      due_date DATE NULL,
+      scheduled_date DATE NULL,
+      assigned_to VARCHAR(160) NULL,
+      internal_notes TEXT NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       resolved_at DATETIME NULL,

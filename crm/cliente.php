@@ -31,6 +31,29 @@ function bitacora_pill_class(string $value): string
   return 'crm-pill--neutral';
 }
 
+function bitacora_request_due_date(string $priority): string
+{
+  $daysByPriority = [
+    'Urgente' => 1,
+    'Alta' => 2,
+    'Media' => 5,
+    'Baja' => 10,
+  ];
+  $days = $daysByPriority[$priority] ?? 5;
+  return date('Y-m-d', strtotime('+' . $days . ' days'));
+}
+function bitacora_request_next_step(string $status): string
+{
+  $steps = [
+    'Recibida' => 'Solicitud recibida por ID Industrial.',
+    'En revision' => 'El equipo esta revisando alcance y prioridad.',
+    'Programada' => 'Servicio programado para atencion.',
+    'En proceso' => 'Servicio en atencion por el equipo tecnico.',
+    'Resuelta' => 'Solicitud resuelta, pendiente de validacion final.',
+    'Cerrada' => 'Solicitud cerrada.',
+  ];
+  return $steps[$status] ?? 'Seguimiento en actualizacion.';
+}
 function bitacora_token(): string
 {
   if (empty($_SESSION['bitacora_token'])) {
@@ -174,8 +197,8 @@ if (($_POST['action'] ?? '') === 'create_request') {
   if ($title === '' || $message === '') {
     $notice = ['type' => 'error', 'text' => 'Completa asunto y descripcion de la solicitud.'];
   } else {
-    $stmt = $pdo->prepare('INSERT INTO client_requests (opportunity_id, portal_user_id, title, message, status, priority) VALUES (?, ?, ?, ?, "Recibida", ?)');
-    $stmt->execute([(int) $portal['opportunity_id'], (int) $portal['id'], $title, $message, $priority]);
+    $stmt = $pdo->prepare('INSERT INTO client_requests (opportunity_id, portal_user_id, title, message, status, priority, due_date) VALUES (?, ?, ?, ?, "Recibida", ?, ?)');
+    $stmt->execute([(int) $portal['opportunity_id'], (int) $portal['id'], $title, $message, $priority, bitacora_request_due_date($priority)]);
     $notice = ['type' => 'success', 'text' => 'Solicitud recibida. El equipo de ID Industrial dara seguimiento.'];
   }
 }
@@ -262,7 +285,13 @@ $requests = $requestsStmt->fetchAll();
               </div>
               <strong><?php echo h($request['title']); ?></strong>
               <p><?php echo h($request['message']); ?></p>
-              <small>Prioridad: <?php echo h($request['priority'] ?? 'Media'); ?><?php if (!empty($request['resolved_at'])): ?> - resuelta <?php echo h($request['resolved_at']); ?><?php endif; ?></small>
+              <div class="crm-request-meta crm-request-meta--client">
+                <span><strong>Prioridad</strong><?php echo h($request['priority'] ?? 'Media'); ?></span>
+                <span><strong>Objetivo</strong><?php echo h($request['due_date'] ?? 'Por confirmar'); ?></span>
+                <span><strong>Programada</strong><?php echo h($request['scheduled_date'] ?: 'Por confirmar'); ?></span>
+                <span><strong>Responsable</strong><?php echo h($request['assigned_to'] ?: 'Por asignar'); ?></span>
+              </div>
+              <p class="crm-request-next"><strong>Seguimiento:</strong> <?php echo h(bitacora_request_next_step($requestStatus)); ?><?php if (!empty($request['resolved_at'])): ?> Resuelta: <?php echo h($request['resolved_at']); ?>.<?php endif; ?></p>
               <?php if (!empty($request['admin_response'])): ?>
                 <div class="crm-response"><strong>Respuesta ID Industrial</strong><p><?php echo h($request['admin_response']); ?></p></div>
               <?php endif; ?>
