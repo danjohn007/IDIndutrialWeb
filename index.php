@@ -12,13 +12,7 @@ $description = 'Ingeniería industrial en Querétaro para cableado estructurado,
 $keywords = 'ID Industrial, infraestructura industrial Querétaro, cableado estructurado Querétaro, CCTV industrial, control de accesos Querétaro, HVAC industrial';
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
 $canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/sistema/' : $requestPath);
-require_once __DIR__ . '/crm/lib/database.php';
 $publicClients = [];
-try {
-  $publicClients = crm_public_clients(10);
-} catch (Throwable $error) {
-  error_log('CRM public clients failed: ' . $error->getMessage());
-}
 
 function idindustrial_mobile_image($image)
 {
@@ -239,14 +233,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
       $body = "Nombre: {$formData['name']}\nCorreo: {$formData['email']}\nTeléfono: {$formData['phone']}\nServicio de interés: {$formData['service']}\n\nMensaje:\n{$formData['message']}";
       $headers = "From: {$contactEmail}\r\nReply-To: {$formData['email']}\r\nContent-Type: text/plain; charset=UTF-8";
       $sent = @mail($contactEmail, $subject, $body, $headers);
-      $crmCaptured = crm_capture_public_lead([
-        'company_name' => $formData['name'],
-        'contact_name' => $formData['name'],
-        'contact_email' => $formData['email'],
-        'contact_phone' => $formData['phone'],
-        'service' => $formData['service'],
-        'notes' => $formData['message'],
-      ]);
+      $crmCaptured = false;
       $formStatus = ($sent || $crmCaptured)
         ? ['type' => 'ok', 'text' => 'Gracias. Recibimos tu solicitud y te contactaremos para preparar la cotizacion.']
         : ['type' => 'error', 'text' => 'No se pudo registrar desde el servidor. Escríbenos por WhatsApp y te atendemos.'];

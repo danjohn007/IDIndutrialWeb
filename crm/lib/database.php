@@ -101,6 +101,19 @@ function crm_sync_portal_client_links(PDO $pdo): void
 
   $pdo->exec('UPDATE client_portal_users SET client_id = (SELECT client_id FROM opportunities WHERE opportunities.id = client_portal_users.opportunity_id) WHERE client_id IS NULL');
 }
+function crm_table_exists(PDO $pdo, string $table): bool
+{
+  if (crm_driver($pdo) === 'mysql') {
+    $stmt = $pdo->prepare('SHOW TABLES LIKE ?');
+    $stmt->execute([$table]);
+    return (bool) $stmt->fetch();
+  }
+
+  $stmt = $pdo->prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?");
+  $stmt->execute([$table]);
+  return (bool) $stmt->fetch();
+}
+
 function crm_column_exists(PDO $pdo, string $table, string $column): bool
 {
   if (crm_driver($pdo) === 'mysql') {
@@ -120,13 +133,18 @@ function crm_column_exists(PDO $pdo, string $table, string $column): bool
 
 function crm_index_exists(PDO $pdo, string $table, string $index): bool
 {
-  if (crm_driver($pdo) !== 'mysql') {
+  if (crm_driver($pdo) !== 'mysql' || !crm_table_exists($pdo, $table)) {
     return false;
   }
 
-  $stmt = $pdo->prepare("SHOW INDEX FROM {$table} WHERE Key_name = ?");
-  $stmt->execute([$index]);
-  return (bool) $stmt->fetch();
+  try {
+    $stmt = $pdo->prepare("SHOW INDEX FROM {$table} WHERE Key_name = ?");
+    $stmt->execute([$index]);
+    return (bool) $stmt->fetch();
+  } catch (Throwable $error) {
+    error_log('CRM index check failed: ' . $error->getMessage());
+    return false;
+  }
 }
 
 function crm_ensure_columns(PDO $pdo): void
@@ -185,12 +203,17 @@ function crm_ensure_columns(PDO $pdo): void
     }
   }
 
-  if ($isMysql && !crm_index_exists($pdo, 'client_portal_users', 'idx_client_portal_client')) {
-    $pdo->exec('ALTER TABLE client_portal_users ADD INDEX idx_client_portal_client (client_id)');
-  }
-
-  if ($isMysql && crm_index_exists($pdo, 'client_portal_users', 'uq_client_portal_client')) {
-    $pdo->exec('ALTER TABLE client_portal_users DROP INDEX uq_client_portal_client');
+  if ($isMysql && crm_table_exists($pdo, 'client_portal_users')) {
+    try {
+      if (!crm_index_exists($pdo, 'client_portal_users', 'idx_client_portal_client')) {
+        $pdo->exec('ALTER TABLE client_portal_users ADD INDEX idx_client_portal_client (client_id)');
+      }
+      if (crm_index_exists($pdo, 'client_portal_users', 'uq_client_portal_client')) {
+        $pdo->exec('ALTER TABLE client_portal_users DROP INDEX uq_client_portal_client');
+      }
+    } catch (Throwable $error) {
+      error_log('CRM portal index repair failed: ' . $error->getMessage());
+    }
   }
 }
 function crm_migrate_sqlite(PDO $pdo): void
@@ -742,9 +765,9 @@ function crm_email_h($value): string
   return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
-function crm_email_message(string $textBody, ?string $htmlBody = null): array
+function crm_email_message(string $textBody, $htmlBody = null): array
 {
-  if ($htmlBody === null || trim($htmlBody) === '') {
+  if ($htmlBody === null || trim((string) $htmlBody) === '') {
     return [
       'headers' => ['Content-Type: text/plain; charset=UTF-8'],
       'body' => $textBody,
@@ -752,15 +775,15 @@ function crm_email_message(string $textBody, ?string $htmlBody = null): array
   }
 
   $boundary = 'crm_' . str_replace('.', '', uniqid('', true));
-  $body = "--{$boundary}\r\n"
+  $body = '--' . $boundary . "\r\n"
     . "Content-Type: text/plain; charset=UTF-8\r\n"
     . "Content-Transfer-Encoding: 8bit\r\n\r\n"
     . $textBody . "\r\n\r\n"
-    . "--{$boundary}\r\n"
+    . '--' . $boundary . "\r\n"
     . "Content-Type: text/html; charset=UTF-8\r\n"
     . "Content-Transfer-Encoding: 8bit\r\n\r\n"
     . $htmlBody . "\r\n\r\n"
-    . "--{$boundary}--";
+    . '--' . $boundary . '--';
 
   return [
     'headers' => [
@@ -770,44 +793,13 @@ function crm_email_message(string $textBody, ?string $htmlBody = null): array
   ];
 }
 
-function crm_email_escape(string $value): string
-{
-  return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-}
-
-function crm_email_content_type(string $boundary, $plainBody = null): string
-{
-  if ($plainBody === null) {
-    return 'Content-Type: text/plain; charset=UTF-8';
-  }
-
-  return 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
-}
-
-function crm_email_message(string $body, string $boundary, $plainBody = null): string
-{
-  if ($plainBody === null) {
-    return $body;
-  }
-
-  return '--' . $boundary . "\r\n"
-    . "Content-Type: text/plain; charset=UTF-8\r\n"
-    . "Content-Transfer-Encoding: 8bit\r\n\r\n"
-    . $plainBody . "\r\n\r\n"
-    . '--' . $boundary . "\r\n"
-    . "Content-Type: text/html; charset=UTF-8\r\n"
-    . "Content-Transfer-Encoding: 8bit\r\n\r\n"
-    . $body . "\r\n\r\n"
-    . '--' . $boundary . '--';
-}
-
 function crm_portal_credentials_email_html(string $name, string $project, string $portalUrl, string $username, string $password): string
 {
-  $safeName = crm_email_escape($name);
-  $safeProject = crm_email_escape($project);
-  $safePortalUrl = crm_email_escape($portalUrl);
-  $safeUsername = crm_email_escape($username);
-  $safePassword = crm_email_escape($password);
+  $safeName = crm_email_h($name);
+  $safeProject = crm_email_h($project);
+  $safePortalUrl = crm_email_h($portalUrl);
+  $safeUsername = crm_email_h($username);
+  $safePassword = crm_email_h($password);
 
   return '<!doctype html>
 <html lang="es">
@@ -898,23 +890,23 @@ function crm_portal_credentials_email_html(string $name, string $project, string
 </html>';
 }
 
-function crm_send_email(string $to, string $subject, string $body, $plainBody = null): bool
+function crm_send_email(string $to, string $subject, string $textBody, $htmlBody = null): bool
 {
   $config = crm_config();
   $smtp = is_array($config['smtp'] ?? null) ? $config['smtp'] : [];
-  $boundary = 'crm_' . md5(uniqid('', true));
   if (!empty($smtp['enabled'])) {
-    return crm_smtp_mail($smtp, $to, $subject, $body, $plainBody);
+    return crm_smtp_mail($smtp, $to, $subject, $textBody, $htmlBody);
   }
 
   $fromEmail = (string) ($smtp['from_email'] ?? 'no-reply@idindustrial.com.mx');
   $fromName = (string) ($smtp['from_name'] ?? 'ID Industrial');
-  $headers = [
+  $emailMessage = crm_email_message($textBody, $htmlBody);
+  $headers = array_merge([
     'MIME-Version: 1.0',
-    crm_email_content_type($boundary, $plainBody),
     'From: ' . $fromName . ' <' . $fromEmail . '>',
-  ];
-  return @mail($to, $subject, crm_email_message($body, $boundary, $plainBody), implode("\r\n", $headers));
+  ], $emailMessage['headers']);
+
+  return @mail($to, $subject, $emailMessage['body'], implode("\r\n", $headers));
 }
 function crm_smtp_read($socket): string
 {
@@ -940,7 +932,7 @@ function crm_smtp_command($socket, string $command, array $codes): bool
   return in_array($code, $codes, true);
 }
 
-function crm_smtp_mail(array $smtp, string $to, string $subject, string $body, $plainBody = null): bool
+function crm_smtp_mail(array $smtp, string $to, string $subject, string $textBody, $htmlBody = null): bool
 {
   $host = (string) ($smtp['host'] ?? '');
   $port = (int) ($smtp['port'] ?? 465);
@@ -993,16 +985,15 @@ function crm_smtp_mail(array $smtp, string $to, string $subject, string $body, $
     return false;
   }
 
-  $boundary = 'crm_' . md5(uniqid('', true));
-  $headers = [
+  $emailMessage = crm_email_message($textBody, $htmlBody);
+  $headers = array_merge([
     'Date: ' . date('r'),
     'From: ' . $fromName . ' <' . $fromEmail . '>',
     'To: <' . $to . '>',
     'Subject: ' . $subject,
     'MIME-Version: 1.0',
-    crm_email_content_type($boundary, $plainBody),
-  ];
-  $message = implode("\r\n", $headers) . "\r\n\r\n" . crm_email_message($body, $boundary, $plainBody);
+  ], $emailMessage['headers']);
+  $message = implode("\r\n", $headers) . "\r\n\r\n" . $emailMessage['body'];
   $message = preg_replace('/^\./m', '..', $message);
   fwrite($socket, $message . "\r\n.\r\n");
   $sent = in_array((int) substr(crm_smtp_read($socket), 0, 3), [250], true);
@@ -1033,7 +1024,7 @@ function crm_send_portal_credentials(array $opportunity, string $username, strin
     . "ID Industrial";
   $htmlBody = crm_portal_credentials_email_html($name, $project, $portalUrl, $username, $password);
 
-  return crm_send_email($email, 'Acceso a Bitacora ID - ID Industrial', $htmlBody, $plainBody);
+  return crm_send_email($email, 'Acceso a Bitacora ID - ID Industrial', $plainBody, $htmlBody);
 }
 function crm_portal_user_by_username(PDO $pdo, string $username): ?array
 {

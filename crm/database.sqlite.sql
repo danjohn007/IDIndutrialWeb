@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS client_portal_users (
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   is_active INTEGER NOT NULL DEFAULT 1,
+  password_change_required INTEGER NOT NULL DEFAULT 1,
+  password_changed_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_login_at TEXT,
