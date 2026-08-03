@@ -19,6 +19,7 @@ $statuses = [
   'Seguimiento',
   'Negociacion',
   'Proyecto ganado',
+  'Proyecto iniciado',
   'Proyecto entregado',
   'Proyecto perdido',
 ];
@@ -356,6 +357,10 @@ if (($_POST['action'] ?? '') === 'create_opportunity') {
   $opportunityId = (int) $pdo->lastInsertId();
   $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Primer contacto", "Validar requerimiento tecnico y siguiente paso.", ?)');
   $activity->execute([$opportunityId, $_POST['next_action_date'] ?: date('Y-m-d', strtotime('+1 day'))]);
+  if (in_array(trim($_POST['status'] ?? 'Nueva solicitud'), ['Proyecto iniciado', 'Proyecto entregado'], true)) {
+    $clientStmt = $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP) WHERE id = ?');
+    $clientStmt->execute(['Cliente', 'Prospecto', 'Industrial', $clientId]);
+  }
   header('Location: index.php?view=opportunities');
   exit;
 }
@@ -376,7 +381,7 @@ if (($_POST['action'] ?? '') === 'update_opportunity') {
   $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Actualizacion", ?, ?)');
   $activity->execute([$opportunityId, 'Estatus actualizado a ' . $newStatus, $_POST['next_action_date'] ?: null]);
 
-  if (in_array($newStatus, ['Proyecto ganado', 'Proyecto entregado'], true)) {
+  if (in_array($newStatus, ['Proyecto iniciado', 'Proyecto entregado'], true)) {
     $clientStmt = $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP) WHERE id = (SELECT client_id FROM opportunities WHERE id = ?)');
     $clientStmt->execute(['Cliente', 'Prospecto', 'Industrial', $opportunityId]);
   }
@@ -389,7 +394,7 @@ if (($_POST['action'] ?? '') === 'update_opportunity') {
     $_SESSION['crm_flash'] = $portal['created']
       ? [
         'type' => 'success',
-        'title' => 'Bitacora ID activada',
+        'title' => 'Proyecto entregado y Bitacora ID activada',
         'text' => $emailSent ? 'Accesos generados y enviados al correo del cliente.' : 'Accesos generados. Si SMTP aun no esta activo, compartelos manualmente; la contrasena se muestra una sola vez.',
         'username' => $portal['username'],
         'password' => $portal['password'],
@@ -410,31 +415,10 @@ if (($_POST['action'] ?? '') === 'update_opportunity') {
 
 if (($_POST['action'] ?? '') === 'convert_client') {
   crm_check_token();
-  $clientId = (int) ($_POST['client_id'] ?? 0);
-  $stmt = $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP), is_public = 0 WHERE id = ?');
-  $stmt->execute(['Cliente', 'Prospecto', 'Industrial', $clientId]);
-
-  $opportunityStmt = $pdo->prepare('SELECT id FROM opportunities WHERE client_id = ? AND status NOT IN ("Proyecto perdido") ORDER BY updated_at DESC, created_at DESC LIMIT 1');
-  $opportunityStmt->execute([$clientId]);
-  $opportunityId = (int) $opportunityStmt->fetchColumn();
-  $portal = null;
-  $emailSent = false;
-  if ($opportunityId > 0) {
-    $pdo->prepare('UPDATE opportunities SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')->execute(['Proyecto entregado', $opportunityId]);
-    $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Conversion", "Prospecto convertido a cliente y Bitacora ID activada.", NULL)');
-    $activity->execute([$opportunityId]);
-    $portal = crm_enable_client_portal($pdo, $opportunityId);
-    $emailSent = !empty($portal['password']) ? crm_send_portal_credentials($portal['opportunity'], $portal['username'], $portal['password']) : false;
-  }
-
   $_SESSION['crm_flash'] = [
-    'type' => 'success',
-    'title' => $portal ? 'Cliente convertido y Bitacora ID persistida' : 'Cliente convertido',
-    'text' => $portal
-      ? ($emailSent ? 'El acceso fue guardado y enviado al correo del cliente.' : 'El acceso fue guardado en client_portal_users. Si SMTP no esta activo, comparte la contrasena manualmente.')
-      : 'El prospecto ahora aparece como cliente. No encontre una oportunidad activa para crear Bitacora ID.',
-    'username' => $portal['username'] ?? null,
-    'password' => $portal['password'] ?? null,
+    'type' => 'info',
+    'title' => 'Conversion desde seguimiento',
+    'text' => 'El prospecto se convierte a cliente cuando la oportunidad se marca como Proyecto iniciado. Bitacora ID se activa al marcar Proyecto entregado.',
   ];
   header('Location: index.php?view=clients');
   exit;
@@ -545,7 +529,8 @@ if (($_POST['action'] ?? '') === 'update_client_request') {
   }
   header('Location: index.php?view=bitacora');
   exit;
-}if (($_POST['action'] ?? '') === 'create_quote') {
+}
+if (($_POST['action'] ?? '') === 'create_quote') {
   crm_check_token();
   $opportunityId = (int) ($_POST['opportunity_id'] ?? 0);
   $amount = max(0, (float) ($_POST['amount'] ?? 0));
@@ -578,7 +563,6 @@ if (($_POST['action'] ?? '') === 'update_quote') {
 
   if ($status === 'Aprobada') {
     $pdo->prepare('UPDATE opportunities SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = (SELECT opportunity_id FROM quotes WHERE id = ?)')->execute(['Proyecto ganado', $quoteId]);
-    $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP) WHERE id = (SELECT o.client_id FROM opportunities o JOIN quotes q ON q.opportunity_id = o.id WHERE q.id = ?)')->execute(['Cliente', 'Prospecto', 'Industrial', $quoteId]);
   } elseif ($status === 'Perdida') {
     $pdo->prepare('UPDATE opportunities SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = (SELECT opportunity_id FROM quotes WHERE id = ?)')->execute(['Proyecto perdido', $quoteId]);
   }
@@ -594,15 +578,15 @@ unset($_SESSION['crm_flash']);
 $token = crm_token();
 $counts = [
   'leads' => (int) $pdo->query('SELECT COUNT(*) FROM opportunities')->fetchColumn(),
-  'clients' => (int) $pdo->query("SELECT COUNT(*) FROM clients WHERE lifecycle_stage = 'Cliente'")->fetchColumn(),
-  'prospects' => (int) $pdo->query("SELECT COUNT(*) FROM clients WHERE lifecycle_stage = 'Prospecto'")->fetchColumn(),
+  'clients' => (int) $pdo->query("SELECT COUNT(DISTINCT c.id) FROM clients c JOIN opportunities o ON o.client_id = c.id WHERE o.status IN ('Proyecto iniciado', 'Proyecto entregado')")->fetchColumn(),
+  'prospects' => (int) $pdo->query("SELECT COUNT(*) FROM clients c WHERE NOT EXISTS (SELECT 1 FROM opportunities o WHERE o.client_id = c.id AND o.status IN ('Proyecto iniciado', 'Proyecto entregado'))")->fetchColumn(),
   'open_quotes' => (int) $pdo->query("SELECT COUNT(*) FROM quotes WHERE status NOT IN ('Aprobada', 'Perdida')")->fetchColumn(),
   'delivered' => (int) $pdo->query("SELECT COUNT(*) FROM opportunities WHERE status = 'Proyecto entregado'")->fetchColumn(),
   'portal' => (int) $pdo->query('SELECT COUNT(*) FROM client_portal_users WHERE is_active = 1')->fetchColumn(),
   'pending' => 0,
 ];
 $quoteTotal = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM quotes WHERE status NOT IN ('Perdida')")->fetchColumn();
-$wonTotal = (float) $pdo->query("SELECT COALESCE(SUM(estimated_value), 0) FROM opportunities WHERE status = 'Proyecto ganado'")->fetchColumn();
+$wonTotal = (float) $pdo->query("SELECT COALESCE(SUM(estimated_value), 0) FROM opportunities WHERE status IN ('Proyecto ganado', 'Proyecto iniciado', 'Proyecto entregado')")->fetchColumn();
 $opportunities = $pdo->query('
   SELECT o.*, cpu.username AS portal_username, cpu.is_active AS portal_active
   FROM opportunities o
@@ -660,7 +644,16 @@ if ($view === 'quote') {
     $selectedQuoteActivities = $activityStmt->fetchAll();
   }
 }
-$clients = $pdo->query("SELECT * FROM clients ORDER BY CASE WHEN lifecycle_stage = 'Prospecto' THEN 0 ELSE 1 END, created_at DESC, name")->fetchAll();
+$clients = $pdo->query('
+  SELECT c.*,
+    COALESCE(SUM(CASE WHEN o.status IN ("Proyecto iniciado", "Proyecto entregado") THEN 1 ELSE 0 END), 0) AS started_projects,
+    COALESCE(SUM(CASE WHEN o.status = "Proyecto entregado" THEN 1 ELSE 0 END), 0) AS delivered_projects,
+    MAX(o.updated_at) AS last_project_update
+  FROM clients c
+  LEFT JOIN opportunities o ON o.client_id = c.id
+  GROUP BY c.id
+  ORDER BY CASE WHEN COALESCE(SUM(CASE WHEN o.status IN ("Proyecto iniciado", "Proyecto entregado") THEN 1 ELSE 0 END), 0) = 0 THEN 0 ELSE 1 END, c.created_at DESC, c.name
+')->fetchAll();
 $portalUsers = $pdo->query('
   SELECT cpu.*, o.company_name, o.contact_name, o.contact_email, o.service, o.status AS opportunity_status
   FROM client_portal_users cpu
@@ -721,7 +714,8 @@ foreach ($clientRequests as $request) {
   }
   if ($requestStatus === 'Programada' || trim((string) ($request['scheduled_date'] ?? '')) !== '') {
     $maintenanceMetrics['scheduled']++;
-  }if ($requestPriority === 'Urgente') {
+  }
+  if ($requestPriority === 'Urgente') {
     $maintenanceMetrics['urgent']++;
   }
   if (trim((string) ($request['admin_response'] ?? '')) !== '') {
@@ -1144,24 +1138,20 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <thead><tr><th>Cliente</th><th>Etapa</th><th>Segmento</th><th>Ciudad</th><th>Contacto</th><th>Publico</th><th>Notas</th><th>Accion</th></tr></thead>
                 <tbody>
                   <?php foreach ($clients as $client): ?>
+                    <?php $clientStage = ((int) ($client['started_projects'] ?? 0) > 0) ? 'Cliente' : 'Prospecto'; ?>
                     <tr>
                       <td><strong><?php echo h($client['name']); ?></strong></td>
-                      <td><span class="crm-pill <?php echo ($client['lifecycle_stage'] ?? 'Cliente') === 'Prospecto' ? 'crm-pill--warning' : 'crm-pill--success'; ?>"><?php echo h($client['lifecycle_stage'] ?? 'Cliente'); ?></span></td>
+                      <td><span class="crm-pill <?php echo $clientStage === 'Prospecto' ? 'crm-pill--warning' : 'crm-pill--success'; ?>"><?php echo h($clientStage); ?></span></td>
                       <td><?php echo h($client['segment']); ?></td>
                       <td><?php echo h($client['city']); ?></td>
                       <td><?php echo h($client['contact_name'] ?: 'Sin contacto'); ?><br><small><?php echo h($client['contact_email'] ?: $client['contact_phone']); ?></small></td>
                       <td><span class="crm-pill <?php echo $client['is_public'] ? 'crm-pill--success' : 'crm-pill--neutral'; ?>"><?php echo $client['is_public'] ? 'Si' : 'No'; ?></span></td>
                       <td><?php echo h($client['notes']); ?></td>
                       <td>
-                        <?php if (($client['lifecycle_stage'] ?? 'Cliente') === 'Prospecto'): ?>
-                          <form method="post">
-                            <input type="hidden" name="token" value="<?php echo h($token); ?>">
-                            <input type="hidden" name="action" value="convert_client">
-                            <input type="hidden" name="client_id" value="<?php echo (int) $client['id']; ?>">
-                            <button class="crm-button crm-button--ghost" type="submit">Convertir</button>
-                          </form>
+                        <?php if ($clientStage === 'Prospecto'): ?>
+                          <span class="crm-pill crm-pill--warning">Esperando inicio</span>
                         <?php else: ?>
-                          <span class="crm-pill crm-pill--neutral">Activo</span>
+                          <span class="crm-pill crm-pill--neutral"><?php echo (int) ($client['delivered_projects'] ?? 0) > 0 ? 'Entregado' : 'En proyecto'; ?></span>
                         <?php endif; ?>
                       </td>
                     </tr>
