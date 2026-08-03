@@ -118,6 +118,17 @@ function crm_column_exists(PDO $pdo, string $table, string $column): bool
   return false;
 }
 
+function crm_index_exists(PDO $pdo, string $table, string $index): bool
+{
+  if (crm_driver($pdo) !== 'mysql') {
+    return false;
+  }
+
+  $stmt = $pdo->prepare("SHOW INDEX FROM {$table} WHERE Key_name = ?");
+  $stmt->execute([$index]);
+  return (bool) $stmt->fetch();
+}
+
 function crm_ensure_columns(PDO $pdo): void
 {
   $isMysql = crm_driver($pdo) === 'mysql';
@@ -164,6 +175,10 @@ function crm_ensure_columns(PDO $pdo): void
         $pdo->exec($definition);
       }
     }
+  }
+
+  if ($isMysql && crm_index_exists($pdo, 'client_portal_users', 'uq_client_portal_client')) {
+    $pdo->exec('ALTER TABLE client_portal_users DROP INDEX uq_client_portal_client');
   }
 }
 function crm_migrate_sqlite(PDO $pdo): void
@@ -602,7 +617,7 @@ function crm_capture_public_lead(array $data): bool
 
 function crm_random_password(int $length = 12): string
 {
-  $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   $password = '';
   $max = strlen($alphabet) - 1;
   for ($i = 0; $i < $length; $i++) {

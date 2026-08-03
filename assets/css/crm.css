@@ -2327,3 +2327,16 @@ button {
     flex-direction: column;
   }
 }
+
+.crm-credentials-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.crm-credentials-list code {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+}

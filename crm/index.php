@@ -520,6 +520,18 @@ if (($_POST['action'] ?? '') === 'sync_portal_access') {
     }
   }
 
+  $credentials = [];
+  foreach ($created as $portal) {
+    if (!empty($portal['username']) && !empty($portal['password'])) {
+      $credentials[] = [
+        'company' => $portal['opportunity']['company_name'] ?? 'Cliente',
+        'service' => $portal['opportunity']['service'] ?? 'Proyecto',
+        'username' => $portal['username'],
+        'password' => $portal['password'],
+      ];
+    }
+  }
+
   $lastPortal = count($created) === 1 ? $created[0] : null;
   $_SESSION['crm_flash'] = [
     'type' => 'success',
@@ -527,6 +539,7 @@ if (($_POST['action'] ?? '') === 'sync_portal_access') {
     'text' => count($created) . ' acceso(s) persistidos en client_portal_users.',
     'username' => $lastPortal['username'] ?? null,
     'password' => $lastPortal['password'] ?? null,
+    'credentials' => $credentials,
   ];
   header('Location: index.php?view=bitacora');
   exit;
@@ -875,6 +888,13 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
               <p><?php echo h($flash['text'] ?? ''); ?></p>
               <?php if (!empty($flash['username'])): ?><code>Usuario: <?php echo h($flash['username']); ?></code><?php endif; ?>
               <?php if (!empty($flash['password'])): ?><code>Password: <?php echo h($flash['password']); ?></code><?php endif; ?>
+              <?php if (!empty($flash['credentials']) && is_array($flash['credentials'])): ?>
+                <div class="crm-credentials-list">
+                  <?php foreach ($flash['credentials'] as $credential): ?>
+                    <code><?php echo h(($credential['company'] ?? 'Cliente') . ' - ' . ($credential['service'] ?? 'Proyecto')); ?> | Usuario: <?php echo h($credential['username'] ?? ''); ?> | Password: <?php echo h($credential['password'] ?? ''); ?></code>
+                  <?php endforeach; ?>
+                </div>
+              <?php endif; ?>
             </div>
             <?php if (!empty($flash['username'])): ?><a class="crm-button crm-button--ghost" href="cliente.php">Ver portal</a><?php endif; ?>
           </div>
