@@ -147,6 +147,160 @@ function crm_index_exists(PDO $pdo, string $table, string $index): bool
   }
 }
 
+function crm_login_settings(): array
+{
+  return [
+    'max_attempts' => 5,
+    'lock_minutes' => 10,
+    'session_timeout' => 900,
+  ];
+}
+
+function crm_client_ip(): string
+{
+  foreach (['HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'] as $key) {
+    $value = trim((string) ($_SERVER[$key] ?? ''));
+    if ($value === '') {
+      continue;
+    }
+    $ip = trim(explode(',', $value)[0]);
+    return substr($ip, 0, 64);
+  }
+  return 'unknown';
+}
+
+function crm_login_identifier(string $identifier): string
+{
+  $identifier = strtolower(trim($identifier));
+  return $identifier !== '' ? substr($identifier, 0, 190) : 'anonimo';
+}
+
+function crm_login_attempt_row(PDO $pdo, string $area, string $identifier, string $ip): ?array
+{
+  $stmt = $pdo->prepare('SELECT * FROM login_attempts WHERE area = ? AND identifier_hash = ? AND ip_address = ? LIMIT 1');
+  $stmt->execute([$area, hash('sha256', $identifier), $ip]);
+  $row = $stmt->fetch();
+  return $row ?: null;
+}
+
+function crm_login_lock_status(PDO $pdo, string $area, string $identifier): array
+{
+  $identifier = crm_login_identifier($identifier);
+  $ip = crm_client_ip();
+  $row = crm_login_attempt_row($pdo, $area, $identifier, $ip);
+  if (!$row) {
+    return ['locked' => false, 'seconds' => 0, 'attempts' => 0];
+  }
+
+  $lockedUntil = strtotime((string) ($row['locked_until'] ?? '')) ?: 0;
+  if ($lockedUntil > time()) {
+    return ['locked' => true, 'seconds' => $lockedUntil - time(), 'attempts' => (int) ($row['attempts'] ?? 0)];
+  }
+
+  if ($lockedUntil > 0) {
+    $stmt = $pdo->prepare('UPDATE login_attempts SET attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $stmt->execute([(int) $row['id']]);
+    return ['locked' => false, 'seconds' => 0, 'attempts' => 0];
+  }
+
+  return ['locked' => false, 'seconds' => 0, 'attempts' => (int) ($row['attempts'] ?? 0)];
+}
+
+function crm_record_login_failure(PDO $pdo, string $area, string $identifier): array
+{
+  $settings = crm_login_settings();
+  $identifier = crm_login_identifier($identifier);
+  $ip = crm_client_ip();
+  $row = crm_login_attempt_row($pdo, $area, $identifier, $ip);
+  $attempts = $row ? ((int) $row['attempts'] + 1) : 1;
+  $lockedUntil = null;
+  if ($attempts >= (int) $settings['max_attempts']) {
+    $lockedUntil = date('Y-m-d H:i:s', time() + ((int) $settings['lock_minutes'] * 60));
+  }
+
+  if ($row) {
+    $stmt = $pdo->prepare('UPDATE login_attempts SET identifier = ?, attempts = ?, locked_until = ?, last_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $stmt->execute([$identifier, $attempts, $lockedUntil, (int) $row['id']]);
+  } else {
+    $stmt = $pdo->prepare('INSERT INTO login_attempts (area, identifier, identifier_hash, ip_address, attempts, locked_until, last_attempt_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)');
+    $stmt->execute([$area, $identifier, hash('sha256', $identifier), $ip, $attempts, $lockedUntil]);
+  }
+
+  return [
+    'locked' => $lockedUntil !== null,
+    'seconds' => $lockedUntil !== null ? max(1, strtotime($lockedUntil) - time()) : 0,
+    'attempts' => $attempts,
+    'remaining' => max(0, (int) $settings['max_attempts'] - $attempts),
+  ];
+}
+
+function crm_record_login_success(PDO $pdo, string $area, string $identifier): void
+{
+  $identifier = crm_login_identifier($identifier);
+  $stmt = $pdo->prepare('DELETE FROM login_attempts WHERE area = ? AND identifier_hash = ? AND ip_address = ?');
+  $stmt->execute([$area, hash('sha256', $identifier), crm_client_ip()]);
+}
+
+function crm_login_lock_message(array $status): string
+{
+  $minutes = max(1, (int) ceil(((int) ($status['seconds'] ?? 0)) / 60));
+  return 'Demasiados intentos fallidos. Intenta nuevamente en ' . $minutes . ' min.';
+}
+
+function crm_login_failure_message(array $status): string
+{
+  if (!empty($status['locked'])) {
+    return crm_login_lock_message($status);
+  }
+  $remaining = (int) ($status['remaining'] ?? 0);
+  return $remaining > 0
+    ? 'Credenciales incorrectas. Te quedan ' . $remaining . ' intento(s).'
+    : 'Credenciales incorrectas.';
+}
+
+function crm_refresh_math_challenge(string $key): array
+{
+  $a = random_int(1, 9);
+  $b = random_int(1, 9);
+  $_SESSION[$key] = ['a' => $a, 'b' => $b, 'answer' => $a + $b];
+  return $_SESSION[$key];
+}
+
+function crm_math_challenge(string $key): array
+{
+  if (empty($_SESSION[$key]) || !is_array($_SESSION[$key])) {
+    return crm_refresh_math_challenge($key);
+  }
+  return $_SESSION[$key];
+}
+
+function crm_validate_math_challenge(string $key, string $answer): bool
+{
+  $challenge = $_SESSION[$key] ?? null;
+  if (!is_array($challenge) || trim($answer) === '') {
+    return false;
+  }
+  return (int) trim($answer) === (int) ($challenge['answer'] ?? -1);
+}
+
+function crm_enforce_session_timeout(string $sessionKey, string $tokenKey, string $redirect): void
+{
+  if (empty($_SESSION[$sessionKey])) {
+    return;
+  }
+
+  $timeout = (int) crm_login_settings()['session_timeout'];
+  $activityKey = $sessionKey . '_last_activity';
+  $lastActivity = (int) ($_SESSION[$activityKey] ?? time());
+  if ((time() - $lastActivity) > $timeout) {
+    unset($_SESSION[$sessionKey], $_SESSION[$tokenKey], $_SESSION[$activityKey]);
+    session_regenerate_id(true);
+    header('Location: ' . $redirect);
+    exit;
+  }
+
+  $_SESSION[$activityKey] = time();
+}
 function crm_ensure_columns(PDO $pdo): void
 {
   $isMysql = crm_driver($pdo) === 'mysql';
@@ -338,6 +492,19 @@ function crm_migrate_sqlite(PDO $pdo): void
       FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS login_attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      area TEXT NOT NULL,
+      identifier TEXT NOT NULL,
+      identifier_hash TEXT NOT NULL,
+      ip_address TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      locked_until TEXT,
+      last_attempt_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (area, identifier_hash, ip_address)
+    );
     CREATE INDEX IF NOT EXISTS idx_opportunities_status ON opportunities(status);
     CREATE INDEX IF NOT EXISTS idx_opportunities_next_action ON opportunities(next_action_date);
     CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
@@ -345,6 +512,7 @@ function crm_migrate_sqlite(PDO $pdo): void
     CREATE INDEX IF NOT EXISTS idx_maintenance_logs_opportunity ON maintenance_logs(opportunity_id, scheduled_date);
     CREATE INDEX IF NOT EXISTS idx_client_requests_portal ON client_requests(portal_user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_client_requests_status ON client_requests(status, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_login_attempts_locked ON login_attempts(locked_until);
   ");
 }
 
@@ -494,6 +662,22 @@ function crm_migrate_mysql(PDO $pdo): void
       KEY idx_client_requests_status (status, updated_at),
       CONSTRAINT fk_client_requests_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
       CONSTRAINT fk_client_requests_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    CREATE TABLE IF NOT EXISTS login_attempts (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      area VARCHAR(30) NOT NULL,
+      identifier VARCHAR(190) NOT NULL,
+      identifier_hash CHAR(64) NOT NULL,
+      ip_address VARCHAR(64) NOT NULL,
+      attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      locked_until DATETIME NULL,
+      last_attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_login_attempt_scope (area, identifier_hash, ip_address),
+      KEY idx_login_attempts_locked (locked_until),
+      KEY idx_login_attempts_last (last_attempt_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   ");
 }

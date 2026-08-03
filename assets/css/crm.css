@@ -2640,6 +2640,49 @@ button {
   margin-top: 6px;
 }
 
+.crm-client-module {
+  display: grid;
+  gap: 22px;
+  align-content: start;
+  min-width: 0;
+}
+
+.crm-module-head {
+  display: grid;
+  gap: 8px;
+  max-width: 980px;
+}
+
+.crm-module-head h1 {
+  margin: 0;
+  color: var(--crm-ink);
+  font-size: clamp(2.1rem, 5vw, 4.4rem);
+  line-height: 0.98;
+  overflow-wrap: anywhere;
+}
+
+.crm-module-head p:not(.eyebrow) {
+  margin: 0;
+  color: var(--crm-muted);
+  font-size: clamp(1rem, 2vw, 1.16rem);
+}
+
+.crm-client-summary-card,
+.crm-client-projects,
+.crm-client-module > .crm-card {
+  min-width: 0;
+}
+
+.crm-client-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.crm-client-workspace--requests {
+  grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.18fr);
+}
 @media (max-width: 1120px) {
   .crm-client-layout {
     grid-template-columns: 1fr;
@@ -2716,6 +2759,47 @@ button {
 
   .crm-security-callout .crm-button {
     grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+.crm-human-check__row {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.crm-human-check__question {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border: 1px solid rgba(212, 163, 33, 0.34);
+  border-radius: var(--crm-radius);
+  background: rgba(212, 163, 33, 0.14);
+  color: #f7d477;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.crm-human-check input {
+  text-align: center;
+  font-weight: 900;
+}
+
+.was-validated .crm-human-check__row:has(input:invalid) + .crm-field__error {
+  display: block;
+}
+
+@media (max-width: 520px) {
+  .crm-human-check__row {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-human-check__question {
     width: 100%;
   }
 }

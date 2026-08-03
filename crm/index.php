@@ -26,12 +26,10 @@ $statuses = [
 $quoteStatuses = ['Solicitud recibida', 'En elaboracion', 'Enviada', 'En revision cliente', 'Aprobada', 'Perdida'];
 $requestStatuses = ['Recibida', 'En revision', 'Programada', 'En proceso', 'Resuelta', 'Cerrada'];
 $requestPriorities = ['Baja', 'Media', 'Alta', 'Urgente'];
-
 function h($value): string
 {
   return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
-
 function crm_money($value): string
 {
   return '$' . number_format((float) $value, 2);
@@ -212,30 +210,51 @@ if (isset($_GET['logout'])) {
   exit;
 }
 
-$loginError = '';
+crm_enforce_session_timeout('crm_user', 'crm_token', 'index.php?expired=1');
+
+$humanChallengeKey = 'crm_admin_human_challenge';
+$loginError = isset($_GET['expired']) ? 'La sesion se cerro por inactividad. Vuelve a entrar.' : '';
 if (($_POST['action'] ?? '') === 'login') {
   $email = trim((string) ($_POST['crm_email'] ?? $_POST['email'] ?? ''));
   $password = (string) ($_POST['crm_password'] ?? $_POST['password'] ?? '');
+  $humanAnswer = (string) ($_POST['human_answer'] ?? '');
+  $loginIdentifier = $email !== '' ? $email : 'anonimo';
+  $lockStatus = crm_login_lock_status($pdo, 'admin', $loginIdentifier);
 
-  if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $loginError = 'Ingresa un correo valido.';
+  if (!empty($lockStatus['locked'])) {
+    $loginError = crm_login_lock_message($lockStatus);
+  } elseif (!crm_validate_math_challenge($humanChallengeKey, $humanAnswer)) {
+    $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
+    crm_refresh_math_challenge($humanChallengeKey);
+    $loginError = !empty($status['locked']) ? crm_login_lock_message($status) : 'Confirma que eres humano resolviendo la suma.';
+  } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
+    crm_refresh_math_challenge($humanChallengeKey);
+    $loginError = !empty($status['locked']) ? crm_login_lock_message($status) : 'Ingresa un correo valido.';
   } elseif (strlen($password) < 8) {
-    $loginError = 'La contrasena debe tener al menos 8 caracteres.';
+    $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
+    crm_refresh_math_challenge($humanChallengeKey);
+    $loginError = !empty($status['locked']) ? crm_login_lock_message($status) : 'La contrasena debe tener al menos 8 caracteres.';
   } else {
     $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
     if ($user && password_verify($password, $user['password_hash'])) {
+      crm_record_login_success($pdo, 'admin', $email);
+      crm_refresh_math_challenge($humanChallengeKey);
       session_regenerate_id(true);
       $_SESSION['crm_user'] = ['id' => $user['id'], 'name' => $user['name'], 'email' => $user['email'], 'role' => $user['role']];
+      $_SESSION['crm_user_last_activity'] = time();
       crm_token();
       header('Location: index.php');
       exit;
     }
-    $loginError = 'Credenciales incorrectas.';
+    $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
+    crm_refresh_math_challenge($humanChallengeKey);
+    $loginError = crm_login_failure_message($status);
   }
 }
-
+$humanChallenge = crm_math_challenge($humanChallengeKey);
 if (empty($_SESSION['crm_user'])):
 ?>
 <!doctype html>
@@ -284,6 +303,14 @@ if (empty($_SESSION['crm_user'])):
           </span>
           <span class="crm-field__error" data-error-password>La contrasena debe tener al menos 8 caracteres.</span>
         </label>
+        <label class="crm-field crm-human-check">
+          Verificacion humana
+          <span class="crm-human-check__row">
+            <span class="crm-human-check__question"><?php echo h((string) $humanChallenge['a']); ?> + <?php echo h((string) $humanChallenge['b']); ?> =</span>
+            <input type="number" name="human_answer" inputmode="numeric" min="0" max="18" autocomplete="off" required data-human-answer>
+          </span>
+          <span class="crm-field__error">Resuelve la suma para continuar.</span>
+        </label>
         <button class="crm-button" type="submit">Entrar al CRM</button>
       </form>
     </section>
@@ -316,7 +343,8 @@ if (empty($_SESSION['crm_user'])):
       const password = document.querySelector('[data-login-password]');
       const toggle = document.querySelector('[data-password-toggle]');
       const email = document.querySelector('[data-login-email]');
-      if (!form || !password || !toggle || !email) return;
+      const human = document.querySelector('[data-human-answer]');
+      if (!form || !password || !toggle || !email || !human) return;
 
       toggle.addEventListener('click', () => {
         const showing = password.type === 'text';
@@ -327,9 +355,10 @@ if (empty($_SESSION['crm_user'])):
 
       form.addEventListener('submit', (event) => {
         form.classList.add('was-validated');
-        if (!email.validity.valid || !password.validity.valid) {
+        if (!email.validity.valid || !password.validity.valid || !human.validity.valid) {
           event.preventDefault();
-          (email.validity.valid ? password : email).focus();
+          const invalid = form.querySelector(':invalid');
+          if (invalid) invalid.focus();
         }
       });
     })();
