@@ -16,6 +16,22 @@ function h($value): string
   return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+function bitacora_icon(string $name): string
+{
+  $icons = [
+    'dashboard' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="15" width="7" height="6" rx="1.5"/></svg>',
+    'projects' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H10l2 2h5.5A2.5 2.5 0 0 1 20 9.5v7A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Z"/><path d="M4 10h16"/></svg>',
+    'logs' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8l3 3v13H5V4h3Z"/><path d="M15 4v4h4"/><path d="M8 12h8"/><path d="M8 16h6"/></svg>',
+    'requests' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10H8l-3 3V5Z"/><path d="M9 9h6"/><path d="M9 12h4"/></svg>',
+    'profile' => '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>',
+    'lock' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+    'logout' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5"/><path d="M14 8l4 4-4 4"/><path d="M9 12h9"/></svg>',
+    'menu' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>',
+    'check' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
+  ];
+  return $icons[$name] ?? $icons['dashboard'];
+}
+
 function bitacora_pill_class(string $value): string
 {
   $key = strtolower($value);
@@ -125,6 +141,7 @@ if (($_POST['action'] ?? '') === 'client_login') {
     $portalUser = crm_portal_user_by_username($pdo, $username);
     if ($portalUser && password_verify($password, $portalUser['password_hash'])) {
       session_regenerate_id(true);
+      $mustChangePassword = (int) ($portalUser['password_change_required'] ?? 1) === 1 || empty($portalUser['password_changed_at']);
       crm_update_portal_last_login($pdo, (int) $portalUser['id']);
       $_SESSION['bitacora_user'] = [
         'id' => (int) $portalUser['id'],
@@ -134,6 +151,7 @@ if (($_POST['action'] ?? '') === 'client_login') {
         'company_name' => $portalUser['company_name'],
         'contact_name' => $portalUser['contact_name'],
         'service' => $portalUser['service'],
+        'must_change_password' => $mustChangePassword,
       ];
       bitacora_token();
       header('Location: cliente.php');
@@ -233,6 +251,17 @@ if (empty($portal['client_id'])) {
     $_SESSION['bitacora_user']['client_id'] = $refreshClientId;
   }
 }
+$accountStmt = $pdo->prepare('SELECT id, username, password_hash, password_change_required, password_changed_at, last_login_at FROM client_portal_users WHERE id = ? AND is_active = 1 LIMIT 1');
+$accountStmt->execute([(int) ($portal['id'] ?? 0)]);
+$portalAccount = $accountStmt->fetch();
+if (!$portalAccount) {
+  unset($_SESSION['bitacora_user'], $_SESSION['bitacora_token']);
+  header('Location: cliente.php');
+  exit;
+}
+$mustChangePassword = (int) ($portalAccount['password_change_required'] ?? 1) === 1 || empty($portalAccount['password_changed_at']);
+$portal['must_change_password'] = $mustChangePassword;
+$_SESSION['bitacora_user']['must_change_password'] = $mustChangePassword;
 $requestPriorities = ['Baja', 'Media', 'Alta', 'Urgente'];
 $projectAccesses = bitacora_project_accesses($pdo, $portal);
 $selectedProjectId = max(0, (int) ($_POST['project_id'] ?? $_GET['project_id'] ?? $portal['opportunity_id'] ?? 0));
@@ -243,6 +272,36 @@ if (!$currentAccess) {
   exit;
 }
 $notice = null;
+if (($_POST['action'] ?? '') === 'update_client_password') {
+  bitacora_check_token();
+  $currentPassword = (string) ($_POST['current_password'] ?? '');
+  $newPassword = (string) ($_POST['new_password'] ?? '');
+  $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
+
+  if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
+    $notice = ['type' => 'error', 'text' => 'Completa todos los campos de password.'];
+  } elseif (!password_verify($currentPassword, (string) $portalAccount['password_hash'])) {
+    $notice = ['type' => 'error', 'text' => 'El password actual no coincide.'];
+  } elseif (strlen($newPassword) < 10) {
+    $notice = ['type' => 'error', 'text' => 'El nuevo password debe tener al menos 10 caracteres.'];
+  } elseif ($newPassword !== $confirmPassword) {
+    $notice = ['type' => 'error', 'text' => 'La confirmacion no coincide con el nuevo password.'];
+  } elseif (password_verify($newPassword, (string) $portalAccount['password_hash'])) {
+    $notice = ['type' => 'error', 'text' => 'El nuevo password debe ser diferente al actual.'];
+  } else {
+    $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+    $updatePassword = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, password_change_required = 0, password_changed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $updatePassword->execute([$hash, (int) $portalAccount['id']]);
+    $portalAccount['password_hash'] = $hash;
+    $portalAccount['password_change_required'] = 0;
+    $portalAccount['password_changed_at'] = date('Y-m-d H:i:s');
+    $portal['must_change_password'] = false;
+    $_SESSION['bitacora_user']['must_change_password'] = false;
+    $mustChangePassword = false;
+    $notice = ['type' => 'success', 'text' => 'Password actualizado correctamente.'];
+  }
+}
+
 if (($_POST['action'] ?? '') === 'create_request') {
   bitacora_check_token();
   $postedProjectId = max(0, (int) ($_POST['project_id'] ?? 0));
@@ -289,105 +348,150 @@ $requests = $requestsStmt->fetchAll();
   <title>Bitacora ID | <?php echo h($project['company_name']); ?></title>
   <link rel="stylesheet" href="../assets/css/crm.css">
 </head>
-<body class="crm-app crm-client-app">
-  <main class="crm-client-shell">
-    <header class="crm-client-hero">
-      <div>
+<body class="crm-app crm-client-app crm-client-portal">
+  <div class="crm-client-layout">
+    <aside class="crm-client-sidebar" id="cliente-sidebar">
+      <div class="crm-client-brand">
         <img src="../assets/img/logo-idindustrial-small.webp" alt="ID Industrial" width="280" height="74">
-        <p class="eyebrow">Bitacora ID</p>
-        <h1><?php echo h($project['company_name']); ?></h1>
-        <p><?php echo h($project['service']); ?> - <?php echo h($project['opportunity_status'] ?? 'Proyecto entregado'); ?> - <?php echo count($projects); ?> proyecto(s)</p>
+        <div><strong>Bitacora ID</strong><span>Portal cliente</span></div>
       </div>
-      <a class="crm-button crm-button--ghost" href="cliente.php?logout=1">Cerrar sesion</a>
-    </header>
+      <nav class="crm-client-nav" aria-label="Navegacion del portal cliente">
+        <a href="#resumen" class="is-active"><span><?php echo bitacora_icon('dashboard'); ?></span>Resumen</a>
+        <a href="#proyectos"><span><?php echo bitacora_icon('projects'); ?></span>Proyectos</a>
+        <a href="#bitacora"><span><?php echo bitacora_icon('logs'); ?></span>Bitacora</a>
+        <a href="#solicitudes"><span><?php echo bitacora_icon('requests'); ?></span>Solicitudes</a>
+        <a href="#perfil"><span><?php echo bitacora_icon('profile'); ?></span>Perfil</a>
+      </nav>
+      <div class="crm-client-sidebar__footer">
+        <span>Usuario</span>
+        <strong><?php echo h($portal['username']); ?></strong>
+        <a href="cliente.php?logout=1"><span><?php echo bitacora_icon('logout'); ?></span>Cerrar sesion</a>
+      </div>
+    </aside>
+    <button class="crm-client-overlay" type="button" aria-label="Cerrar menu" data-client-menu-close></button>
 
-    <?php if ($notice): ?><div class="crm-flash crm-flash--<?php echo h($notice['type']); ?>"><p><?php echo h($notice['text']); ?></p></div><?php endif; ?>
+    <main class="crm-client-main">
+      <header class="crm-client-topbar">
+        <button class="crm-client-menu" type="button" aria-label="Abrir menu" aria-controls="cliente-sidebar" aria-expanded="false" data-client-menu-toggle><?php echo bitacora_icon('menu'); ?></button>
+        <div><small>ID Industrial</small><strong>Bitacora ID</strong></div>
+        <a class="crm-button crm-button--ghost" href="cliente.php?logout=1">Cerrar sesion</a>
+      </header>
 
-    <section class="crm-kpis">
-      <article class="crm-card crm-kpi"><span class="crm-kpi__icon">P</span><div><span>Proyecto activo</span><strong><?php echo h($project['opportunity_status'] ?? 'Entregado'); ?></strong></div></article>
-      <article class="crm-card crm-kpi"><span class="crm-kpi__icon">#</span><div><span>Proyectos</span><strong><?php echo count($projects); ?></strong></div></article>
-      <article class="crm-card crm-kpi"><span class="crm-kpi__icon">M</span><div><span>Registros</span><strong><?php echo count($logs); ?></strong></div></article>
-      <article class="crm-card crm-kpi"><span class="crm-kpi__icon">S</span><div><span>Solicitudes</span><strong><?php echo count($requests); ?></strong></div></article>
-    </section>
-
-    <section class="crm-card crm-client-projects">
-      <div class="crm-section-head">
+      <section id="resumen" class="crm-client-hero crm-client-hero--panel">
         <div>
-          <h2>Proyectos</h2>
-          <p>Selecciona un proyecto para consultar su bitacora y levantar solicitudes independientes.</p>
+          <p class="eyebrow">Bitacora ID</p>
+          <h1><?php echo h($project['company_name']); ?></h1>
+          <p><?php echo h($project['service']); ?> - <?php echo h($project['opportunity_status'] ?? 'Proyecto entregado'); ?> - <?php echo count($projects); ?> proyecto(s)</p>
         </div>
-        <code><?php echo h($activeProject['username']); ?></code>
-      </div>
-      <div class="crm-project-list">
-        <?php foreach ($projects as $projectOption): ?>
-          <?php $isActiveProject = (int) $projectOption['opportunity_id'] === $activeOpportunityId; ?>
-          <a class="crm-project-tile <?php echo $isActiveProject ? 'is-active' : ''; ?>" href="cliente.php?project_id=<?php echo (int) $projectOption['opportunity_id']; ?>">
-            <span class="crm-pill <?php echo h(bitacora_pill_class((string) ($projectOption['opportunity_status'] ?? 'Proyecto entregado'))); ?>"><?php echo h($projectOption['opportunity_status'] ?? 'Proyecto entregado'); ?></span>
-            <strong><?php echo h($projectOption['service']); ?></strong>
-            <small><?php echo (int) $projectOption['log_count']; ?> registros - <?php echo (int) $projectOption['request_count']; ?> solicitudes</small>
-          </a>
-        <?php endforeach; ?>
-      </div>
-    </section>
+        <span class="crm-client-user-pill"><?php echo h($portal['username']); ?></span>
+      </section>
 
-    <section class="crm-grid">
-      <article class="crm-card">
-        <h2>Bitacora de mantenimiento</h2>
-        <div class="crm-list">
-          <?php foreach ($logs as $log): ?>
-            <div class="crm-list__item">
-              <span class="crm-pill crm-pill--success"><?php echo h($log['status']); ?></span>
-              <strong><?php echo h($log['title']); ?></strong>
-              <p><?php echo h($log['notes']); ?></p>
-              <small><?php echo h($log['type']); ?> - <?php echo h($log['scheduled_date'] ?: $log['created_at']); ?></small>
-            </div>
+      <?php if ($notice): ?><div class="crm-flash crm-flash--<?php echo h($notice['type']); ?>"><p><?php echo h($notice['text']); ?></p></div><?php endif; ?>
+      <?php if ($mustChangePassword): ?>
+        <section class="crm-security-callout" aria-live="polite">
+          <span><?php echo bitacora_icon('lock'); ?></span>
+          <div><strong>Actualiza tu password por seguridad</strong><p>Es tu primer acceso o tu password fue regenerado. Cambialo desde Perfil antes de compartir este acceso con tu equipo.</p></div>
+          <a class="crm-button" href="#perfil">Cambiar password</a>
+        </section>
+      <?php endif; ?>
+
+      <section class="crm-kpis crm-client-kpis" aria-label="Resumen del proyecto">
+        <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('check'); ?></span><div><span>Proyecto activo</span><strong><?php echo h($project['opportunity_status'] ?? 'Entregado'); ?></strong></div></article>
+        <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('projects'); ?></span><div><span>Proyectos</span><strong><?php echo count($projects); ?></strong></div></article>
+        <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('logs'); ?></span><div><span>Registros</span><strong><?php echo count($logs); ?></strong></div></article>
+        <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('requests'); ?></span><div><span>Solicitudes</span><strong><?php echo count($requests); ?></strong></div></article>
+      </section>
+
+      <section id="proyectos" class="crm-card crm-client-projects">
+        <div class="crm-section-head"><div><h2>Proyectos</h2><p>Selecciona un proyecto para consultar su bitacora y levantar solicitudes independientes.</p></div><code><?php echo h($activeProject['username']); ?></code></div>
+        <div class="crm-project-list">
+          <?php foreach ($projects as $projectOption): ?>
+            <?php $isActiveProject = (int) $projectOption['opportunity_id'] === $activeOpportunityId; ?>
+            <a class="crm-project-tile <?php echo $isActiveProject ? 'is-active' : ''; ?>" href="cliente.php?project_id=<?php echo (int) $projectOption['opportunity_id']; ?>#proyectos">
+              <span class="crm-pill <?php echo h(bitacora_pill_class((string) ($projectOption['opportunity_status'] ?? 'Proyecto entregado'))); ?>"><?php echo h($projectOption['opportunity_status'] ?? 'Proyecto entregado'); ?></span>
+              <strong><?php echo h($projectOption['service']); ?></strong>
+              <small><?php echo (int) $projectOption['log_count']; ?> registros - <?php echo (int) $projectOption['request_count']; ?> solicitudes</small>
+            </a>
           <?php endforeach; ?>
-          <?php if (!$logs): ?><p>Aun no hay registros publicados para este proyecto.</p><?php endif; ?>
         </div>
-      </article>
+      </section>
 
-      <article class="crm-card">
-        <h2>Solicitar mantenimiento</h2>
-        <form class="crm-form" method="post">
-          <input type="hidden" name="token" value="<?php echo h($token); ?>">
-          <input type="hidden" name="action" value="create_request">
-          <input type="hidden" name="project_id" value="<?php echo (int) $activeOpportunityId; ?>">
-          <label class="crm-field">Asunto<input name="title" required></label>
-          <label class="crm-field">Prioridad
-            <select name="priority">
-              <?php foreach ($requestPriorities as $priority): ?><option><?php echo h($priority); ?></option><?php endforeach; ?>
-            </select>
-          </label>
-          <label class="crm-field">Descripcion<textarea name="message" rows="5" required></textarea></label>
-          <button class="crm-button" type="submit">Enviar solicitud</button>
-        </form>
+      <section class="crm-client-workspace">
+        <article id="bitacora" class="crm-card">
+          <div class="crm-section-head"><div><h2>Bitacora de mantenimiento</h2><p>Historial visible para el proyecto seleccionado.</p></div></div>
+          <div class="crm-list">
+            <?php foreach ($logs as $log): ?>
+              <div class="crm-list__item"><span class="crm-pill crm-pill--success"><?php echo h($log['status']); ?></span><strong><?php echo h($log['title']); ?></strong><p><?php echo h($log['notes']); ?></p><small><?php echo h($log['type']); ?> - <?php echo h($log['scheduled_date'] ?: $log['created_at']); ?></small></div>
+            <?php endforeach; ?>
+            <?php if (!$logs): ?><p>Aun no hay registros publicados para este proyecto.</p><?php endif; ?>
+          </div>
+        </article>
 
-        <div class="crm-list crm-list--compact">
-          <?php foreach ($requests as $request): ?>
-            <?php $requestStatus = trim((string) ($request['status'] ?? 'Recibida')) ?: 'Recibida'; ?>
-            <div class="crm-list__item crm-request-card">
-              <div class="crm-request-card__head">
-                <span class="crm-pill <?php echo h(bitacora_pill_class($requestStatus)); ?>"><?php echo h($requestStatus); ?></span>
-                <small><?php echo h($request['updated_at'] ?: $request['created_at']); ?></small>
+        <article id="solicitudes" class="crm-card">
+          <div class="crm-section-head"><div><h2>Solicitar mantenimiento</h2><p>Levanta un reporte ligado solamente a este proyecto.</p></div></div>
+          <form class="crm-form" method="post">
+            <input type="hidden" name="token" value="<?php echo h($token); ?>">
+            <input type="hidden" name="action" value="create_request">
+            <input type="hidden" name="project_id" value="<?php echo (int) $activeOpportunityId; ?>">
+            <label class="crm-field">Asunto<input name="title" required></label>
+            <label class="crm-field">Prioridad<select name="priority"><?php foreach ($requestPriorities as $priority): ?><option><?php echo h($priority); ?></option><?php endforeach; ?></select></label>
+            <label class="crm-field">Descripcion<textarea name="message" rows="5" required></textarea></label>
+            <button class="crm-button" type="submit">Enviar solicitud</button>
+          </form>
+          <div class="crm-list crm-list--compact">
+            <?php foreach ($requests as $request): ?>
+              <?php $requestStatus = trim((string) ($request['status'] ?? 'Recibida')) ?: 'Recibida'; ?>
+              <div class="crm-list__item crm-request-card">
+                <div class="crm-request-card__head"><span class="crm-pill <?php echo h(bitacora_pill_class($requestStatus)); ?>"><?php echo h($requestStatus); ?></span><small><?php echo h($request['updated_at'] ?: $request['created_at']); ?></small></div>
+                <strong><?php echo h($request['title']); ?></strong><p><?php echo h($request['message']); ?></p>
+                <div class="crm-request-meta crm-request-meta--client"><span><strong>Prioridad</strong><?php echo h($request['priority'] ?? 'Media'); ?></span><span><strong>Objetivo</strong><?php echo h($request['due_date'] ?? 'Por confirmar'); ?></span><span><strong>Programada</strong><?php echo h($request['scheduled_date'] ?: 'Por confirmar'); ?></span><span><strong>Responsable</strong><?php echo h($request['assigned_to'] ?: 'Por asignar'); ?></span></div>
+                <p class="crm-request-next"><strong>Seguimiento:</strong> <?php echo h(bitacora_request_next_step($requestStatus)); ?><?php if (!empty($request['resolved_at'])): ?> Resuelta: <?php echo h($request['resolved_at']); ?>.<?php endif; ?></p>
+                <?php if (!empty($request['admin_response'])): ?><div class="crm-response"><strong>Respuesta ID Industrial</strong><p><?php echo h($request['admin_response']); ?></p></div><?php endif; ?>
               </div>
-              <strong><?php echo h($request['title']); ?></strong>
-              <p><?php echo h($request['message']); ?></p>
-              <div class="crm-request-meta crm-request-meta--client">
-                <span><strong>Prioridad</strong><?php echo h($request['priority'] ?? 'Media'); ?></span>
-                <span><strong>Objetivo</strong><?php echo h($request['due_date'] ?? 'Por confirmar'); ?></span>
-                <span><strong>Programada</strong><?php echo h($request['scheduled_date'] ?: 'Por confirmar'); ?></span>
-                <span><strong>Responsable</strong><?php echo h($request['assigned_to'] ?: 'Por asignar'); ?></span>
-              </div>
-              <p class="crm-request-next"><strong>Seguimiento:</strong> <?php echo h(bitacora_request_next_step($requestStatus)); ?><?php if (!empty($request['resolved_at'])): ?> Resuelta: <?php echo h($request['resolved_at']); ?>.<?php endif; ?></p>
-              <?php if (!empty($request['admin_response'])): ?>
-                <div class="crm-response"><strong>Respuesta ID Industrial</strong><p><?php echo h($request['admin_response']); ?></p></div>
-              <?php endif; ?>
-            </div>
-          <?php endforeach; ?>
-          <?php if (!$requests): ?><p>Aun no has enviado solicitudes de mantenimiento.</p><?php endif; ?>
+            <?php endforeach; ?>
+            <?php if (!$requests): ?><p>Aun no has enviado solicitudes de mantenimiento.</p><?php endif; ?>
+          </div>
+        </article>
+      </section>
+
+      <section id="perfil" class="crm-card crm-client-profile">
+        <div class="crm-section-head"><div><h2>Perfil</h2><p>Administra el acceso del portal y revisa los datos asociados a tu cuenta.</p></div><span class="crm-pill <?php echo $mustChangePassword ? 'crm-pill--warning' : 'crm-pill--success'; ?>"><?php echo $mustChangePassword ? 'Cambio requerido' : 'Protegido'; ?></span></div>
+        <div class="crm-profile-grid">
+          <div class="crm-profile-summary"><span><?php echo bitacora_icon('profile'); ?></span><div><strong><?php echo h($project['contact_name'] ?: $project['company_name']); ?></strong><p><?php echo h($project['company_name']); ?></p><code><?php echo h($portal['username']); ?></code></div></div>
+          <form class="crm-form crm-password-form" method="post" autocomplete="off" data-password-change-form>
+            <input type="hidden" name="token" value="<?php echo h($token); ?>"><input type="hidden" name="action" value="update_client_password">
+            <label class="crm-field">Password actual<span class="crm-password-field"><input id="current-password" type="password" name="current_password" autocomplete="current-password" required><button class="crm-password-toggle" type="button" aria-label="Mostrar password actual" aria-controls="current-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
+            <label class="crm-field">Nuevo password<span class="crm-password-field"><input id="new-password" type="password" name="new_password" autocomplete="new-password" minlength="10" required><button class="crm-password-toggle" type="button" aria-label="Mostrar nuevo password" aria-controls="new-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span><small>Minimo 10 caracteres.</small></label>
+            <label class="crm-field">Confirmar password<span class="crm-password-field"><input id="confirm-password" type="password" name="confirm_password" autocomplete="new-password" minlength="10" required><button class="crm-password-toggle" type="button" aria-label="Mostrar confirmacion" aria-controls="confirm-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
+            <button class="crm-button" type="submit">Actualizar password</button>
+          </form>
         </div>
-      </article>
-    </section>
-  </main>
+      </section>
+    </main>
+  </div>
+  <script>
+    (() => {
+      const toggle = document.querySelector('[data-client-menu-toggle]');
+      const close = document.querySelector('[data-client-menu-close]');
+      const setMenu = (open) => {
+        document.body.classList.toggle('crm-client-menu-open', open);
+        if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+      toggle?.addEventListener('click', () => setMenu(!document.body.classList.contains('crm-client-menu-open')));
+      close?.addEventListener('click', () => setMenu(false));
+      document.querySelectorAll('.crm-client-nav a').forEach((link) => link.addEventListener('click', () => setMenu(false)));
+      window.addEventListener('keydown', (event) => { if (event.key === 'Escape') setMenu(false); });
+      document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+        const input = document.getElementById(button.getAttribute('aria-controls'));
+        if (!input) return;
+        button.addEventListener('click', () => {
+          const showing = input.type === 'text';
+          input.type = showing ? 'password' : 'text';
+          button.classList.toggle('is-active', !showing);
+          button.setAttribute('aria-label', showing ? 'Mostrar password' : 'Ocultar password');
+        });
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -4,19 +4,20 @@
 
 SET @db := DATABASE();
 
+
 SET @sql := IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'client_portal_users' AND INDEX_NAME = 'uq_client_portal_client') > 0,
-  'ALTER TABLE client_portal_users DROP INDEX uq_client_portal_client',
-  'SELECT ''uq_client_portal_client no existe'' AS info'
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'client_portal_users' AND INDEX_NAME = 'idx_client_portal_client') = 0,
+  'ALTER TABLE client_portal_users ADD INDEX idx_client_portal_client (client_id)',
+  'SELECT ''idx_client_portal_client ya existe'' AS info'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 SET @sql := IF(
-  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'client_portal_users' AND INDEX_NAME = 'idx_client_portal_client') = 0,
-  'ALTER TABLE client_portal_users ADD INDEX idx_client_portal_client (client_id)',
-  'SELECT ''idx_client_portal_client ya existe'' AS info'
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'client_portal_users' AND INDEX_NAME = 'uq_client_portal_client') > 0,
+  'ALTER TABLE client_portal_users DROP INDEX uq_client_portal_client',
+  'SELECT ''uq_client_portal_client no existe'' AS info'
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;

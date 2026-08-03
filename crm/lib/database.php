@@ -141,6 +141,14 @@ function crm_ensure_columns(PDO $pdo): void
         ? 'ALTER TABLE clients ADD COLUMN converted_at DATETIME NULL AFTER created_at'
         : 'ALTER TABLE clients ADD COLUMN converted_at TEXT NULL',
     ],
+    'client_portal_users' => [
+      'password_change_required' => $isMysql
+        ? 'ALTER TABLE client_portal_users ADD COLUMN password_change_required TINYINT(1) NOT NULL DEFAULT 1 AFTER is_active'
+        : 'ALTER TABLE client_portal_users ADD COLUMN password_change_required INTEGER NOT NULL DEFAULT 1',
+      'password_changed_at' => $isMysql
+        ? 'ALTER TABLE client_portal_users ADD COLUMN password_changed_at DATETIME NULL AFTER password_change_required'
+        : 'ALTER TABLE client_portal_users ADD COLUMN password_changed_at TEXT NULL',
+    ],
     'client_requests' => [
       'priority' => $isMysql
         ? "ALTER TABLE client_requests ADD COLUMN priority VARCHAR(40) NOT NULL DEFAULT 'Media' AFTER status"
@@ -175,6 +183,10 @@ function crm_ensure_columns(PDO $pdo): void
         $pdo->exec($definition);
       }
     }
+  }
+
+  if ($isMysql && !crm_index_exists($pdo, 'client_portal_users', 'idx_client_portal_client')) {
+    $pdo->exec('ALTER TABLE client_portal_users ADD INDEX idx_client_portal_client (client_id)');
   }
 
   if ($isMysql && crm_index_exists($pdo, 'client_portal_users', 'uq_client_portal_client')) {
@@ -257,6 +269,8 @@ function crm_migrate_sqlite(PDO $pdo): void
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       is_active INTEGER NOT NULL DEFAULT 1,
+      password_change_required INTEGER NOT NULL DEFAULT 1,
+      password_changed_at TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       last_login_at TEXT,
@@ -402,6 +416,8 @@ function crm_migrate_mysql(PDO $pdo): void
       username VARCHAR(190) NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
       is_active TINYINT(1) NOT NULL DEFAULT 1,
+      password_change_required TINYINT(1) NOT NULL DEFAULT 1,
+      password_changed_at DATETIME NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       last_login_at DATETIME NULL,
@@ -672,13 +688,13 @@ function crm_enable_client_portal(PDO $pdo, int $opportunityId): array
   $password = crm_random_password();
   $passwordHash = password_hash($password, PASSWORD_DEFAULT);
   if ($existing) {
-    $update = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $update = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, is_active = 1, password_change_required = 1, password_changed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
     $update->execute([$passwordHash, (int) $existing['id']]);
     $username = (string) $existing['username'];
     $portalUserId = (int) $existing['id'];
   } else {
     $username = crm_unique_portal_username($pdo, $opportunity);
-    $insert = $pdo->prepare('INSERT INTO client_portal_users (opportunity_id, client_id, username, password_hash, is_active) VALUES (?, ?, ?, ?, 1)');
+    $insert = $pdo->prepare('INSERT INTO client_portal_users (opportunity_id, client_id, username, password_hash, is_active, password_change_required) VALUES (?, ?, ?, ?, 1, 1)');
     $insert->execute([$opportunityId, $opportunity['client_id'] ?: null, $username, $passwordHash]);
     $portalUserId = (int) $pdo->lastInsertId();
   }
@@ -706,7 +722,7 @@ function crm_reset_client_portal_password(PDO $pdo, int $portalUserId): array
 
   $password = crm_random_password();
   $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-  $update = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+  $update = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, is_active = 1, password_change_required = 1, password_changed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
   $update->execute([$passwordHash, $portalUserId]);
 
   $log = $pdo->prepare('INSERT INTO maintenance_logs (opportunity_id, portal_user_id, type, title, status, scheduled_date, notes, visible_to_client) VALUES (?, ?, "Acceso", "Password Bitacora ID regenerado", "Activo", ?, "El equipo administrativo regenero el acceso del cliente.", 0)');
@@ -721,24 +737,185 @@ function crm_app_url(string $path = ''): string
   return $path === '' ? $base : $base . '/' . $path;
 }
 
-function crm_send_email(string $to, string $subject, string $body): bool
+function crm_email_h($value): string
+{
+  return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+}
+
+function crm_email_message(string $textBody, ?string $htmlBody = null): array
+{
+  if ($htmlBody === null || trim($htmlBody) === '') {
+    return [
+      'headers' => ['Content-Type: text/plain; charset=UTF-8'],
+      'body' => $textBody,
+    ];
+  }
+
+  $boundary = 'crm_' . str_replace('.', '', uniqid('', true));
+  $body = "--{$boundary}\r\n"
+    . "Content-Type: text/plain; charset=UTF-8\r\n"
+    . "Content-Transfer-Encoding: 8bit\r\n\r\n"
+    . $textBody . "\r\n\r\n"
+    . "--{$boundary}\r\n"
+    . "Content-Type: text/html; charset=UTF-8\r\n"
+    . "Content-Transfer-Encoding: 8bit\r\n\r\n"
+    . $htmlBody . "\r\n\r\n"
+    . "--{$boundary}--";
+
+  return [
+    'headers' => [
+      'Content-Type: multipart/alternative; boundary="' . $boundary . '"',
+    ],
+    'body' => $body,
+  ];
+}
+
+function crm_email_escape(string $value): string
+{
+  return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
+function crm_email_content_type(string $boundary, $plainBody = null): string
+{
+  if ($plainBody === null) {
+    return 'Content-Type: text/plain; charset=UTF-8';
+  }
+
+  return 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
+}
+
+function crm_email_message(string $body, string $boundary, $plainBody = null): string
+{
+  if ($plainBody === null) {
+    return $body;
+  }
+
+  return '--' . $boundary . "\r\n"
+    . "Content-Type: text/plain; charset=UTF-8\r\n"
+    . "Content-Transfer-Encoding: 8bit\r\n\r\n"
+    . $plainBody . "\r\n\r\n"
+    . '--' . $boundary . "\r\n"
+    . "Content-Type: text/html; charset=UTF-8\r\n"
+    . "Content-Transfer-Encoding: 8bit\r\n\r\n"
+    . $body . "\r\n\r\n"
+    . '--' . $boundary . '--';
+}
+
+function crm_portal_credentials_email_html(string $name, string $project, string $portalUrl, string $username, string $password): string
+{
+  $safeName = crm_email_escape($name);
+  $safeProject = crm_email_escape($project);
+  $safePortalUrl = crm_email_escape($portalUrl);
+  $safeUsername = crm_email_escape($username);
+  $safePassword = crm_email_escape($password);
+
+  return '<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso a Bitacora ID</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#11151c;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;margin:0;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;background:#ffffff;border:1px solid #ded6c8;border-radius:14px;overflow:hidden;">
+          <tr>
+            <td style="background:#111412;padding:26px 28px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <div style="font-size:13px;letter-spacing:4px;font-weight:800;color:#f3c433;text-transform:uppercase;">ID Industrial</div>
+                    <div style="margin-top:8px;font-size:22px;line-height:1.2;font-weight:800;color:#ffffff;">Bitacora ID</div>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;border:1px solid rgba(243,196,51,.45);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;color:#f7e2a5;">Acceso activo</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:34px 28px 30px;">
+              <h1 style="margin:0 0 12px;font-size:30px;line-height:1.12;font-weight:800;color:#11151c;">Tu portal de mantenimiento ya esta listo</h1>
+              <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#555f6d;">Hola ' . $safeName . ', tu acceso a Bitacora ID fue activado para dar seguimiento a solicitudes, reportes y mantenimiento de tu proyecto.</p>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 22px;background:#fbfaf7;border:1px solid #e5dccb;border-radius:12px;">
+                <tr>
+                  <td style="padding:18px 20px;">
+                    <div style="font-size:11px;letter-spacing:2.8px;text-transform:uppercase;font-weight:800;color:#9b7200;">Proyecto</div>
+                    <div style="margin-top:8px;font-size:18px;line-height:1.35;font-weight:800;color:#11151c;">' . $safeProject . '</div>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+                <tr>
+                  <td align="center" bgcolor="#d6a91f" style="border-radius:10px;">
+                    <a href="' . $safePortalUrl . '" style="display:block;padding:16px 22px;font-size:16px;font-weight:800;color:#11151c;text-decoration:none;">Entrar a Bitacora ID</a>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 22px;border:1px solid #e5dccb;border-radius:12px;overflow:hidden;">
+                <tr>
+                  <td style="padding:16px 18px;background:#f6eed8;border-bottom:1px solid #e5dccb;font-size:12px;letter-spacing:2.4px;text-transform:uppercase;font-weight:800;color:#7d5b00;">Credenciales de acceso</td>
+                </tr>
+                <tr>
+                  <td style="padding:18px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding:0 0 14px;font-size:13px;font-weight:800;color:#555f6d;width:130px;">Usuario</td>
+                        <td style="padding:0 0 14px;font-size:15px;font-weight:800;color:#11151c;word-break:break-word;">' . $safeUsername . '</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0;font-size:13px;font-weight:800;color:#555f6d;width:130px;">Password temporal</td>
+                        <td style="padding:0;font-size:15px;font-weight:800;color:#11151c;word-break:break-word;">' . $safePassword . '</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="border-left:4px solid #d6a91f;background:#fff9e8;border-radius:10px;padding:16px 18px;margin:0 0 24px;">
+                <p style="margin:0;font-size:14px;line-height:1.6;color:#4d5662;"><strong>Recomendacion de seguridad:</strong> conserva estos datos solo con tu equipo autorizado. Al entrar por primera vez, cambia tu password desde el portal.</p>
+              </div>
+
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280;">Si el boton no abre, copia este enlace en tu navegador:<br><a href="' . $safePortalUrl . '" style="color:#9b7200;text-decoration:underline;word-break:break-all;">' . $safePortalUrl . '</a></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 28px;background:#f7f4ee;border-top:1px solid #e5dccb;">
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#69727f;">ID Industrial - CRM para servicios industriales</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>';
+}
+
+function crm_send_email(string $to, string $subject, string $body, $plainBody = null): bool
 {
   $config = crm_config();
   $smtp = is_array($config['smtp'] ?? null) ? $config['smtp'] : [];
+  $boundary = 'crm_' . md5(uniqid('', true));
   if (!empty($smtp['enabled'])) {
-    return crm_smtp_mail($smtp, $to, $subject, $body);
+    return crm_smtp_mail($smtp, $to, $subject, $body, $plainBody);
   }
 
   $fromEmail = (string) ($smtp['from_email'] ?? 'no-reply@idindustrial.com.mx');
   $fromName = (string) ($smtp['from_name'] ?? 'ID Industrial');
   $headers = [
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
+    crm_email_content_type($boundary, $plainBody),
     'From: ' . $fromName . ' <' . $fromEmail . '>',
   ];
-  return @mail($to, $subject, $body, implode("\r\n", $headers));
+  return @mail($to, $subject, crm_email_message($body, $boundary, $plainBody), implode("\r\n", $headers));
 }
-
 function crm_smtp_read($socket): string
 {
   $response = '';
@@ -763,7 +940,7 @@ function crm_smtp_command($socket, string $command, array $codes): bool
   return in_array($code, $codes, true);
 }
 
-function crm_smtp_mail(array $smtp, string $to, string $subject, string $body): bool
+function crm_smtp_mail(array $smtp, string $to, string $subject, string $body, $plainBody = null): bool
 {
   $host = (string) ($smtp['host'] ?? '');
   $port = (int) ($smtp['port'] ?? 465);
@@ -816,15 +993,16 @@ function crm_smtp_mail(array $smtp, string $to, string $subject, string $body): 
     return false;
   }
 
+  $boundary = 'crm_' . md5(uniqid('', true));
   $headers = [
     'Date: ' . date('r'),
     'From: ' . $fromName . ' <' . $fromEmail . '>',
     'To: <' . $to . '>',
     'Subject: ' . $subject,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
+    crm_email_content_type($boundary, $plainBody),
   ];
-  $message = implode("\r\n", $headers) . "\r\n\r\n" . $body;
+  $message = implode("\r\n", $headers) . "\r\n\r\n" . crm_email_message($body, $boundary, $plainBody);
   $message = preg_replace('/^\./m', '..', $message);
   fwrite($socket, $message . "\r\n.\r\n");
   $sent = in_array((int) substr(crm_smtp_read($socket), 0, 3), [250], true);
@@ -832,7 +1010,6 @@ function crm_smtp_mail(array $smtp, string $to, string $subject, string $body): 
   fclose($socket);
   return $sent;
 }
-
 function crm_send_portal_credentials(array $opportunity, string $username, string $password): bool
 {
   $email = trim((string) ($opportunity['contact_email'] ?? ''));
@@ -844,18 +1021,20 @@ function crm_send_portal_credentials(array $opportunity, string $username, strin
   $company = trim((string) ($opportunity['company_name'] ?? ''));
   $service = trim((string) ($opportunity['service'] ?? ''));
   $name = $contact !== '' ? $contact : ($company !== '' ? $company : 'cliente');
-  $body = "Hola " . $name . ",\n\n"
+  $project = $service !== '' ? $service : 'Mantenimiento ID Industrial';
+  $portalUrl = crm_app_url('cliente.php');
+  $plainBody = "Hola " . $name . ",\n\n"
     . "Tu acceso a Bitacora ID ya esta activo.\n\n"
-    . "Proyecto: " . ($service !== '' ? $service : 'Mantenimiento ID Industrial') . "\n"
-    . "Link: " . crm_app_url('cliente.php') . "\n"
+    . "Proyecto: " . $project . "\n"
+    . "Link: " . $portalUrl . "\n"
     . "Usuario: " . $username . "\n"
-    . "Password: " . $password . "\n\n"
-    . "Por seguridad, conserva estos datos y no los compartas fuera de tu equipo autorizado.\n\n"
+    . "Password temporal: " . $password . "\n\n"
+    . "Por seguridad, conserva estos datos y no los compartas fuera de tu equipo autorizado. Cambia tu password al entrar por primera vez.\n\n"
     . "ID Industrial";
+  $htmlBody = crm_portal_credentials_email_html($name, $project, $portalUrl, $username, $password);
 
-  return crm_send_email($email, 'Acceso a Bitacora ID - ID Industrial', $body);
+  return crm_send_email($email, 'Acceso a Bitacora ID - ID Industrial', $htmlBody, $plainBody);
 }
-
 function crm_portal_user_by_username(PDO $pdo, string $username): ?array
 {
   $stmt = $pdo->prepare('

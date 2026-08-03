@@ -452,25 +452,34 @@ if (($_POST['action'] ?? '') === 'update_opportunity') {
   }
 
   if ($newStatus === 'Proyecto entregado') {
-    $portal = crm_enable_client_portal($pdo, $opportunityId);
-    $emailSent = $portal['created'] && !empty($portal['password'])
-      ? crm_send_portal_credentials($portal['opportunity'], $portal['username'], $portal['password'])
-      : false;
-    $_SESSION['crm_flash'] = $portal['created']
-      ? [
-        'type' => 'success',
-        'title' => 'Proyecto entregado y Bitacora ID activada',
-        'text' => $emailSent ? 'Accesos generados y enviados al correo del cliente.' : 'Accesos generados. Si SMTP aun no esta activo, compartelos manualmente; la contrasena se muestra una sola vez.',
-        'username' => $portal['username'],
-        'password' => $portal['password'],
-      ]
-      : [
-        'type' => 'info',
-        'title' => 'Bitacora ID ya estaba activa',
-        'text' => 'El cliente ya tiene acceso activo al panel de mantenimiento.',
-        'username' => $portal['username'],
-        'password' => null,
+    try {
+      $portal = crm_enable_client_portal($pdo, $opportunityId);
+      $emailSent = $portal['created'] && !empty($portal['password'])
+        ? crm_send_portal_credentials($portal['opportunity'], $portal['username'], $portal['password'])
+        : false;
+      $_SESSION['crm_flash'] = $portal['created']
+        ? [
+          'type' => 'success',
+          'title' => 'Proyecto entregado y Bitacora ID activada',
+          'text' => $emailSent ? 'Accesos generados y enviados al correo del cliente.' : 'Accesos generados. Si SMTP aun no esta activo, compartelos manualmente; la contrasena se muestra una sola vez.',
+          'username' => $portal['username'],
+          'password' => $portal['password'],
+        ]
+        : [
+          'type' => 'info',
+          'title' => 'Bitacora ID ya estaba activa',
+          'text' => 'El cliente ya tiene acceso activo al panel de mantenimiento.',
+          'username' => $portal['username'],
+          'password' => null,
+        ];
+    } catch (Throwable $error) {
+      error_log('CRM portal activation failed: ' . $error->getMessage());
+      $_SESSION['crm_flash'] = [
+        'type' => 'error',
+        'title' => 'No se pudo activar Bitacora ID',
+        'text' => 'MySQL rechazo el guardado del usuario cliente: ' . $error->getMessage(),
       ];
+    }
   }
 
   $redirect = ($_POST['return_to'] ?? '') === 'opportunity' ? 'index.php?view=opportunity&id=' . $opportunityId : 'index.php?view=opportunities';
@@ -512,11 +521,17 @@ if (($_POST['action'] ?? '') === 'sync_portal_access') {
     ORDER BY o.updated_at DESC, o.created_at DESC
   ');
   $created = [];
+  $syncErrors = [];
   foreach ($pendingStmt->fetchAll() as $row) {
-    $portal = crm_enable_client_portal($pdo, (int) $row['id']);
-    $created[] = $portal;
-    if (!empty($portal['password'])) {
-      crm_send_portal_credentials($portal['opportunity'], $portal['username'], $portal['password']);
+    try {
+      $portal = crm_enable_client_portal($pdo, (int) $row['id']);
+      $created[] = $portal;
+      if (!empty($portal['password'])) {
+        crm_send_portal_credentials($portal['opportunity'], $portal['username'], $portal['password']);
+      }
+    } catch (Throwable $error) {
+      error_log('CRM portal sync failed for opportunity ' . (int) $row['id'] . ': ' . $error->getMessage());
+      $syncErrors[] = 'Oportunidad ' . (int) $row['id'] . ': ' . $error->getMessage();
     }
   }
 
@@ -534,9 +549,9 @@ if (($_POST['action'] ?? '') === 'sync_portal_access') {
 
   $lastPortal = count($created) === 1 ? $created[0] : null;
   $_SESSION['crm_flash'] = [
-    'type' => 'success',
-    'title' => 'Bitacoras pendientes activadas',
-    'text' => count($created) . ' acceso(s) persistidos en client_portal_users.',
+    'type' => $syncErrors ? 'error' : 'success',
+    'title' => $syncErrors ? 'Bitacoras con errores' : 'Bitacoras pendientes activadas',
+    'text' => count($created) . ' acceso(s) persistidos en client_portal_users.' . ($syncErrors ? ' Errores: ' . implode(' | ', $syncErrors) : ''),
     'username' => $lastPortal['username'] ?? null,
     'password' => $lastPortal['password'] ?? null,
     'credentials' => $credentials,
