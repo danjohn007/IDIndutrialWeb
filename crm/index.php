@@ -57,6 +57,49 @@ function crm_month_name(string $month): string
   return $months[$key] ?? $month;
 }
 
+function crm_chart_color(int $index): string
+{
+  $colors = ['#1b5f7a', '#d4a321', '#1f7a54', '#a64235', '#5c6f82', '#8a6900', '#2f7464', '#c0784d'];
+  return $colors[$index % count($colors)];
+}
+
+function crm_chart_total(array $items): int
+{
+  $total = 0;
+  foreach ($items as $item) {
+    $total += (int) (is_array($item) ? ($item['total'] ?? 0) : $item);
+  }
+  return $total;
+}
+
+function crm_chart_percent(int $value, int $total): int
+{
+  return $total > 0 ? (int) round(($value / $total) * 100) : 0;
+}
+
+function crm_conic_gradient(array $items): string
+{
+  $total = crm_chart_total($items);
+  if ($total <= 0) {
+    return 'conic-gradient(#e9e2d5 0deg 360deg)';
+  }
+
+  $start = 0.0;
+  $segments = [];
+  $index = 0;
+  foreach ($items as $item) {
+    $value = (int) (is_array($item) ? ($item['total'] ?? 0) : $item);
+    if ($value <= 0) {
+      $index++;
+      continue;
+    }
+    $end = $start + (($value / $total) * 360);
+    $segments[] = crm_chart_color($index) . ' ' . round($start, 2) . 'deg ' . round($end, 2) . 'deg';
+    $start = $end;
+    $index++;
+  }
+  return 'conic-gradient(' . implode(', ', $segments) . ')';
+}
 function crm_icon(string $name): string
 {
   $icons = [
@@ -247,6 +290,28 @@ if (empty($_SESSION['crm_user'])):
   </main>
   <script>
     (() => {
+      const menuToggle = document.querySelector('[data-menu-toggle]');
+      const menuClose = document.querySelector('[data-menu-close]');
+      const sidebar = document.getElementById('crm-sidebar');
+      const setMenu = (open) => {
+        document.body.classList.toggle('crm-menu-open', open);
+        if (menuToggle) {
+          menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          menuToggle.setAttribute('aria-label', open ? 'Cerrar menu' : 'Abrir menu');
+        }
+      };
+      if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', () => setMenu(!document.body.classList.contains('crm-menu-open')));
+      }
+      if (menuClose) {
+        menuClose.addEventListener('click', () => setMenu(false));
+      }
+      document.querySelectorAll('.crm-nav a').forEach((link) => {
+        link.addEventListener('click', () => setMenu(false));
+      });
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setMenu(false);
+      });
       const form = document.querySelector('[data-login-form]');
       const password = document.querySelector('[data-login-password]');
       const toggle = document.querySelector('[data-password-toggle]');
@@ -765,7 +830,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
 </head>
 <body class="crm-app">
   <div class="crm-shell">
-    <aside class="crm-sidebar">
+    <aside class="crm-sidebar" id="crm-sidebar">
       <div class="crm-brand">
         <img src="../assets/img/logo-idindustrial-small.webp" alt="ID Industrial" width="280" height="74">
         <div>
@@ -789,9 +854,13 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
       </div>
     </aside>
 
+        <button class="crm-menu-overlay" type="button" aria-label="Cerrar menu" data-menu-close></button>
+
     <main class="crm-main">
       <header class="crm-topbar">
-        <div>
+                <button class="crm-menu-toggle" type="button" aria-label="Abrir menu" aria-controls="crm-sidebar" aria-expanded="false" data-menu-toggle>
+          <span></span><span></span><span></span>
+        </button><div>
           <small>ID Industrial</small>
           <strong>CRM para servicios industriales</strong>
         </div>
@@ -830,30 +899,32 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
           </div>
 
           <div class="crm-grid crm-dashboard-grid">
-            <article class="crm-card crm-dashboard-card">
+            <article class="crm-card crm-dashboard-card crm-chart-card">
               <h2>Nuevos contactos</h2>
               <p>Distribucion mensual de oportunidades.</p>
-              <div class="crm-bars">
-                <?php foreach ($monthlyRows as $row): ?>
-                  <?php $width = (int) $row['total'] > 0 ? max(8, round(((int) $row['total'] / $maxOpportunityMonthlyTotal) * 100)) : 0; ?>
-                  <div class="crm-chart-row">
-                    <div class="crm-chart-row__label"><span><?php echo h(crm_month_name((string) $row['month'])); ?></span><strong><?php echo h($row['total']); ?></strong></div>
-                    <div class="crm-chart-row__track"><span style="width: <?php echo $width; ?>%"></span></div>
+              <div class="crm-month-chart crm-month-chart--dashboard">
+                <?php foreach ($monthlyRows as $index => $row): ?>
+                  <?php $height = (int) $row['total'] > 0 ? max(14, round(((int) $row['total'] / $maxOpportunityMonthlyTotal) * 100)) : 5; ?>
+                  <div class="crm-month-chart__bar">
+                    <span style="height: <?php echo $height; ?>%; background: <?php echo h(crm_chart_color((int) $index)); ?>"></span>
+                    <strong><?php echo h($row['total']); ?></strong>
+                    <small><?php echo h(crm_month_name((string) $row['month'])); ?></small>
                   </div>
                 <?php endforeach; ?>
               </div>
             </article>
-            <article class="crm-card crm-dashboard-card">
+            <article class="crm-card crm-dashboard-card crm-chart-card">
               <h2>Pipeline ID Industrial</h2>
               <p>Etapas reducidas para proyectos tecnicos.</p>
-              <div class="crm-bars">
-                <?php foreach ($statusRows as $row): ?>
-                  <?php $width = (int) $row['total'] > 0 ? max(8, round(((int) $row['total'] / $maxOpportunityStatusTotal) * 100)) : 0; ?>
-                  <div class="crm-chart-row">
-                    <div class="crm-chart-row__label"><span><?php echo h($row['status']); ?></span><strong><?php echo h($row['total']); ?></strong></div>
-                    <div class="crm-chart-row__track"><span style="width: <?php echo $width; ?>%"></span></div>
-                  </div>
-                <?php endforeach; ?>
+              <?php $pipelineTotal = crm_chart_total($statusRows); ?>
+              <div class="crm-donut-layout">
+                <div class="crm-donut" style="--chart: <?php echo h(crm_conic_gradient($statusRows)); ?>"><span><?php echo $pipelineTotal; ?></span><small>Oportunidades</small></div>
+                <div class="crm-chart-legend">
+                  <?php foreach ($statusRows as $index => $row): ?>
+                    <?php $value = (int) $row['total']; ?>
+                    <div><i style="background: <?php echo h(crm_chart_color((int) $index)); ?>"></i><span><?php echo h($row['status']); ?></span><strong><?php echo $value; ?> / <?php echo crm_chart_percent($value, $pipelineTotal); ?>%</strong></div>
+                  <?php endforeach; ?>
+                </div>
               </div>
             </article>
           </div>
@@ -1221,27 +1292,27 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             <div class="crm-report-grid">
               <article class="crm-card crm-chart-card">
                 <h2>Estatus de reportes</h2>
-                <div class="crm-chart-bars">
-                  <?php foreach ($requestStatusTotals as $status => $total): ?>
-                    <?php $percent = $total > 0 ? max(6, round(($total / $maxStatusTotal) * 100)) : 0; ?>
-                    <div class="crm-chart-row">
-                      <div class="crm-chart-row__label"><span><?php echo h($status); ?></span><strong><?php echo (int) $total; ?></strong></div>
-                      <div class="crm-chart-row__track"><span style="width: <?php echo $percent; ?>%"></span></div>
-                    </div>
-                  <?php endforeach; ?>
+                <?php $requestStatusTotal = crm_chart_total($requestStatusTotals); ?>
+                <div class="crm-donut-layout crm-donut-layout--stacked">
+                  <div class="crm-donut" style="--chart: <?php echo h(crm_conic_gradient($requestStatusTotals)); ?>"><span><?php echo $requestStatusTotal; ?></span><small>Reportes</small></div>
+                  <div class="crm-chart-legend">
+                    <?php $statusIndex = 0; foreach ($requestStatusTotals as $status => $total): ?>
+                      <div><i style="background: <?php echo h(crm_chart_color($statusIndex)); ?>"></i><span><?php echo h($status); ?></span><strong><?php echo (int) $total; ?> / <?php echo crm_chart_percent((int) $total, $requestStatusTotal); ?>%</strong></div>
+                    <?php $statusIndex++; endforeach; ?>
+                  </div>
                 </div>
               </article>
 
               <article class="crm-card crm-chart-card">
                 <h2>Prioridad</h2>
-                <div class="crm-chart-bars">
-                  <?php foreach ($requestPriorityTotals as $priority => $total): ?>
-                    <?php $percent = $total > 0 ? max(6, round(($total / $maxPriorityTotal) * 100)) : 0; ?>
-                    <div class="crm-chart-row">
-                      <div class="crm-chart-row__label"><span><?php echo h($priority); ?></span><strong><?php echo (int) $total; ?></strong></div>
-                      <div class="crm-chart-row__track"><span style="width: <?php echo $percent; ?>%"></span></div>
-                    </div>
-                  <?php endforeach; ?>
+                <?php $requestPriorityTotal = crm_chart_total($requestPriorityTotals); ?>
+                <div class="crm-donut-layout crm-donut-layout--stacked">
+                  <div class="crm-pie" style="--chart: <?php echo h(crm_conic_gradient($requestPriorityTotals)); ?>"><span><?php echo $requestPriorityTotal; ?></span><small>Solicitudes</small></div>
+                  <div class="crm-chart-legend">
+                    <?php $priorityIndex = 0; foreach ($requestPriorityTotals as $priority => $total): ?>
+                      <div><i style="background: <?php echo h(crm_chart_color($priorityIndex)); ?>"></i><span><?php echo h($priority); ?></span><strong><?php echo (int) $total; ?> / <?php echo crm_chart_percent((int) $total, $requestPriorityTotal); ?>%</strong></div>
+                    <?php $priorityIndex++; endforeach; ?>
+                  </div>
                 </div>
               </article>
 
@@ -1261,7 +1332,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             </div>
           </section>
 
-          <div class="crm-grid">
+          <div class="crm-stack crm-bitacora-stack">
             <article class="crm-card">
               <h2>Clientes con acceso</h2>
               <div class="crm-table-wrap">
@@ -1344,6 +1415,28 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
   </div>
   <script>
     (() => {
+      const adminMenuToggle = document.querySelector('[data-menu-toggle]');
+      const adminMenuClose = document.querySelector('[data-menu-close]');
+      const adminSidebar = document.getElementById('crm-sidebar');
+      const setAdminMenu = (open) => {
+        document.body.classList.toggle('crm-menu-open', open);
+        if (adminMenuToggle) {
+          adminMenuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          adminMenuToggle.setAttribute('aria-label', open ? 'Cerrar menu' : 'Abrir menu');
+        }
+      };
+      if (adminMenuToggle && adminSidebar) {
+        adminMenuToggle.addEventListener('click', () => setAdminMenu(!document.body.classList.contains('crm-menu-open')));
+      }
+      if (adminMenuClose) {
+        adminMenuClose.addEventListener('click', () => setAdminMenu(false));
+      }
+      document.querySelectorAll('.crm-nav a').forEach((link) => {
+        link.addEventListener('click', () => setAdminMenu(false));
+      });
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setAdminMenu(false);
+      });
       document.querySelectorAll('[data-password-toggle]').forEach((toggle) => {
         const targetId = toggle.getAttribute('aria-controls');
         const input = targetId ? document.getElementById(targetId) : null;

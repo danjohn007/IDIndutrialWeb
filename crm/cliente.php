@@ -54,6 +54,45 @@ function bitacora_request_next_step(string $status): string
   ];
   return $steps[$status] ?? 'Seguimiento en actualizacion.';
 }
+function bitacora_project_accesses(PDO $pdo, array $portal): array
+{
+  $clientId = (int) ($portal['client_id'] ?? 0);
+  if ($clientId > 0) {
+    $stmt = $pdo->prepare('
+      SELECT cpu.*, o.company_name, o.contact_name, o.contact_email, o.contact_phone, o.service, o.status AS opportunity_status, o.next_action_date, o.notes AS opportunity_notes, o.id AS opportunity_id, o.updated_at AS opportunity_updated_at, (SELECT COUNT(*) FROM maintenance_logs ml WHERE ml.opportunity_id = o.id AND ml.visible_to_client = 1) AS log_count, (SELECT COUNT(*) FROM client_requests cr WHERE cr.opportunity_id = o.id AND cr.portal_user_id = cpu.id) AS request_count
+      FROM client_portal_users cpu
+      JOIN opportunities o ON o.id = cpu.opportunity_id
+      WHERE cpu.client_id = ? AND cpu.is_active = 1
+      ORDER BY o.updated_at DESC, o.created_at DESC
+    ');
+    $stmt->execute([$clientId]);
+    $projects = $stmt->fetchAll();
+    if ($projects) {
+      return $projects;
+    }
+  }
+
+  $stmt = $pdo->prepare('
+    SELECT cpu.*, o.company_name, o.contact_name, o.contact_email, o.contact_phone, o.service, o.status AS opportunity_status, o.next_action_date, o.notes AS opportunity_notes, o.id AS opportunity_id, o.updated_at AS opportunity_updated_at, (SELECT COUNT(*) FROM maintenance_logs ml WHERE ml.opportunity_id = o.id AND ml.visible_to_client = 1) AS log_count, (SELECT COUNT(*) FROM client_requests cr WHERE cr.opportunity_id = o.id AND cr.portal_user_id = cpu.id) AS request_count
+    FROM client_portal_users cpu
+    JOIN opportunities o ON o.id = cpu.opportunity_id
+    WHERE cpu.id = ? AND cpu.is_active = 1
+    LIMIT 1
+  ');
+  $stmt->execute([(int) ($portal['id'] ?? 0)]);
+  $project = $stmt->fetch();
+  return $project ? [$project] : [];
+}
+
+function bitacora_select_project(array $projects, int $projectId): ?array
+{
+  foreach ($projects as $project) {
+    if ((int) $project['opportunity_id'] === $projectId) {
+      return $project;
+    }
+  }
+  return $projects[0] ?? null;
+}
 function bitacora_token(): string
 {
   if (empty($_SESSION['bitacora_token'])) {
@@ -90,6 +129,7 @@ if (($_POST['action'] ?? '') === 'client_login') {
       $_SESSION['bitacora_user'] = [
         'id' => (int) $portalUser['id'],
         'opportunity_id' => (int) $portalUser['opportunity_id'],
+        'client_id' => (int) ($portalUser['client_id'] ?? 0),
         'username' => $portalUser['username'],
         'company_name' => $portalUser['company_name'],
         'contact_name' => $portalUser['contact_name'],
@@ -184,10 +224,32 @@ exit;
 endif;
 
 $portal = $_SESSION['bitacora_user'];
+if (empty($portal['client_id'])) {
+  $refreshPortalStmt = $pdo->prepare('SELECT client_id FROM client_portal_users WHERE id = ? LIMIT 1');
+  $refreshPortalStmt->execute([(int) ($portal['id'] ?? 0)]);
+  $refreshClientId = (int) ($refreshPortalStmt->fetchColumn() ?: 0);
+  if ($refreshClientId > 0) {
+    $portal['client_id'] = $refreshClientId;
+    $_SESSION['bitacora_user']['client_id'] = $refreshClientId;
+  }
+}
 $requestPriorities = ['Baja', 'Media', 'Alta', 'Urgente'];
+$projectAccesses = bitacora_project_accesses($pdo, $portal);
+$selectedProjectId = max(0, (int) ($_POST['project_id'] ?? $_GET['project_id'] ?? $portal['opportunity_id'] ?? 0));
+$currentAccess = bitacora_select_project($projectAccesses, $selectedProjectId);
+if (!$currentAccess) {
+  unset($_SESSION['bitacora_user'], $_SESSION['bitacora_token']);
+  header('Location: cliente.php');
+  exit;
+}
 $notice = null;
 if (($_POST['action'] ?? '') === 'create_request') {
   bitacora_check_token();
+  $postedProjectId = max(0, (int) ($_POST['project_id'] ?? 0));
+  $postedAccess = bitacora_select_project($projectAccesses, $postedProjectId);
+  if ($postedAccess) {
+    $currentAccess = $postedAccess;
+  }
   $title = trim((string) ($_POST['title'] ?? ''));
   $message = trim((string) ($_POST['message'] ?? ''));
   $priority = trim((string) ($_POST['priority'] ?? 'Media'));
@@ -198,20 +260,24 @@ if (($_POST['action'] ?? '') === 'create_request') {
     $notice = ['type' => 'error', 'text' => 'Completa asunto y descripcion de la solicitud.'];
   } else {
     $stmt = $pdo->prepare('INSERT INTO client_requests (opportunity_id, portal_user_id, title, message, status, priority, due_date) VALUES (?, ?, ?, ?, "Recibida", ?, ?)');
-    $stmt->execute([(int) $portal['opportunity_id'], (int) $portal['id'], $title, $message, $priority, bitacora_request_due_date($priority)]);
-    $notice = ['type' => 'success', 'text' => 'Solicitud recibida. El equipo de ID Industrial dara seguimiento.'];
+    $stmt->execute([(int) $currentAccess['opportunity_id'], (int) $currentAccess['id'], $title, $message, $priority, bitacora_request_due_date($priority)]);
+    $notice = ['type' => 'success', 'text' => 'Solicitud recibida. El equipo de ID Industrial dara seguimiento por proyecto.'];
   }
 }
 
+$projectAccesses = bitacora_project_accesses($pdo, $portal);
+$currentAccess = bitacora_select_project($projectAccesses, (int) $currentAccess['opportunity_id']) ?: $currentAccess;
 $token = bitacora_token();
-$projectStmt = $pdo->prepare('SELECT * FROM opportunities WHERE id = ? LIMIT 1');
-$projectStmt->execute([(int) $portal['opportunity_id']]);
-$project = $projectStmt->fetch();
+$projects = $projectAccesses;
+$project = $currentAccess;
+$activeProject = $currentAccess;
+$activeOpportunityId = (int) $currentAccess['opportunity_id'];
+$activePortalUserId = (int) $currentAccess['id'];
 $logsStmt = $pdo->prepare('SELECT * FROM maintenance_logs WHERE opportunity_id = ? AND visible_to_client = 1 ORDER BY COALESCE(scheduled_date, created_at) DESC, id DESC');
-$logsStmt->execute([(int) $portal['opportunity_id']]);
+$logsStmt->execute([$activeOpportunityId]);
 $logs = $logsStmt->fetchAll();
-$requestsStmt = $pdo->prepare('SELECT * FROM client_requests WHERE portal_user_id = ? ORDER BY created_at DESC');
-$requestsStmt->execute([(int) $portal['id']]);
+$requestsStmt = $pdo->prepare('SELECT * FROM client_requests WHERE opportunity_id = ? AND portal_user_id = ? ORDER BY created_at DESC');
+$requestsStmt->execute([$activeOpportunityId, $activePortalUserId]);
 $requests = $requestsStmt->fetchAll();
 ?>
 <!doctype html>
@@ -220,7 +286,7 @@ $requests = $requestsStmt->fetchAll();
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>Bitacora ID | <?php echo h($portal['company_name']); ?></title>
+  <title>Bitacora ID | <?php echo h($project['company_name']); ?></title>
   <link rel="stylesheet" href="../assets/css/crm.css">
 </head>
 <body class="crm-app crm-client-app">
@@ -229,8 +295,8 @@ $requests = $requestsStmt->fetchAll();
       <div>
         <img src="../assets/img/logo-idindustrial-small.webp" alt="ID Industrial" width="280" height="74">
         <p class="eyebrow">Bitacora ID</p>
-        <h1><?php echo h($portal['company_name']); ?></h1>
-        <p><?php echo h($portal['service']); ?> - <?php echo h($project['status'] ?? 'Proyecto entregado'); ?></p>
+        <h1><?php echo h($project['company_name']); ?></h1>
+        <p><?php echo h($project['service']); ?> - <?php echo h($project['opportunity_status'] ?? 'Proyecto entregado'); ?> - <?php echo count($projects); ?> proyecto(s)</p>
       </div>
       <a class="crm-button crm-button--ghost" href="cliente.php?logout=1">Cerrar sesion</a>
     </header>
@@ -238,10 +304,30 @@ $requests = $requestsStmt->fetchAll();
     <?php if ($notice): ?><div class="crm-flash crm-flash--<?php echo h($notice['type']); ?>"><p><?php echo h($notice['text']); ?></p></div><?php endif; ?>
 
     <section class="crm-kpis">
-      <article class="crm-card crm-kpi"><span class="crm-kpi__icon">P</span><div><span>Proyecto</span><strong><?php echo h($project['status'] ?? 'Entregado'); ?></strong></div></article>
+      <article class="crm-card crm-kpi"><span class="crm-kpi__icon">P</span><div><span>Proyecto activo</span><strong><?php echo h($project['opportunity_status'] ?? 'Entregado'); ?></strong></div></article>
+      <article class="crm-card crm-kpi"><span class="crm-kpi__icon">#</span><div><span>Proyectos</span><strong><?php echo count($projects); ?></strong></div></article>
       <article class="crm-card crm-kpi"><span class="crm-kpi__icon">M</span><div><span>Registros</span><strong><?php echo count($logs); ?></strong></div></article>
       <article class="crm-card crm-kpi"><span class="crm-kpi__icon">S</span><div><span>Solicitudes</span><strong><?php echo count($requests); ?></strong></div></article>
-      <article class="crm-card crm-kpi"><span class="crm-kpi__icon">ID</span><div><span>Usuario</span><strong><?php echo h($portal['username']); ?></strong></div></article>
+    </section>
+
+    <section class="crm-card crm-client-projects">
+      <div class="crm-section-head">
+        <div>
+          <h2>Proyectos</h2>
+          <p>Selecciona un proyecto para consultar su bitacora y levantar solicitudes independientes.</p>
+        </div>
+        <code><?php echo h($activeProject['username']); ?></code>
+      </div>
+      <div class="crm-project-list">
+        <?php foreach ($projects as $projectOption): ?>
+          <?php $isActiveProject = (int) $projectOption['opportunity_id'] === $activeOpportunityId; ?>
+          <a class="crm-project-tile <?php echo $isActiveProject ? 'is-active' : ''; ?>" href="cliente.php?project_id=<?php echo (int) $projectOption['opportunity_id']; ?>">
+            <span class="crm-pill <?php echo h(bitacora_pill_class((string) ($projectOption['opportunity_status'] ?? 'Proyecto entregado'))); ?>"><?php echo h($projectOption['opportunity_status'] ?? 'Proyecto entregado'); ?></span>
+            <strong><?php echo h($projectOption['service']); ?></strong>
+            <small><?php echo (int) $projectOption['log_count']; ?> registros - <?php echo (int) $projectOption['request_count']; ?> solicitudes</small>
+          </a>
+        <?php endforeach; ?>
+      </div>
     </section>
 
     <section class="crm-grid">
@@ -265,6 +351,7 @@ $requests = $requestsStmt->fetchAll();
         <form class="crm-form" method="post">
           <input type="hidden" name="token" value="<?php echo h($token); ?>">
           <input type="hidden" name="action" value="create_request">
+          <input type="hidden" name="project_id" value="<?php echo (int) $activeOpportunityId; ?>">
           <label class="crm-field">Asunto<input name="title" required></label>
           <label class="crm-field">Prioridad
             <select name="priority">

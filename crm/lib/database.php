@@ -89,9 +89,18 @@ function crm_migrate(PDO $pdo): void
   }
 
   crm_ensure_columns($pdo);
+  crm_sync_portal_client_links($pdo);
 }
 
 
+function crm_sync_portal_client_links(PDO $pdo): void
+{
+  if (!crm_column_exists($pdo, 'client_portal_users', 'client_id')) {
+    return;
+  }
+
+  $pdo->exec('UPDATE client_portal_users SET client_id = (SELECT client_id FROM opportunities WHERE opportunities.id = client_portal_users.opportunity_id) WHERE client_id IS NULL');
+}
 function crm_column_exists(PDO $pdo, string $table, string $column): bool
 {
   if (crm_driver($pdo) === 'mysql') {
