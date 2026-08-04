@@ -3354,3 +3354,92 @@ button {
     display: none;
   }
 }
+/* MVP ventas y operacion */
+.crm-card-headline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.crm-web-leads {
+  margin-top: 22px;
+}
+
+.crm-web-lead {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.crm-web-lead strong,
+.crm-web-lead small {
+  min-width: 0;
+}
+
+.crm-opportunity-tools {
+  display: grid;
+  gap: 16px;
+}
+
+.crm-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-filter-tabs a {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--crm-line);
+  border-radius: 999px;
+  background: var(--crm-surface-soft);
+  color: var(--crm-muted);
+  padding: 0 14px;
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.crm-filter-tabs a.is-active,
+.crm-filter-tabs a:hover,
+.crm-filter-tabs a:focus-visible {
+  border-color: rgba(212, 163, 33, 0.48);
+  background: var(--crm-gold-soft);
+  color: #6e5200;
+  outline: 0;
+}
+
+.crm-search-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.crm-table--opportunities {
+  min-width: 980px;
+}
+
+.crm-request-alert {
+  margin: 12px 0 0;
+  border-left: 4px solid var(--crm-red);
+  border-radius: 6px;
+  background: #f7dfdb;
+  color: #7d2c23;
+  padding: 10px 12px;
+  font-weight: 760;
+}
+
+@media (max-width: 760px) {
+  .crm-card-headline,
+  .crm-search-form {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .crm-filter-tabs a,
+  .crm-search-form .crm-button {
+    width: 100%;
+    justify-content: center;
+  }
+}

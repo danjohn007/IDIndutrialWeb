@@ -3114,3 +3114,76 @@ p {
     margin-top: 72px;
   }
 }
+
+/* MVP ventas y conversion */
+.contact__copy {
+  grid-row: 1 / span 2;
+}
+
+.next-steps {
+  grid-column: 2;
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(17, 19, 22, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: clamp(16px, 2vw, 22px);
+  box-shadow: 0 14px 32px rgba(17, 19, 22, 0.08);
+}
+
+.next-steps > span {
+  color: #8a6900;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.next-steps__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.next-steps__grid strong {
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(17, 19, 22, 0.1);
+  border-radius: 6px;
+  background: #111316;
+  color: var(--yellow-strong);
+  padding: 8px;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.form-fallback {
+  width: fit-content;
+  border-bottom: 1px solid currentColor;
+  color: #176238;
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+@media (max-width: 860px) {
+  .contact__copy,
+  .next-steps,
+  .contact-form {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .next-steps__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contact-form {
+    border-radius: 18px;
+    padding: 20px;
+  }
+}

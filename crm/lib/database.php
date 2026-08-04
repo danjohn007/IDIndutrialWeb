@@ -920,7 +920,7 @@ function crm_find_or_create_prospect_client(PDO $pdo, array $data): int
   return (int) $pdo->lastInsertId();
 }
 
-function crm_capture_public_lead(array $data): bool
+function crm_capture_public_lead(array $data): ?int
 {
   try {
     $pdo = crm_db();

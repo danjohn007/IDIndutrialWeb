@@ -181,6 +181,21 @@ function crm_pill_class(string $value): string
   return 'crm-pill--neutral';
 }
 
+function crm_opportunity_age_label(string $date): string
+{
+  $timestamp = strtotime($date) ?: time();
+  $days = max(0, (int) floor((time() - $timestamp) / 86400));
+  if ($days === 0) {
+    return 'Hoy';
+  }
+  return 'Hace ' . $days . ' dia' . ($days === 1 ? '' : 's');
+}
+
+function crm_report_priority_rank(string $priority): int
+{
+  $rank = ['Urgente' => 0, 'Alta' => 1, 'Media' => 2, 'Baja' => 3];
+  return $rank[$priority] ?? 4;
+}
 function crm_require_login(): void
 {
   if (empty($_SESSION['crm_user'])) {
@@ -771,12 +786,56 @@ $counts = [
 ];
 $quoteTotal = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM quotes WHERE status NOT IN ('Perdida')")->fetchColumn();
 $wonTotal = (float) $pdo->query("SELECT COALESCE(SUM(estimated_value), 0) FROM opportunities WHERE status IN ('Proyecto ganado', 'Proyecto iniciado', 'Proyecto entregado')")->fetchColumn();
-$opportunities = $pdo->query('
+$opportunityFilter = (string) ($_GET['filter'] ?? 'all');
+$opportunityAllowedFilters = ['all', 'new', 'today', 'quote', 'started', 'delivered'];
+if (!in_array($opportunityFilter, $opportunityAllowedFilters, true)) {
+  $opportunityFilter = 'all';
+}
+$opportunitySearch = trim((string) ($_GET['q'] ?? ''));
+$opportunityWhere = [];
+$opportunityParams = [];
+if ($opportunityFilter === 'new') {
+  $opportunityWhere[] = 'o.status = ?';
+  $opportunityParams[] = 'Nueva solicitud';
+} elseif ($opportunityFilter === 'today') {
+  $opportunityWhere[] = '(o.next_action_date IS NOT NULL AND o.next_action_date <= ? AND o.status NOT IN ("Proyecto perdido", "Proyecto entregado"))';
+  $opportunityParams[] = date('Y-m-d');
+} elseif ($opportunityFilter === 'quote') {
+  $opportunityWhere[] = '(o.status IN ("Cotizacion enviada", "Ingenieria en desarrollo", "Seguimiento") OR EXISTS (SELECT 1 FROM quotes qf WHERE qf.opportunity_id = o.id AND qf.status NOT IN ("Aprobada", "Perdida")))';
+} elseif ($opportunityFilter === 'started') {
+  $opportunityWhere[] = 'o.status = ?';
+  $opportunityParams[] = 'Proyecto iniciado';
+} elseif ($opportunityFilter === 'delivered') {
+  $opportunityWhere[] = 'o.status = ?';
+  $opportunityParams[] = 'Proyecto entregado';
+}
+if ($opportunitySearch !== '') {
+  $opportunityWhere[] = '(o.company_name LIKE ? OR o.contact_name LIKE ? OR o.contact_email LIKE ? OR o.contact_phone LIKE ? OR o.service LIKE ?)';
+  $searchTerm = '%' . $opportunitySearch . '%';
+  array_push($opportunityParams, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+}
+$opportunitySql = '
   SELECT o.*, cpu.username AS portal_username, cpu.is_active AS portal_active
   FROM opportunities o
   LEFT JOIN client_portal_users cpu ON cpu.opportunity_id = o.id
-  ORDER BY o.updated_at DESC, o.created_at DESC
+';
+if ($opportunityWhere) {
+  $opportunitySql .= ' WHERE ' . implode(' AND ', $opportunityWhere);
+}
+$opportunitySql .= '
+  ORDER BY CASE WHEN o.source = "Formulario web" AND o.status = "Nueva solicitud" THEN 0 ELSE 1 END, o.updated_at DESC, o.created_at DESC
+';
+$opportunityStmt = $pdo->prepare($opportunitySql);
+$opportunityStmt->execute($opportunityParams);
+$opportunities = $opportunityStmt->fetchAll();
+$webLeadsRecent = $pdo->query('
+  SELECT id, company_name, contact_name, contact_email, contact_phone, service, priority, status, next_action_date, created_at
+  FROM opportunities
+  WHERE source = "Formulario web"
+  ORDER BY created_at DESC, id DESC
+  LIMIT 6
 ')->fetchAll();
+$webLeadPendingCount = (int) $pdo->query('SELECT COUNT(*) FROM opportunities WHERE source = "Formulario web" AND status = "Nueva solicitud"')->fetchColumn();
 $selectedOpportunity = null;
 $selectedOpportunityQuotes = [];
 $selectedOpportunityActivities = [];
@@ -857,6 +916,28 @@ $clientRequests = $pdo->query('
   JOIN client_portal_users cpu ON cpu.id = cr.portal_user_id
   ORDER BY cr.created_at DESC
 ')->fetchAll();
+usort($clientRequests, static function (array $a, array $b): int {
+  $priorityA = trim((string) ($a['priority'] ?? 'Media')) ?: 'Media';
+  $priorityB = trim((string) ($b['priority'] ?? 'Media')) ?: 'Media';
+  $rankCompare = crm_report_priority_rank($priorityA) <=> crm_report_priority_rank($priorityB);
+  if ($rankCompare !== 0) {
+    return $rankCompare;
+  }
+  $statusA = trim((string) ($a['status'] ?? 'Recibida')) ?: 'Recibida';
+  $statusB = trim((string) ($b['status'] ?? 'Recibida')) ?: 'Recibida';
+  $dueA = trim((string) ($a['due_date'] ?? '')) ?: crm_request_due_date($priorityA, (string) ($a['created_at'] ?? 'now'));
+  $dueB = trim((string) ($b['due_date'] ?? '')) ?: crm_request_due_date($priorityB, (string) ($b['created_at'] ?? 'now'));
+  $overdueA = !crm_request_is_final($statusA) && $dueA !== '' && $dueA < date('Y-m-d');
+  $overdueB = !crm_request_is_final($statusB) && $dueB !== '' && $dueB < date('Y-m-d');
+  if ($overdueA !== $overdueB) {
+    return $overdueA ? -1 : 1;
+  }
+  $dueCompare = strcmp($dueA ?: '9999-12-31', $dueB ?: '9999-12-31');
+  if ($dueCompare !== 0) {
+    return $dueCompare;
+  }
+  return (strtotime((string) ($b['created_at'] ?? 'now')) ?: 0) <=> (strtotime((string) ($a['created_at'] ?? 'now')) ?: 0);
+});
 $adminUnreadNotifications = crm_unread_notification_count($pdo, 'admin');
 $adminNotifications = crm_recent_notifications($pdo, 'admin', null, 12);
 $requestStatusTotals = array_fill_keys($requestStatuses, 0);
@@ -866,8 +947,10 @@ $maintenanceMetrics = [
   'total' => count($clientRequests),
   'open' => 0,
   'urgent' => 0,
+  'new' => 0,
   'resolved' => 0,
   'answered' => 0,
+  'unanswered' => 0,
   'scheduled' => 0,
   'overdue' => 0,
 ];
@@ -888,6 +971,12 @@ foreach ($clientRequests as $request) {
   }
   $requestStatusTotals[$requestStatus]++;
   $requestPriorityTotals[$requestPriority]++;
+  if ($requestStatus === 'Recibida') {
+    $maintenanceMetrics['new']++;
+  }
+  if (!crm_request_is_final($requestStatus) && trim((string) ($request['admin_response'] ?? '')) === '') {
+    $maintenanceMetrics['unanswered']++;
+  }
 
   if (!crm_request_is_final($requestStatus)) {
     $maintenanceMetrics['open']++;
@@ -1063,6 +1152,26 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             </article>
           </div>
 
+          <article class="crm-card crm-web-leads">
+            <div class="crm-card-headline">
+              <div>
+                <h2>Leads web recientes</h2>
+                <p><?php echo $webLeadPendingCount; ?> solicitudes web nuevas esperan primer contacto.</p>
+              </div>
+              <a class="crm-button crm-button--ghost" href="index.php?view=opportunities&filter=new">Ver nuevas</a>
+            </div>
+            <div class="crm-list crm-list--compact">
+              <?php foreach ($webLeadsRecent as $lead): ?>
+                <a class="crm-list__item crm-web-lead" href="index.php?view=opportunity&id=<?php echo (int) $lead['id']; ?>">
+                  <span class="crm-pill <?php echo h(crm_pill_class((string) $lead['priority'])); ?>"><?php echo h($lead['priority']); ?></span>
+                  <strong><?php echo h($lead['company_name']); ?></strong>
+                  <small><?php echo h($lead['service']); ?> - <?php echo h(crm_opportunity_age_label((string) $lead['created_at'])); ?></small>
+                  <small>Siguiente accion: <?php echo h($lead['next_action_date'] ?: 'Sin fecha'); ?></small>
+                </a>
+              <?php endforeach; ?>
+              <?php if (!$webLeadsRecent): ?><p>No hay leads web registrados todavia.</p><?php endif; ?>
+            </div>
+          </article>
           <div class="crm-kpis crm-kpis--secondary crm-dashboard-alerts">
             <article class="crm-card"><h2>Venta ganada</h2><p><?php echo crm_money($wonTotal); ?></p></article>
             <article class="crm-card"><h2>Modelo comercial</h2><p>Levantamiento, ingenieria, propuesta, seguimiento y cierre.</p></article>
@@ -1099,23 +1208,44 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             </form>
           </article>
 
+          <article class="crm-card crm-opportunity-tools">
+            <div class="crm-filter-tabs" aria-label="Filtros rapidos de oportunidades">
+              <?php $quickFilters = ['all' => 'Todas', 'new' => 'Nuevas', 'today' => 'Hoy / vencidas', 'quote' => 'Cotizacion', 'started' => 'Proyecto iniciado', 'delivered' => 'Proyecto entregado']; ?>
+              <?php foreach ($quickFilters as $filterKey => $filterLabel): ?>
+                <a class="<?php echo $opportunityFilter === $filterKey ? 'is-active' : ''; ?>" href="index.php?view=opportunities&filter=<?php echo h($filterKey); ?><?php echo $opportunitySearch !== '' ? '&q=' . rawurlencode($opportunitySearch) : ''; ?>"><?php echo h($filterLabel); ?></a>
+              <?php endforeach; ?>
+            </div>
+            <form class="crm-search-form" method="get">
+              <input type="hidden" name="view" value="opportunities">
+              <input type="hidden" name="filter" value="<?php echo h($opportunityFilter); ?>">
+              <label class="crm-field">Buscar por empresa, contacto, correo, telefono o servicio
+                <input name="q" value="<?php echo h($opportunitySearch); ?>" placeholder="Ej. HVAC, compras@empresa.com, 442...">
+              </label>
+              <button class="crm-button" type="submit">Buscar</button>
+              <?php if ($opportunitySearch !== ''): ?><a class="crm-button crm-button--ghost" href="index.php?view=opportunities&filter=<?php echo h($opportunityFilter); ?>">Limpiar</a><?php endif; ?>
+            </form>
+          </article>
+
           <article class="crm-card">
             <h2>Seguimiento activo</h2>
             <div class="crm-table-wrap">
-              <table class="crm-table crm-table--compact">
-                <thead><tr><th>Empresa</th><th>Contacto</th><th>Servicio</th><th>Estatus</th><th>Ver</th></tr></thead>
+              <table class="crm-table crm-table--compact crm-table--opportunities">
+                <thead><tr><th>Empresa</th><th>Contacto</th><th>Servicio</th><th>Siguiente accion</th><th>Prioridad</th><th>Estatus</th><th>Ver</th></tr></thead>
                 <tbody>
                   <?php foreach ($opportunities as $opportunity): ?>
+                    <?php $nextAction = trim((string) ($opportunity['next_action_date'] ?? '')); ?>
                     <tr>
-                      <td><strong><?php echo h($opportunity['company_name']); ?></strong><br><small><?php echo h($opportunity['source']); ?></small></td>
-                      <td><?php echo h($opportunity['contact_name']); ?><br><small><?php echo h($opportunity['contact_phone']); ?></small></td>
+                      <td><strong><?php echo h($opportunity['company_name']); ?></strong><br><small><?php echo h($opportunity['source']); ?> - <?php echo h(crm_opportunity_age_label((string) $opportunity['created_at'])); ?></small></td>
+                      <td><?php echo h($opportunity['contact_name']); ?><br><small><?php echo h($opportunity['contact_phone'] ?: $opportunity['contact_email']); ?></small></td>
                       <td><?php echo h($opportunity['service']); ?></td>
+                      <td><strong><?php echo h($nextAction ?: 'Sin fecha'); ?></strong><br><small><?php echo $nextAction !== '' && $nextAction <= date('Y-m-d') ? 'Atender hoy' : 'Programada'; ?></small></td>
+                      <td><span class="crm-pill <?php echo h(crm_pill_class((string) $opportunity['priority'])); ?>"><?php echo h($opportunity['priority']); ?></span></td>
                       <td><span class="crm-pill <?php echo h(crm_pill_class((string) $opportunity['status'])); ?>"><?php echo h($opportunity['status']); ?></span></td>
                       <td><a class="crm-button crm-button--ghost" href="index.php?view=opportunity&id=<?php echo (int) $opportunity['id']; ?>">Ver</a></td>
                     </tr>
                   <?php endforeach; ?>
                   <?php if (!$opportunities): ?>
-                    <tr><td colspan="5">Aun no hay oportunidades registradas.</td></tr>
+                    <tr><td colspan="7">No hay oportunidades con este filtro.</td></tr>
                   <?php endif; ?>
                 </tbody>
               </table>
@@ -1415,12 +1545,12 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             </div>
 
             <div class="crm-kpis crm-kpis--secondary">
-              <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('reports'); ?></span><div><span>Reportes totales</span><strong><?php echo $maintenanceMetrics['total']; ?></strong></div></article>
-              <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('open'); ?></span><div><span>Abiertos</span><strong><?php echo $maintenanceMetrics['open']; ?></strong></div></article>
-              <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('scheduled'); ?></span><div><span>Programados</span><strong><?php echo $maintenanceMetrics['scheduled']; ?></strong></div></article>
+              <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('reports'); ?></span><div><span>Reportes nuevos</span><strong><?php echo $maintenanceMetrics['new']; ?></strong></div></article>
               <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('overdue'); ?></span><div><span>Vencidos</span><strong><?php echo $maintenanceMetrics['overdue']; ?></strong></div></article>
               <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('urgent'); ?></span><div><span>Urgentes</span><strong><?php echo $maintenanceMetrics['urgent']; ?></strong></div></article>
-              <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('response'); ?></span><div><span>Con respuesta</span><strong><?php echo $maintenanceMetrics['response_rate']; ?>%</strong></div></article>
+              <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('response'); ?></span><div><span>Sin respuesta</span><strong><?php echo $maintenanceMetrics['unanswered']; ?></strong></div></article>
+              <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('open'); ?></span><div><span>Abiertos</span><strong><?php echo $maintenanceMetrics['open']; ?></strong></div></article>
+              <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo crm_icon('scheduled'); ?></span><div><span>Programados</span><strong><?php echo $maintenanceMetrics['scheduled']; ?></strong></div></article>
             </div>
 
             <div class="crm-report-grid">
@@ -1495,7 +1625,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                       <span><strong>Prioridad</strong><?php echo h($notification['request_priority'] ?: 'Media'); ?></span>
                     </div>
                     <div class="crm-notification-actions">
-                      <?php if (!empty($notification['target_url'])): ?><a class="crm-button" href="<?php echo h($notification['target_url']); ?>">Atender reporte</a><?php endif; ?>
+                      <?php if (!empty($notification['target_url'])): ?><a class="crm-button" href="<?php echo h($notification['target_url']); ?>"><?php echo ($notification['event_type'] ?? '') === 'web_lead_received' ? 'Abrir oportunidad' : 'Atender reporte'; ?></a><?php endif; ?>
                       <?php if ($notificationIsUnread): ?>
                         <form method="post">
                           <input type="hidden" name="token" value="<?php echo h($token); ?>">
@@ -1566,6 +1696,9 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                       <span><strong>Programada</strong><?php echo h($requestScheduledDate ?: 'Sin fecha'); ?></span>
                       <span><strong>Responsable</strong><?php echo h($requestAssignedTo ?: 'Sin asignar'); ?></span>
                     </div>
+                    <?php if ($requestIsOverdue || $requestPriority === 'Urgente'): ?>
+                      <p class="crm-request-alert"><strong>Atencion prioritaria:</strong> <?php echo $requestIsOverdue ? 'Reporte vencido. ' : ''; ?><?php echo $requestPriority === 'Urgente' ? 'Prioridad urgente.' : ''; ?></p>
+                    <?php endif; ?>
                     <p class="crm-request-next"><strong>Siguiente accion:</strong> <?php echo h(crm_request_next_step($requestStatus)); ?></p>
                     <?php if (!empty($request['admin_response'])): ?><div class="crm-response"><strong>Respuesta actual</strong><p><?php echo h($request['admin_response']); ?></p></div><?php endif; ?>
                     <div class="crm-form-grid crm-form-grid--request">

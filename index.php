@@ -6,6 +6,7 @@ $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
 $currentSection = 'inicio';
+require_once __DIR__ . '/crm/lib/database.php';
 
 $title = 'Infraestructura industrial en Querétaro | ID Industrial';
 $description = 'Ingeniería industrial en Querétaro para cableado estructurado, fibra óptica, CCTV, control de accesos, detección de incendios y sistemas HVAC.';
@@ -13,6 +14,11 @@ $keywords = 'ID Industrial, infraestructura industrial Querétaro, cableado estr
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
 $canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/sistema/' : $requestPath);
 $publicClients = [];
+try {
+  $publicClients = crm_public_clients();
+} catch (Throwable $error) {
+  error_log('Public clients unavailable: ' . $error->getMessage());
+}
 
 function idindustrial_mobile_image($image)
 {
@@ -229,14 +235,42 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if ($formErrors) {
       $formStatus = ['type' => 'error', 'text' => 'Revisa los campos marcados para enviar tu solicitud.'];
     } else {
+      $leadData = [
+        'company_name' => $formData['name'],
+        'contact_name' => $formData['name'],
+        'contact_email' => $formData['email'],
+        'contact_phone' => $formData['phone'],
+        'service' => $formData['service'],
+        'notes' => $formData['message'],
+      ];
+      $opportunityId = crm_capture_public_lead($leadData);
+      if ($opportunityId) {
+        try {
+          $notificationService = $formData['service'] !== '' ? $formData['service'] : 'servicio por definir';
+          crm_create_notification(crm_db(), [
+            'recipient_type' => 'admin',
+            'opportunity_id' => $opportunityId,
+            'event_type' => 'web_lead_received',
+            'title' => 'Nuevo lead web',
+            'message' => $formData['name'] . ' solicito ' . $notificationService . ' desde el formulario publico.',
+            'target_url' => 'index.php?view=opportunity&id=' . $opportunityId,
+          ]);
+        } catch (Throwable $error) {
+          error_log('CRM web lead notification failed: ' . $error->getMessage());
+        }
+      }
+
       $subject = 'Nueva solicitud desde idindustrial.com.mx';
-      $body = "Nombre: {$formData['name']}\nCorreo: {$formData['email']}\nTeléfono: {$formData['phone']}\nServicio de interés: {$formData['service']}\n\nMensaje:\n{$formData['message']}";
-      $headers = "From: {$contactEmail}\r\nReply-To: {$formData['email']}\r\nContent-Type: text/plain; charset=UTF-8";
-      $sent = @mail($contactEmail, $subject, $body, $headers);
-      $crmCaptured = false;
-      $formStatus = ($sent || $crmCaptured)
-        ? ['type' => 'ok', 'text' => 'Gracias. Recibimos tu solicitud y te contactaremos para preparar la cotizacion.']
-        : ['type' => 'error', 'text' => 'No se pudo registrar desde el servidor. Escríbenos por WhatsApp y te atendemos.'];
+      $body = "Nombre: {$formData['name']}\nCorreo: {$formData['email']}\nTelefono: {$formData['phone']}\nServicio de interes: {$formData['service']}\n\nMensaje:\n{$formData['message']}";
+      $emailSent = crm_send_email($contactEmail, $subject, $body);
+
+      if ($opportunityId) {
+        $formStatus = ['type' => 'ok', 'text' => 'Listo. Registramos tu solicitud y te contactaremos para preparar la cotizacion.'];
+      } elseif ($emailSent) {
+        $formStatus = ['type' => 'ok', 'text' => 'Recibimos tu solicitud por correo. Si es urgente, tambien puedes escribirnos por WhatsApp.'];
+      } else {
+        $formStatus = ['type' => 'error', 'text' => 'No se pudo registrar desde el servidor. Escribenos por WhatsApp y te atendemos.'];
+      }
     }
   }
 }
@@ -353,7 +387,7 @@ include __DIR__ . '/includes/navbar.php';
             <span><?php echo htmlspecialchars($item['title']); ?></span>
             <p><?php echo htmlspecialchars($item['copy']); ?></p>
             <small><?php echo htmlspecialchars($item['application']); ?></small>
-            <a class="service-card__more" href="<?php echo htmlspecialchars($item['href']); ?>" aria-label="<?php echo htmlspecialchars($item['linkText']); ?>"><?php echo htmlspecialchars($item['linkText']); ?></a>
+            <a class="service-card__more" href="#cotizacion" aria-label="Cotizar <?php echo htmlspecialchars($item['title']); ?>">Cotizar este servicio</a>
           </article>
         <?php endforeach; ?>
       </div>
@@ -492,6 +526,15 @@ include __DIR__ . '/includes/navbar.php';
         </div>
       </div>
 
+      <div class="next-steps reveal" aria-label="Que pasa despues">
+        <span>Que pasa despues</span>
+        <div class="next-steps__grid">
+          <strong>Diagnostico</strong>
+          <strong>Llamada</strong>
+          <strong>Visita tecnica</strong>
+          <strong>Propuesta</strong>
+        </div>
+      </div>
       <form id="cotizacion" class="contact-form reveal reveal--delay" action="index.php#cotizacion" method="post" data-contact-form novalidate>
         <div class="form-head">
           <span>Solicitud técnica</span>
@@ -500,6 +543,7 @@ include __DIR__ . '/includes/navbar.php';
         </div>
         <?php if ($formStatus): ?>
           <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="status"><?php echo htmlspecialchars($formStatus['text']); ?></p>
+          <?php if ($formStatus['type'] === 'error'): ?><a class="form-fallback" href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20solicitar%20una%20evaluacion%20tecnica" target="_blank" rel="noopener noreferrer">Continuar por WhatsApp</a><?php endif; ?>
         <?php endif; ?>
         <div class="form-row">
           <label for="contact-name">
