@@ -147,6 +147,83 @@ function crm_index_exists(PDO $pdo, string $table, string $index): bool
   }
 }
 
+function crm_create_notification(PDO $pdo, array $data): void
+{
+  $stmt = $pdo->prepare('
+    INSERT INTO notifications
+      (recipient_type, recipient_user_id, portal_user_id, opportunity_id, client_request_id, event_type, title, message, target_url)
+    VALUES
+      (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ');
+  $stmt->execute([
+    (string) ($data['recipient_type'] ?? 'admin'),
+    isset($data['recipient_user_id']) ? (int) $data['recipient_user_id'] : null,
+    isset($data['portal_user_id']) ? (int) $data['portal_user_id'] : null,
+    isset($data['opportunity_id']) ? (int) $data['opportunity_id'] : null,
+    isset($data['client_request_id']) ? (int) $data['client_request_id'] : null,
+    (string) ($data['event_type'] ?? 'general'),
+    substr((string) ($data['title'] ?? 'Notificacion'), 0, 190),
+    (string) ($data['message'] ?? ''),
+    (string) ($data['target_url'] ?? ''),
+  ]);
+}
+
+function crm_notification_scope(string $recipientType, ?int $portalUserId = null): array
+{
+  $where = ['n.recipient_type = ?'];
+  $params = [$recipientType];
+  if ($recipientType === 'client') {
+    $where[] = 'n.portal_user_id = ?';
+    $params[] = (int) $portalUserId;
+  }
+  return [$where, $params];
+}
+
+function crm_unread_notification_count(PDO $pdo, string $recipientType, ?int $portalUserId = null): int
+{
+  [$where, $params] = crm_notification_scope($recipientType, $portalUserId);
+  $where[] = 'n.is_read = 0';
+  $stmt = $pdo->prepare('SELECT COUNT(*) FROM notifications n WHERE ' . implode(' AND ', $where));
+  $stmt->execute($params);
+  return (int) $stmt->fetchColumn();
+}
+
+function crm_recent_notifications(PDO $pdo, string $recipientType, ?int $portalUserId = null, int $limit = 20): array
+{
+  [$where, $params] = crm_notification_scope($recipientType, $portalUserId);
+  $limit = max(1, min(60, $limit));
+  $stmt = $pdo->prepare('
+    SELECT n.*, cr.status AS request_status, cr.priority AS request_priority, o.company_name, o.service
+    FROM notifications n
+    LEFT JOIN client_requests cr ON cr.id = n.client_request_id
+    LEFT JOIN opportunities o ON o.id = n.opportunity_id
+    WHERE ' . implode(' AND ', $where) . '
+    ORDER BY n.is_read ASC, n.created_at DESC, n.id DESC
+    LIMIT ' . $limit
+  );
+  $stmt->execute($params);
+  return $stmt->fetchAll();
+}
+
+function crm_mark_notification_read(PDO $pdo, int $notificationId, string $recipientType, ?int $portalUserId = null): void
+{
+  [$where, $params] = crm_notification_scope($recipientType, $portalUserId);
+  $where[] = 'n.id = ?';
+  $where = array_map(static fn(string $clause): string => str_replace('n.', '', $clause), $where);
+  $params[] = $notificationId;
+  $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE ' . implode(' AND ', $where));
+  $stmt->execute($params);
+}
+
+function crm_mark_all_notifications_read(PDO $pdo, string $recipientType, ?int $portalUserId = null): void
+{
+  [$where, $params] = crm_notification_scope($recipientType, $portalUserId);
+  $where[] = 'n.is_read = 0';
+  $where = array_map(static fn(string $clause): string => str_replace('n.', '', $clause), $where);
+  $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1, read_at = CURRENT_TIMESTAMP WHERE ' . implode(' AND ', $where));
+  $stmt->execute($params);
+}
+
 function crm_login_settings(): array
 {
   return [
@@ -496,6 +573,25 @@ function crm_migrate_sqlite(PDO $pdo): void
       FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recipient_type TEXT NOT NULL,
+      recipient_user_id INTEGER,
+      portal_user_id INTEGER,
+      opportunity_id INTEGER,
+      client_request_id INTEGER,
+      event_type TEXT NOT NULL DEFAULT 'general',
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      target_url TEXT,
+      is_read INTEGER NOT NULL DEFAULT 0,
+      read_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE,
+      FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+      FOREIGN KEY (client_request_id) REFERENCES client_requests(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS login_attempts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       area TEXT NOT NULL,
@@ -516,6 +612,8 @@ function crm_migrate_sqlite(PDO $pdo): void
     CREATE INDEX IF NOT EXISTS idx_maintenance_logs_opportunity ON maintenance_logs(opportunity_id, scheduled_date);
     CREATE INDEX IF NOT EXISTS idx_client_requests_portal ON client_requests(portal_user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_client_requests_status ON client_requests(status, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_type, portal_user_id, is_read, created_at);
+    CREATE INDEX IF NOT EXISTS idx_notifications_request ON notifications(client_request_id);
     CREATE INDEX IF NOT EXISTS idx_login_attempts_locked ON login_attempts(locked_until);
   ");
 }
@@ -667,6 +765,29 @@ function crm_migrate_mysql(PDO $pdo): void
       CONSTRAINT fk_client_requests_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
       CONSTRAINT fk_client_requests_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      recipient_type VARCHAR(20) NOT NULL,
+      recipient_user_id INT UNSIGNED NULL,
+      portal_user_id INT UNSIGNED NULL,
+      opportunity_id INT UNSIGNED NULL,
+      client_request_id INT UNSIGNED NULL,
+      event_type VARCHAR(80) NOT NULL DEFAULT 'general',
+      title VARCHAR(190) NOT NULL,
+      message TEXT NOT NULL,
+      target_url VARCHAR(255) NULL,
+      is_read TINYINT(1) NOT NULL DEFAULT 0,
+      read_at DATETIME NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_notifications_recipient (recipient_type, portal_user_id, is_read, created_at),
+      KEY idx_notifications_request (client_request_id),
+      KEY idx_notifications_opportunity (opportunity_id),
+      CONSTRAINT fk_notifications_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE,
+      CONSTRAINT fk_notifications_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+      CONSTRAINT fk_notifications_request FOREIGN KEY (client_request_id) REFERENCES client_requests(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
     CREATE TABLE IF NOT EXISTS login_attempts (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       area VARCHAR(30) NOT NULL,
@@ -1233,3 +1354,4 @@ function crm_update_portal_last_login(PDO $pdo, int $portalUserId): void
   $stmt = $pdo->prepare('UPDATE client_portal_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?');
   $stmt->execute([$portalUserId]);
 }
+

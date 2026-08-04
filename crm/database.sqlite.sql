@@ -109,3 +109,24 @@ CREATE TABLE IF NOT EXISTS client_requests (
   FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
   FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  recipient_type TEXT NOT NULL,
+  recipient_user_id INTEGER,
+  portal_user_id INTEGER,
+  opportunity_id INTEGER,
+  client_request_id INTEGER,
+  event_type TEXT NOT NULL DEFAULT 'general',
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  target_url TEXT,
+  is_read INTEGER NOT NULL DEFAULT 0,
+  read_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE,
+  FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
+  FOREIGN KEY (client_request_id) REFERENCES client_requests(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_type, portal_user_id, is_read, created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_request ON notifications(client_request_id);

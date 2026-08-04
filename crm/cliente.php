@@ -28,6 +28,7 @@ function bitacora_icon(string $name): string
     'logout' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5"/><path d="M14 8l4 4-4 4"/><path d="M9 12h9"/></svg>',
     'menu' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>',
     'check' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
+    'bell' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
   ];
   return $icons[$name] ?? $icons['dashboard'];
 }
@@ -111,7 +112,7 @@ function bitacora_select_project(array $projects, int $projectId): ?array
 }
 function bitacora_client_url(string $view, int $projectId = 0): string
 {
-  $allowedViews = ['resumen', 'proyectos', 'bitacora', 'solicitudes', 'perfil'];
+  $allowedViews = ['resumen', 'proyectos', 'bitacora', 'solicitudes', 'notificaciones', 'perfil'];
   $params = ['view' => in_array($view, $allowedViews, true) ? $view : 'resumen'];
   if ($projectId > 0) {
     $params['project_id'] = $projectId;
@@ -314,6 +315,7 @@ $clientViews = [
   'proyectos' => ['label' => 'Proyectos', 'icon' => 'projects'],
   'bitacora' => ['label' => 'Bitacora', 'icon' => 'logs'],
   'solicitudes' => ['label' => 'Solicitudes', 'icon' => 'requests'],
+  'notificaciones' => ['label' => 'Notificaciones', 'icon' => 'bell'],
   'perfil' => ['label' => 'Perfil', 'icon' => 'profile'],
 ];
 $activeView = (string) ($_GET['view'] ?? 'resumen');
@@ -324,8 +326,25 @@ if (($_POST['action'] ?? '') === 'update_client_password') {
   $activeView = 'perfil';
 } elseif (($_POST['action'] ?? '') === 'create_request') {
   $activeView = 'solicitudes';
+} elseif (in_array(($_POST['action'] ?? ''), ['mark_client_notification_read', 'mark_all_client_notifications_read'], true)) {
+  $activeView = 'notificaciones';
 }
 $notice = null;
+
+if (($_POST['action'] ?? '') === 'mark_client_notification_read') {
+  bitacora_check_token();
+  crm_mark_notification_read($pdo, (int) ($_POST['notification_id'] ?? 0), 'client', (int) $currentAccess['id']);
+  header('Location: ' . bitacora_client_url('notificaciones', (int) $currentAccess['opportunity_id']));
+  exit;
+}
+
+if (($_POST['action'] ?? '') === 'mark_all_client_notifications_read') {
+  bitacora_check_token();
+  crm_mark_all_notifications_read($pdo, 'client', (int) $currentAccess['id']);
+  header('Location: ' . bitacora_client_url('notificaciones', (int) $currentAccess['opportunity_id']));
+  exit;
+}
+
 if (($_POST['action'] ?? '') === 'update_client_password') {
   bitacora_check_token();
   $currentPassword = (string) ($_POST['current_password'] ?? '');
@@ -374,6 +393,27 @@ if (($_POST['action'] ?? '') === 'create_request') {
   } else {
     $stmt = $pdo->prepare('INSERT INTO client_requests (opportunity_id, portal_user_id, title, message, status, priority, due_date) VALUES (?, ?, ?, ?, "Recibida", ?, ?)');
     $stmt->execute([(int) $currentAccess['opportunity_id'], (int) $currentAccess['id'], $title, $message, $priority, bitacora_request_due_date($priority)]);
+    $requestId = (int) $pdo->lastInsertId();
+    crm_create_notification($pdo, [
+      'recipient_type' => 'admin',
+      'opportunity_id' => (int) $currentAccess['opportunity_id'],
+      'portal_user_id' => (int) $currentAccess['id'],
+      'client_request_id' => $requestId,
+      'event_type' => 'report_received',
+      'title' => 'Nuevo reporte recibido',
+      'message' => ($currentAccess['company_name'] ?? 'Cliente') . ' envio un reporte para ' . ($currentAccess['service'] ?? 'Proyecto') . ': ' . $title,
+      'target_url' => 'index.php?view=bitacora#request-' . $requestId,
+    ]);
+    crm_create_notification($pdo, [
+      'recipient_type' => 'client',
+      'portal_user_id' => (int) $currentAccess['id'],
+      'opportunity_id' => (int) $currentAccess['opportunity_id'],
+      'client_request_id' => $requestId,
+      'event_type' => 'report_received',
+      'title' => 'Reporte recibido',
+      'message' => 'ID Industrial recibio tu reporte "' . $title . '" y dara seguimiento por proyecto.',
+      'target_url' => 'cliente.php?view=solicitudes&project_id=' . (int) $currentAccess['opportunity_id'] . '#request-' . $requestId,
+    ]);
     $notice = ['type' => 'success', 'text' => 'Solicitud recibida. El equipo de ID Industrial dara seguimiento por proyecto.'];
   }
 }
@@ -392,6 +432,8 @@ $logs = $logsStmt->fetchAll();
 $requestsStmt = $pdo->prepare('SELECT * FROM client_requests WHERE opportunity_id = ? AND portal_user_id = ? ORDER BY created_at DESC');
 $requestsStmt->execute([$activeOpportunityId, $activePortalUserId]);
 $requests = $requestsStmt->fetchAll();
+$clientUnreadNotifications = crm_unread_notification_count($pdo, 'client', $activePortalUserId);
+$clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUserId, 20);
 ?>
 <!doctype html>
 <html lang="es-MX">
@@ -412,7 +454,7 @@ $requests = $requestsStmt->fetchAll();
       <nav class="crm-client-nav" aria-label="Navegacion del portal cliente">
         <?php foreach ($clientViews as $viewKey => $viewItem): ?>
           <a href="<?php echo h(bitacora_client_url($viewKey, $activeOpportunityId)); ?>" class="<?php echo $activeView === $viewKey ? 'is-active' : ''; ?>">
-            <span><?php echo bitacora_icon($viewItem['icon']); ?></span><?php echo h($viewItem['label']); ?>
+            <span><?php echo bitacora_icon($viewItem['icon']); ?></span><?php echo h($viewItem['label']); ?><?php if ($viewKey === 'notificaciones' && $clientUnreadNotifications > 0): ?><em><?php echo $clientUnreadNotifications; ?></em><?php endif; ?>
           </a>
         <?php endforeach; ?>
       </nav>
@@ -428,7 +470,13 @@ $requests = $requestsStmt->fetchAll();
       <header class="crm-client-topbar">
         <button class="crm-client-menu" type="button" aria-label="Abrir menu" aria-controls="cliente-sidebar" aria-expanded="false" data-client-menu-toggle><?php echo bitacora_icon('menu'); ?></button>
         <div><small>ID Industrial</small><strong>Bitacora ID</strong></div>
-        <a class="crm-button crm-button--ghost" href="cliente.php?logout=1">Cerrar sesion</a>
+        <div class="crm-topbar__actions crm-client-topbar__actions">
+          <a class="crm-notification-trigger" href="<?php echo h(bitacora_client_url('notificaciones', $activeOpportunityId)); ?>" aria-label="Notificaciones">
+            <?php echo bitacora_icon('bell'); ?>
+            <?php if ($clientUnreadNotifications > 0): ?><span><?php echo $clientUnreadNotifications; ?></span><?php endif; ?>
+          </a>
+          <a class="crm-button crm-button--ghost" href="cliente.php?logout=1">Cerrar sesion</a>
+        </div>
       </header>
 
       <?php if ($notice): ?><div class="crm-flash crm-flash--<?php echo h($notice['type']); ?>"><p><?php echo h($notice['text']); ?></p></div><?php endif; ?>
@@ -522,7 +570,7 @@ $requests = $requestsStmt->fetchAll();
               <div class="crm-list crm-list--compact">
                 <?php foreach ($requests as $request): ?>
                   <?php $requestStatus = trim((string) ($request['status'] ?? 'Recibida')) ?: 'Recibida'; ?>
-                  <div class="crm-list__item crm-request-card">
+                  <div id="request-<?php echo (int) $request['id']; ?>" class="crm-list__item crm-request-card">
                     <div class="crm-request-card__head"><span class="crm-pill <?php echo h(bitacora_pill_class($requestStatus)); ?>"><?php echo h($requestStatus); ?></span><small><?php echo h($request['updated_at'] ?: $request['created_at']); ?></small></div>
                     <strong><?php echo h($request['title']); ?></strong><p><?php echo h($request['message']); ?></p>
                     <div class="crm-request-meta crm-request-meta--client"><span><strong>Prioridad</strong><?php echo h($request['priority'] ?? 'Media'); ?></span><span><strong>Objetivo</strong><?php echo h($request['due_date'] ?? 'Por confirmar'); ?></span><span><strong>Programada</strong><?php echo h($request['scheduled_date'] ?: 'Por confirmar'); ?></span><span><strong>Responsable</strong><?php echo h($request['assigned_to'] ?: 'Por asignar'); ?></span></div>
@@ -534,6 +582,52 @@ $requests = $requestsStmt->fetchAll();
               </div>
             </article>
           </section>
+        </section>
+      <?php elseif ($activeView === 'notificaciones'): ?>
+        <section class="crm-client-module crm-client-module--notificaciones">
+          <div class="crm-module-head"><p class="eyebrow">Notificaciones</p><h1>Atencion de reportes</h1><p>Consulta las actualizaciones de ID Industrial para este proyecto.</p></div>
+          <article class="crm-card crm-notification-panel">
+            <div class="crm-section-head">
+              <div><h2>Actualizaciones</h2><p>Seguimiento recibido para <?php echo h($project['service']); ?>.</p></div>
+              <?php if ($clientUnreadNotifications > 0): ?>
+                <form method="post" class="crm-inline-form">
+                  <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                  <input type="hidden" name="action" value="mark_all_client_notifications_read">
+                  <button class="crm-button crm-button--ghost" type="submit">Marcar todo leido</button>
+                </form>
+              <?php endif; ?>
+            </div>
+            <div class="crm-list crm-notification-list">
+              <?php foreach ($clientNotifications as $notification): ?>
+                <?php $notificationIsUnread = (int) ($notification['is_read'] ?? 0) === 0; ?>
+                <div class="crm-list__item crm-notification-item <?php echo $notificationIsUnread ? 'is-unread' : ''; ?>">
+                  <div class="crm-request-card__head">
+                    <span class="crm-pill <?php echo $notificationIsUnread ? 'crm-pill--warning' : 'crm-pill--neutral'; ?>"><?php echo $notificationIsUnread ? 'Nuevo' : 'Leido'; ?></span>
+                    <small><?php echo h($notification['created_at']); ?></small>
+                  </div>
+                  <strong><?php echo h($notification['title']); ?></strong>
+                  <p><?php echo h($notification['message']); ?></p>
+                  <div class="crm-request-meta crm-request-meta--client">
+                    <span><strong>Servicio</strong><?php echo h($notification['service'] ?: $project['service']); ?></span>
+                    <span><strong>Estatus</strong><?php echo h($notification['request_status'] ?: 'Recibida'); ?></span>
+                    <span><strong>Prioridad</strong><?php echo h($notification['request_priority'] ?: 'Media'); ?></span>
+                  </div>
+                  <div class="crm-notification-actions">
+                    <?php if (!empty($notification['target_url'])): ?><a class="crm-button" href="<?php echo h($notification['target_url']); ?>">Ver reporte</a><?php endif; ?>
+                    <?php if ($notificationIsUnread): ?>
+                      <form method="post">
+                        <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                        <input type="hidden" name="action" value="mark_client_notification_read">
+                        <input type="hidden" name="notification_id" value="<?php echo (int) $notification['id']; ?>">
+                        <button class="crm-button crm-button--ghost" type="submit">Marcar leida</button>
+                      </form>
+                    <?php endif; ?>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+              <?php if (!$clientNotifications): ?><p>Aun no hay notificaciones para este proyecto.</p><?php endif; ?>
+            </div>
+          </article>
         </section>
       <?php else: ?>
         <section class="crm-client-module crm-client-module--perfil">
@@ -557,7 +651,7 @@ $requests = $requestsStmt->fetchAll();
   </div>
   <script>
     (() => {
-      const legacyViews = ['resumen', 'proyectos', 'bitacora', 'solicitudes', 'perfil'];
+      const legacyViews = ['resumen', 'proyectos', 'bitacora', 'solicitudes', 'notificaciones', 'perfil'];
       const params = new URLSearchParams(window.location.search);
       const hashView = window.location.hash ? window.location.hash.slice(1) : '';
       if (hashView && legacyViews.includes(hashView) && !params.has('view')) {

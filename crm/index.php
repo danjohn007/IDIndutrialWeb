@@ -113,6 +113,7 @@ function crm_icon(string $name): string
     'response' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="m8 11 2 2 5-5"/></svg>',
     'scheduled' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>',
     'overdue' => '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M12 18h.01"/></svg>',
+    'bell' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
   ];
   return $icons[$name] ?? $icons['reports'];
 }
@@ -371,6 +372,24 @@ endif;
 
 crm_require_login();
 
+if (($_POST['action'] ?? '') === 'mark_notification_read') {
+  crm_check_token();
+  crm_mark_notification_read($pdo, (int) ($_POST['notification_id'] ?? 0), 'admin');
+  $returnTo = (string) ($_POST['return_to'] ?? 'index.php?view=bitacora#reportes-recibidos');
+  if (!preg_match('/^index\.php(\?|#|$)/', $returnTo)) {
+    $returnTo = 'index.php?view=bitacora#reportes-recibidos';
+  }
+  header('Location: ' . $returnTo);
+  exit;
+}
+
+if (($_POST['action'] ?? '') === 'mark_all_notifications_read') {
+  crm_check_token();
+  crm_mark_all_notifications_read($pdo, 'admin');
+  header('Location: index.php?view=bitacora#reportes-recibidos');
+  exit;
+}
+
 if (($_POST['action'] ?? '') === 'change_password') {
   crm_check_token();
   $userId = (int) ($_SESSION['crm_user']['id'] ?? 0);
@@ -620,6 +639,13 @@ if (($_POST['action'] ?? '') === 'update_client_request') {
     $isFinal = crm_request_is_final($status);
     $resolvedAt = $isFinal ? (($wasFinal && !empty($request['resolved_at'])) ? $request['resolved_at'] : date('Y-m-d H:i:s')) : null;
 
+    $previousStatus = trim((string) ($request['status'] ?? 'Recibida')) ?: 'Recibida';
+    $previousPriority = trim((string) ($request['priority'] ?? 'Media')) ?: 'Media';
+    $previousDueDate = trim((string) ($request['due_date'] ?? ''));
+    $previousScheduledDate = trim((string) ($request['scheduled_date'] ?? ''));
+    $previousAssignedTo = trim((string) ($request['assigned_to'] ?? ''));
+    $previousAdminResponse = trim((string) ($request['admin_response'] ?? ''));
+
     $update = $pdo->prepare('UPDATE client_requests SET status = ?, priority = ?, due_date = ?, scheduled_date = ?, assigned_to = ?, admin_response = ?, internal_notes = ?, resolved_at = ?, last_admin_update_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
     $update->execute([
       $status,
@@ -642,6 +668,42 @@ if (($_POST['action'] ?? '') === 'update_client_request') {
     }
     $log = $pdo->prepare('INSERT INTO maintenance_logs (opportunity_id, portal_user_id, type, title, status, scheduled_date, notes, visible_to_client) VALUES (?, ?, ?, ?, ?, ?, ?, 1)');
     $log->execute([(int) $request['opportunity_id'], (int) $request['portal_user_id'], crm_request_log_type($status), 'Seguimiento: ' . $request['title'], $status, $scheduledDate ?: date('Y-m-d'), $notes]);
+
+    $clientNotificationChanged = $status !== $previousStatus
+      || $priority !== $previousPriority
+      || $dueDate !== $previousDueDate
+      || (string) ($scheduledDate ?? '') !== $previousScheduledDate
+      || $assignedTo !== $previousAssignedTo
+      || ($adminResponse !== '' && $adminResponse !== $previousAdminResponse);
+
+    if ($clientNotificationChanged) {
+      $eventType = 'report_updated';
+      $notificationTitle = 'Seguimiento actualizado';
+      $notificationMessage = 'ID Industrial actualizo tu reporte "' . $request['title'] . '".';
+      if (crm_request_is_final($status)) {
+        $eventType = 'report_resolved';
+        $notificationTitle = 'Reporte resuelto';
+        $notificationMessage = 'Tu reporte "' . $request['title'] . '" fue marcado como ' . $status . '.';
+      } elseif ($status === 'Programada' || ((string) ($scheduledDate ?? '') !== '' && (string) ($scheduledDate ?? '') !== $previousScheduledDate)) {
+        $eventType = 'report_scheduled';
+        $notificationTitle = 'Atencion programada';
+        $notificationMessage = 'ID Industrial programo atencion para tu reporte "' . $request['title'] . '".';
+      } elseif ($adminResponse !== '' && $adminResponse !== $previousAdminResponse) {
+        $notificationTitle = 'Nueva respuesta de ID Industrial';
+        $notificationMessage = 'Hay una nueva respuesta para tu reporte "' . $request['title'] . '".';
+      }
+
+      crm_create_notification($pdo, [
+        'recipient_type' => 'client',
+        'portal_user_id' => (int) $request['portal_user_id'],
+        'opportunity_id' => (int) $request['opportunity_id'],
+        'client_request_id' => $requestId,
+        'event_type' => $eventType,
+        'title' => $notificationTitle,
+        'message' => $notificationMessage,
+        'target_url' => 'cliente.php?view=solicitudes&project_id=' . (int) $request['opportunity_id'] . '#request-' . $requestId,
+      ]);
+    }
 
     $_SESSION['crm_flash'] = [
       'type' => 'success',
@@ -789,12 +851,14 @@ $missingPortalCount = (int) $pdo->query('
   WHERE o.status = "Proyecto entregado" AND cpu.id IS NULL
 ')->fetchColumn();
 $clientRequests = $pdo->query('
-  SELECT cr.*, o.company_name, cpu.username
+  SELECT cr.*, o.company_name, o.service, cpu.username
   FROM client_requests cr
   JOIN opportunities o ON o.id = cr.opportunity_id
   JOIN client_portal_users cpu ON cpu.id = cr.portal_user_id
   ORDER BY cr.created_at DESC
 ')->fetchAll();
+$adminUnreadNotifications = crm_unread_notification_count($pdo, 'admin');
+$adminNotifications = crm_recent_notifications($pdo, 'admin', null, 12);
 $requestStatusTotals = array_fill_keys($requestStatuses, 0);
 $requestPriorityTotals = array_fill_keys($requestPriorities, 0);
 $requestMonthlyTotals = [];
@@ -900,7 +964,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
         <a class="<?php echo $view === 'opportunities' ? 'is-active' : ''; ?>" href="index.php?view=opportunities">Oportunidades</a>
         <a class="<?php echo $view === 'quotes' ? 'is-active' : ''; ?>" href="index.php?view=quotes">Cotizaciones</a>
         <a class="<?php echo $view === 'clients' ? 'is-active' : ''; ?>" href="index.php?view=clients">Clientes</a>
-        <a class="<?php echo $view === 'bitacora' ? 'is-active' : ''; ?>" href="index.php?view=bitacora">Bitacora ID</a>
+        <a class="<?php echo $view === 'bitacora' ? 'is-active' : ''; ?>" href="index.php?view=bitacora">Bitacora ID<?php if ($adminUnreadNotifications > 0): ?><em><?php echo $adminUnreadNotifications; ?></em><?php endif; ?></a>
         <a class="<?php echo $view === 'profile' ? 'is-active' : ''; ?>" href="index.php?view=profile">Perfil</a>
         <a href="../">Vista publica</a>
       </nav>
@@ -921,7 +985,13 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
           <small>ID Industrial</small>
           <strong>CRM para servicios industriales</strong>
         </div>
-        <span>Hola, <?php echo h($_SESSION['crm_user']['name']); ?></span>
+        <div class="crm-topbar__actions">
+          <a class="crm-notification-trigger" href="index.php?view=bitacora#reportes-recibidos" aria-label="Reportes recibidos">
+            <?php echo crm_icon('bell'); ?>
+            <?php if ($adminUnreadNotifications > 0): ?><span><?php echo $adminUnreadNotifications; ?></span><?php endif; ?>
+          </a>
+          <span>Hola, <?php echo h($_SESSION['crm_user']['name']); ?></span>
+        </div>
       </header>
 
       <section class="crm-content">
@@ -1397,6 +1467,51 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
           </section>
 
           <div class="crm-stack crm-bitacora-stack">
+            <article class="crm-card crm-notification-panel" id="reportes-recibidos">
+              <div class="crm-section-head">
+                <div><h2>Reportes recibidos</h2><p>Notificaciones internas generadas cuando un cliente levanta o actualiza un reporte.</p></div>
+                <?php if ($adminUnreadNotifications > 0): ?>
+                  <form method="post" class="crm-inline-form">
+                    <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                    <input type="hidden" name="action" value="mark_all_notifications_read">
+                    <button class="crm-button crm-button--ghost" type="submit">Marcar todo leido</button>
+                  </form>
+                <?php endif; ?>
+              </div>
+              <div class="crm-list crm-notification-list">
+                <?php foreach ($adminNotifications as $notification): ?>
+                  <?php $notificationIsUnread = (int) ($notification['is_read'] ?? 0) === 0; ?>
+                  <div class="crm-list__item crm-notification-item <?php echo $notificationIsUnread ? 'is-unread' : ''; ?>">
+                    <div class="crm-request-card__head">
+                      <span class="crm-pill <?php echo $notificationIsUnread ? 'crm-pill--warning' : 'crm-pill--neutral'; ?>"><?php echo $notificationIsUnread ? 'Nuevo' : 'Leido'; ?></span>
+                      <small><?php echo h($notification['created_at']); ?></small>
+                    </div>
+                    <strong><?php echo h($notification['title']); ?></strong>
+                    <p><?php echo h($notification['message']); ?></p>
+                    <div class="crm-request-meta">
+                      <span><strong>Cliente</strong><?php echo h($notification['company_name'] ?: 'Sin cliente'); ?></span>
+                      <span><strong>Servicio</strong><?php echo h($notification['service'] ?: 'Sin servicio'); ?></span>
+                      <span><strong>Estatus</strong><?php echo h($notification['request_status'] ?: 'Recibida'); ?></span>
+                      <span><strong>Prioridad</strong><?php echo h($notification['request_priority'] ?: 'Media'); ?></span>
+                    </div>
+                    <div class="crm-notification-actions">
+                      <?php if (!empty($notification['target_url'])): ?><a class="crm-button" href="<?php echo h($notification['target_url']); ?>">Atender reporte</a><?php endif; ?>
+                      <?php if ($notificationIsUnread): ?>
+                        <form method="post">
+                          <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                          <input type="hidden" name="action" value="mark_notification_read">
+                          <input type="hidden" name="notification_id" value="<?php echo (int) $notification['id']; ?>">
+                          <input type="hidden" name="return_to" value="index.php?view=bitacora#reportes-recibidos">
+                          <button class="crm-button crm-button--ghost" type="submit">Marcar leida</button>
+                        </form>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+                <?php if (!$adminNotifications): ?><p>No hay notificaciones de reportes recibidos.</p><?php endif; ?>
+              </div>
+            </article>
+
             <article class="crm-card">
               <h2>Clientes con acceso</h2>
               <div class="crm-table-wrap">
@@ -1435,7 +1550,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                   <?php $requestScheduledDate = trim((string) ($request['scheduled_date'] ?? '')); ?>
                   <?php $requestAssignedTo = trim((string) ($request['assigned_to'] ?? '')); ?>
                   <?php $requestIsOverdue = !crm_request_is_final($requestStatus) && $requestDueDate !== '' && $requestDueDate < date('Y-m-d'); ?>
-                  <form class="crm-list__item crm-request-card <?php echo $requestIsOverdue ? 'crm-request-card--overdue' : ''; ?>" method="post">
+                  <form id="request-<?php echo (int) $request['id']; ?>" class="crm-list__item crm-request-card <?php echo $requestIsOverdue ? 'crm-request-card--overdue' : ''; ?>" method="post">
                     <input type="hidden" name="token" value="<?php echo h($token); ?>">
                     <input type="hidden" name="action" value="update_client_request">
                     <input type="hidden" name="request_id" value="<?php echo (int) $request['id']; ?>">
