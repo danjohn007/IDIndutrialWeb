@@ -26,7 +26,17 @@ if (!is_dir($sessionDir)) {
 }
 session_save_path($sessionDir);
 session_start();
-$pdo = crm_db();
+try {
+  $pdo = crm_db();
+} catch (Throwable $error) {
+  crm_log_event('login.bootstrap_failed', [
+    'area' => 'client',
+    'config_source' => crm_config_source(),
+    'error_class' => get_class($error),
+    'error_message' => substr($error->getMessage(), 0, 500),
+  ]);
+  throw $error;
+}
 
 function h($value): string
 {
@@ -178,20 +188,27 @@ if (($_POST['action'] ?? '') === 'client_login') {
   $humanAnswer = (string) ($_POST['human_answer'] ?? '');
   $loginIdentifier = $username !== '' ? $username : 'anonimo';
   $lockStatus = crm_login_lock_status($pdo, 'client', $loginIdentifier);
+  $loginDiagnostic = crm_login_diagnostic_context($pdo, $loginIdentifier, $sessionDir);
+  crm_log_event('login.started', array_merge($loginDiagnostic, ['area' => 'client']));
 
   if (!empty($lockStatus['locked'])) {
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'client', 'reason' => 'locked', 'attempts' => (int) ($lockStatus['attempts'] ?? 0), 'seconds' => (int) ($lockStatus['seconds'] ?? 0)]));
     $loginError = crm_login_lock_message($lockStatus);
   } elseif (!crm_validate_math_challenge($humanChallengeKey, $humanAnswer)) {
     $status = crm_record_login_failure($pdo, 'client', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
     $loginError = crm_login_attempt_message('Confirma que eres humano resolviendo la suma.', $status);
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'client', 'reason' => 'captcha', 'attempts' => (int) ($status['attempts'] ?? 0)]));
   } elseif ($username === '' || strlen($password) < 8) {
     $status = crm_record_login_failure($pdo, 'client', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
     $loginError = crm_login_attempt_message('Ingresa usuario y password validos.', $status);
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'client', 'reason' => 'invalid_credentials_format', 'attempts' => (int) ($status['attempts'] ?? 0)]));
   } else {
     $portalUser = crm_portal_user_by_username($pdo, $username);
-    if ($portalUser && password_verify($password, $portalUser['password_hash'])) {
+    $passwordVerified = $portalUser ? password_verify($password, (string) $portalUser['password_hash']) : false;
+    crm_log_event('login.credentials_checked', array_merge($loginDiagnostic, ['area' => 'client', 'user_found' => (bool) $portalUser, 'password_verified' => $passwordVerified]));
+    if ($portalUser && $passwordVerified) {
       crm_record_login_success($pdo, 'client', $username);
       crm_refresh_math_challenge($humanChallengeKey);
       session_regenerate_id(true);
@@ -209,12 +226,14 @@ if (($_POST['action'] ?? '') === 'client_login') {
       ];
       $_SESSION['bitacora_user_last_activity'] = time();
       bitacora_token();
+      crm_log_event('login.success', array_merge($loginDiagnostic, ['area' => 'client', 'portal_user_id' => (int) $portalUser['id'], 'opportunity_id' => (int) $portalUser['opportunity_id'], 'redirect' => crm_portal_url(), 'session_active' => session_status() === PHP_SESSION_ACTIVE]));
       header('Location: ' . crm_portal_url());
       exit;
     }
     $status = crm_record_login_failure($pdo, 'client', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
     $loginError = crm_login_failure_message($status);
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'client', 'reason' => $portalUser ? 'password_mismatch' : 'user_not_found', 'attempts' => (int) ($status['attempts'] ?? 0)]));
   }
 }
 $humanChallenge = crm_math_challenge($humanChallengeKey);

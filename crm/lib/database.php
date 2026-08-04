@@ -1,6 +1,85 @@
 <?php
 declare(strict_types=1);
 
+function crm_normalize_legacy_url(string $url): string
+{
+  $normalized = preg_replace('~^(https?://[^/]+)/sistema(?=/|$)~i', '$1', trim($url));
+  $normalized = preg_replace('~^/sistema(?=/|$)~i', '', (string) $normalized);
+  return (string) $normalized;
+}
+
+function crm_config_source(): string
+{
+  if (is_file(__DIR__ . '/../config.php')) {
+    return 'crm/config.php';
+  }
+  if (is_file(dirname(__DIR__, 2) . '/sistema/crm/config.php')) {
+    return 'sistema/crm/config.php';
+  }
+  return 'defaults';
+}
+
+function crm_mask_identifier(string $identifier): string
+{
+  $identifier = strtolower(trim($identifier));
+  if ($identifier === '') {
+    return 'empty';
+  }
+  if (strpos($identifier, '@') !== false) {
+    [$local, $domain] = array_pad(explode('@', $identifier, 2), 2, '');
+    return substr($local, 0, 2) . '***@' . $domain;
+  }
+  return substr($identifier, 0, 3) . '***';
+}
+
+function crm_log_event(string $event, array $context = []): void
+{
+  static $requestId = null;
+  if ($requestId === null) {
+    try {
+      $requestId = bin2hex(random_bytes(6));
+    } catch (Throwable $error) {
+      $requestId = substr(sha1(uniqid('', true)), 0, 12);
+    }
+  }
+
+  $ip = trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? ''))[0]);
+  $uri = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?? '');
+  $payload = array_merge([
+    'time' => date(DATE_ATOM),
+    'event' => $event,
+    'request_id' => $requestId,
+    'method' => (string) ($_SERVER['REQUEST_METHOD'] ?? 'CLI'),
+    'uri' => $uri,
+    'ip_hash' => $ip !== '' ? substr(hash('sha256', $ip), 0, 12) : 'none',
+  ], $context);
+  $encoded = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+  if ($encoded === false) {
+    $encoded = json_encode(['time' => date(DATE_ATOM), 'event' => $event, 'request_id' => $requestId]);
+  }
+  $line = '[IDCRM] ' . $encoded . PHP_EOL;
+  $logPath = dirname(__DIR__, 2) . '/error_log';
+  if (@file_put_contents($logPath, $line, FILE_APPEND | LOCK_EX) === false) {
+    @error_log(rtrim($line));
+  }
+}
+
+function crm_login_diagnostic_context(PDO $pdo, string $identifier, string $sessionDir): array
+{
+  $config = crm_config();
+  $driver = crm_driver($pdo);
+  return [
+    'identifier' => crm_mask_identifier($identifier),
+    'driver' => $driver,
+    'database' => $driver === 'mysql' ? (string) ($config['database'] ?? '') : crm_db_path(),
+    'config_source' => crm_config_source(),
+    'app_url' => (string) ($config['app_url'] ?? ''),
+    'session_path' => $sessionDir,
+    'session_path_exists' => is_dir($sessionDir),
+    'session_path_writable' => is_dir($sessionDir) && is_writable($sessionDir),
+  ];
+}
+
 function crm_config(): array
 {
   $config = [
@@ -9,6 +88,7 @@ function crm_config(): array
     'database' => '',
     'username' => '',
     'password' => '',
+    'sqlite_path' => '',
     'charset' => 'utf8mb4',
     'app_url' => 'https://idindustrial.com.mx/crm',
     'smtp' => [
@@ -23,14 +103,22 @@ function crm_config(): array
     ],
   ];
 
-  $configPath = __DIR__ . '/../config.php';
-  if (is_file($configPath)) {
+  $configPaths = [
+    __DIR__ . '/../config.php',
+    dirname(__DIR__, 2) . '/sistema/crm/config.php',
+  ];
+  foreach ($configPaths as $configPath) {
+    if (!is_file($configPath)) {
+      continue;
+    }
     $customConfig = require $configPath;
     if (is_array($customConfig)) {
       $config = array_replace_recursive($config, $customConfig);
     }
+    break;
   }
 
+  $config['app_url'] = rtrim(crm_normalize_legacy_url((string) ($config['app_url'] ?? 'https://idindustrial.com.mx/crm')), '/');
   return $config;
 }
 
@@ -136,7 +224,7 @@ function crm_uses_legacy_php_url(string $filename): bool
 
 function crm_clean_internal_url(?string $url, string $recipientType = 'admin'): string
 {
-  $url = trim((string) $url);
+  $url = crm_normalize_legacy_url((string) $url);
   if ($url === '') {
     return $recipientType === 'client' ? crm_portal_url('notificaciones') : crm_admin_url('notifications', 0, [], 'reportes-recibidos');
   }
@@ -176,7 +264,20 @@ function crm_clean_internal_url(?string $url, string $recipientType = 'admin'): 
 }
 function crm_db_path(): string
 {
-  return __DIR__ . '/../data/idindustrial_crm.sqlite';
+  $configuredPath = trim((string) (crm_config()['sqlite_path'] ?? ''));
+  if ($configuredPath !== '') {
+    $isAbsolute = preg_match('~^(?:[A-Za-z]:[\\/]|/)~', $configuredPath) === 1;
+    return $isAbsolute ? $configuredPath : __DIR__ . '/../' . ltrim($configuredPath, '/\\');
+  }
+
+  $currentPath = __DIR__ . '/../data/idindustrial_crm.sqlite';
+  $currentConfig = __DIR__ . '/../config.php';
+  $legacyPath = dirname(__DIR__, 2) . '/sistema/crm/data/idindustrial_crm.sqlite';
+  if (!is_file($currentConfig) && is_file($legacyPath)) {
+    return $legacyPath;
+  }
+
+  return $currentPath;
 }
 
 function crm_driver(?PDO $pdo = null): string
@@ -229,9 +330,29 @@ function crm_migrate(PDO $pdo): void
   }
 
   crm_ensure_columns($pdo);
+  crm_normalize_notification_urls($pdo);
   crm_sync_portal_client_links($pdo);
 }
 
+function crm_normalize_notification_urls(PDO $pdo): void
+{
+  if (!crm_table_exists($pdo, 'notifications')) {
+    return;
+  }
+
+  $rows = $pdo->query("SELECT id, target_url FROM notifications WHERE target_url LIKE '%/sistema%'")->fetchAll();
+  if (!$rows) {
+    return;
+  }
+
+  $update = $pdo->prepare('UPDATE notifications SET target_url = ? WHERE id = ?');
+  foreach ($rows as $row) {
+    $normalizedUrl = crm_normalize_legacy_url((string) ($row['target_url'] ?? ''));
+    if ($normalizedUrl !== (string) ($row['target_url'] ?? '')) {
+      $update->execute([$normalizedUrl, (int) $row['id']]);
+    }
+  }
+}
 
 function crm_sync_portal_client_links(PDO $pdo): void
 {
@@ -1366,7 +1487,7 @@ function crm_reset_client_portal_password(PDO $pdo, int $portalUserId): array
 }
 function crm_app_url(string $path = ''): string
 {
-  $base = rtrim((string) (crm_config()['app_url'] ?? 'https://idindustrial.com.mx/crm'), '/');
+  $base = rtrim(crm_normalize_legacy_url((string) (crm_config()['app_url'] ?? 'https://idindustrial.com.mx/crm')), '/');
   $path = ltrim($path, '/');
   return $path === '' ? $base : $base . '/' . $path;
 }

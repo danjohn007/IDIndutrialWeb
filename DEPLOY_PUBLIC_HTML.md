@@ -2,6 +2,9 @@
 
 1. Sube el contenido de este directorio directamente dentro de `public_html`; no crees una carpeta `sistema`.
 2. Copia `crm/config.sample.php` como `crm/config.php` y configura base de datos, SMTP y `app_url` con `https://idindustrial.com.mx/crm`.
+   - El CRM elimina automaticamente el prefijo heredado /sistema de los enlaces nuevos enviados por correo.
+   - Si vienes de `/sistema`, mueve primero `/sistema/crm/config.php` a `/crm/config.php` para conservar la misma base y credenciales.
+   - Si usas SQLite, mueve tambien `/sistema/crm/data/idindustrial_crm.sqlite` a `/crm/data/idindustrial_crm.sqlite`.
 3. Verifica permisos de escritura para `crm/data/sessions` y `crm/data/request-evidence` (normalmente `750`, `755` o `770`, segun el hosting).
 4. En una instalacion nueva importa `crm/database.sql`. En una instalacion existente, conserva la base y deja que el CRM ejecute sus migraciones automaticas.
 5. Confirma que Apache tenga `mod_rewrite` habilitado y permita reglas `.htaccess`.

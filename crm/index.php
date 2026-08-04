@@ -25,7 +25,17 @@ if (!is_dir($sessionDir)) {
 }
 session_save_path($sessionDir);
 session_start();
-$pdo = crm_db();
+try {
+  $pdo = crm_db();
+} catch (Throwable $error) {
+  crm_log_event('login.bootstrap_failed', [
+    'area' => 'admin',
+    'config_source' => crm_config_source(),
+    'error_class' => get_class($error),
+    'error_message' => substr($error->getMessage(), 0, 500),
+  ]);
+  throw $error;
+}
 $statuses = [
   'Nueva solicitud',
   'Contacto realizado',
@@ -247,43 +257,53 @@ crm_enforce_session_timeout('crm_user', 'crm_token', crm_admin_url('dashboard', 
 $humanChallengeKey = 'crm_admin_human_challenge';
 $loginError = isset($_GET['expired']) ? 'La sesion se cerro por inactividad. Vuelve a entrar.' : '';
 if (($_POST['action'] ?? '') === 'login') {
-  $email = trim((string) ($_POST['crm_email'] ?? $_POST['email'] ?? ''));
+  $email = strtolower(trim((string) ($_POST['crm_email'] ?? $_POST['email'] ?? '')));
   $password = (string) ($_POST['crm_password'] ?? $_POST['password'] ?? '');
   $humanAnswer = (string) ($_POST['human_answer'] ?? '');
   $loginIdentifier = $email !== '' ? $email : 'anonimo';
   $lockStatus = crm_login_lock_status($pdo, 'admin', $loginIdentifier);
+  $loginDiagnostic = crm_login_diagnostic_context($pdo, $loginIdentifier, $sessionDir);
+  crm_log_event('login.started', array_merge($loginDiagnostic, ['area' => 'admin']));
 
   if (!empty($lockStatus['locked'])) {
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'admin', 'reason' => 'locked', 'attempts' => (int) ($lockStatus['attempts'] ?? 0), 'seconds' => (int) ($lockStatus['seconds'] ?? 0)]));
     $loginError = crm_login_lock_message($lockStatus);
   } elseif (!crm_validate_math_challenge($humanChallengeKey, $humanAnswer)) {
     $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
     $loginError = crm_login_attempt_message('Confirma que eres humano resolviendo la suma.', $status);
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'admin', 'reason' => 'captcha', 'attempts' => (int) ($status['attempts'] ?? 0)]));
   } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
     $loginError = crm_login_attempt_message('Ingresa un correo valido.', $status);
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'admin', 'reason' => 'invalid_email', 'attempts' => (int) ($status['attempts'] ?? 0)]));
   } elseif (strlen($password) < 8) {
     $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
     $loginError = crm_login_attempt_message('La contrasena debe tener al menos 8 caracteres.', $status);
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'admin', 'reason' => 'password_too_short', 'attempts' => (int) ($status['attempts'] ?? 0)]));
   } else {
-    $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT * FROM users WHERE LOWER(email) = ? LIMIT 1');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
-    if ($user && password_verify($password, $user['password_hash'])) {
+    $passwordVerified = $user ? password_verify($password, (string) $user['password_hash']) : false;
+    crm_log_event('login.credentials_checked', array_merge($loginDiagnostic, ['area' => 'admin', 'user_found' => (bool) $user, 'password_verified' => $passwordVerified]));
+    if ($user && $passwordVerified) {
       crm_record_login_success($pdo, 'admin', $email);
       crm_refresh_math_challenge($humanChallengeKey);
       session_regenerate_id(true);
       $_SESSION['crm_user'] = ['id' => $user['id'], 'name' => $user['name'], 'email' => $user['email'], 'role' => $user['role']];
       $_SESSION['crm_user_last_activity'] = time();
       crm_token();
+      crm_log_event('login.success', array_merge($loginDiagnostic, ['area' => 'admin', 'user_id' => (int) $user['id'], 'role' => (string) $user['role'], 'redirect' => crm_admin_url(), 'session_active' => session_status() === PHP_SESSION_ACTIVE]));
       header('Location: ' . crm_admin_url());
       exit;
     }
     $status = crm_record_login_failure($pdo, 'admin', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
     $loginError = crm_login_failure_message($status);
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'admin', 'reason' => $user ? 'password_mismatch' : 'user_not_found', 'attempts' => (int) ($status['attempts'] ?? 0)]));
   }
 }
 $humanChallenge = crm_math_challenge($humanChallengeKey);
