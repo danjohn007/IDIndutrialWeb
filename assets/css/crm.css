@@ -1410,6 +1410,10 @@ button {
   margin: 0;
 }
 
+.crm-card > .crm-conversion-form {
+  margin-top: 16px;
+}
+
 .crm-kpi__icon svg {
   width: 24px;
   height: 24px;
@@ -5470,5 +5474,135 @@ button {
 
   .crm-kpi strong {
     font-size: 1.08rem;
+  }
+}
+
+/* Cotizaciones del portal cliente */
+.crm-client-workspace--quotes {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+}
+
+.crm-quote-intake,
+.crm-quote-list,
+.crm-quote-card {
+  min-width: 0;
+}
+
+.crm-quote-list {
+  display: grid;
+  gap: 16px;
+}
+
+.crm-quote-list > .crm-section-head {
+  margin-bottom: 0;
+}
+
+.crm-quote-card {
+  display: grid;
+  gap: 16px;
+}
+
+.crm-quote-card__head {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.crm-quote-card__head h3 {
+  font-size: 1.05rem;
+  line-height: 1.35;
+  margin: 10px 0 0;
+}
+
+.crm-quote-card__head > strong {
+  color: var(--crm-ink);
+  font-size: 1.25rem;
+  white-space: nowrap;
+}
+
+.crm-quote-response {
+  border-top: 1px solid var(--crm-line);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(180px, 0.65fr) minmax(0, 1.35fr);
+  padding-top: 16px;
+}
+
+.crm-quote-response .crm-field--wide {
+  grid-column: auto;
+}
+
+.crm-quote-response .crm-button {
+  justify-self: start;
+}
+
+.crm-quote-response-summary {
+  border-top: 1px solid var(--crm-line);
+  padding-top: 16px;
+}
+
+.crm-quote-response-summary p {
+  margin: 12px 0 0;
+}
+
+.crm-check {
+  align-items: flex-start;
+  background: var(--crm-surface-soft);
+  border: 1px solid var(--crm-line);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+}
+
+.crm-check input {
+  accent-color: var(--crm-gold);
+  height: 20px;
+  margin: 1px 0 0;
+  width: 20px;
+}
+
+.crm-check span {
+  display: grid;
+  gap: 4px;
+}
+
+.crm-check small {
+  color: var(--crm-muted);
+  line-height: 1.45;
+}
+
+@media (max-width: 1100px) {
+  .crm-client-workspace--quotes {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .crm-quote-card__head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .crm-quote-card__head > strong {
+    white-space: normal;
+  }
+
+  .crm-quote-response {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-quote-response .crm-field--wide {
+    grid-column: 1;
+  }
+
+  .crm-quote-response .crm-button,
+  .crm-check {
+    width: 100%;
   }
 }

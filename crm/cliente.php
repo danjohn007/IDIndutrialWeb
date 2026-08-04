@@ -20,14 +20,9 @@ if (crm_uses_legacy_php_url('cliente.php')) {
   exit;
 }
 
-$sessionDir = __DIR__ . '/data/sessions';
-if (!is_dir($sessionDir)) {
-  mkdir($sessionDir, 0755, true);
-}
-session_save_path($sessionDir);
-session_start();
 try {
   $pdo = crm_db();
+  crm_start_database_session($pdo);
 } catch (Throwable $error) {
   crm_log_event('login.bootstrap_failed', [
     'area' => 'client',
@@ -56,6 +51,7 @@ function bitacora_icon(string $name): string
     'menu' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>',
     'check' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
     'bell' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+    'quote' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6V3Z"/><path d="M14 3v4h4"/><path d="M9 11h6"/><path d="M9 15h6"/><path d="M9 19h3"/></svg>',
     'camera' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5 13 3h-2L9.5 5H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3h-4.5Z"/><circle cx="12" cy="12.5" r="4"/></svg>',
   ];
   return $icons[$name] ?? $icons['dashboard'];
@@ -149,7 +145,7 @@ function bitacora_select_project(array $projects, int $projectId): ?array
 }
 function bitacora_client_url(string $view, int $projectId = 0): string
 {
-  $allowedViews = ['resumen', 'proyectos', 'bitacora', 'solicitudes', 'notificaciones', 'perfil'];
+  $allowedViews = ['resumen', 'proyectos', 'bitacora', 'solicitudes', 'cotizaciones', 'notificaciones', 'perfil'];
   $params = ['view' => in_array($view, $allowedViews, true) ? $view : 'resumen'];
   if ($projectId > 0) {
     $params['project_id'] = $projectId;
@@ -188,7 +184,7 @@ if (($_POST['action'] ?? '') === 'client_login') {
   $humanAnswer = (string) ($_POST['human_answer'] ?? '');
   $loginIdentifier = $username !== '' ? $username : 'anonimo';
   $lockStatus = crm_login_lock_status($pdo, 'client', $loginIdentifier);
-  $loginDiagnostic = crm_login_diagnostic_context($pdo, $loginIdentifier, $sessionDir);
+  $loginDiagnostic = crm_login_diagnostic_context($pdo, $loginIdentifier);
   crm_log_event('login.started', array_merge($loginDiagnostic, ['area' => 'client']));
 
   if (!empty($lockStatus['locked'])) {
@@ -205,9 +201,22 @@ if (($_POST['action'] ?? '') === 'client_login') {
     $loginError = crm_login_attempt_message('Ingresa usuario y password validos.', $status);
     crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'client', 'reason' => 'invalid_credentials_format', 'attempts' => (int) ($status['attempts'] ?? 0)]));
   } else {
-    $portalUser = crm_portal_user_by_username($pdo, $username);
-    $passwordVerified = $portalUser ? password_verify($password, (string) $portalUser['password_hash']) : false;
-    crm_log_event('login.credentials_checked', array_merge($loginDiagnostic, ['area' => 'client', 'user_found' => (bool) $portalUser, 'password_verified' => $passwordVerified]));
+    $portalCandidates = crm_portal_users_by_identifier($pdo, $username);
+    $portalUser = null;
+    foreach ($portalCandidates as $candidate) {
+      if (password_verify($password, (string) $candidate['password_hash'])) {
+        $portalUser = $candidate;
+        break;
+      }
+    }
+    $passwordVerified = $portalUser !== null;
+    crm_log_event('login.credentials_checked', array_merge($loginDiagnostic, [
+      'area' => 'client',
+      'user_found' => count($portalCandidates) > 0,
+      'candidate_count' => count($portalCandidates),
+      'password_verified' => $passwordVerified,
+      'matched_by_contact_email' => $portalUser ? strtolower((string) $portalUser['username']) !== strtolower($username) : false,
+    ]));
     if ($portalUser && $passwordVerified) {
       crm_record_login_success($pdo, 'client', $username);
       crm_refresh_math_challenge($humanChallengeKey);
@@ -233,7 +242,12 @@ if (($_POST['action'] ?? '') === 'client_login') {
     $status = crm_record_login_failure($pdo, 'client', $loginIdentifier);
     crm_refresh_math_challenge($humanChallengeKey);
     $loginError = crm_login_failure_message($status);
-    crm_log_event('login.rejected', array_merge($loginDiagnostic, ['area' => 'client', 'reason' => $portalUser ? 'password_mismatch' : 'user_not_found', 'attempts' => (int) ($status['attempts'] ?? 0)]));
+    crm_log_event('login.rejected', array_merge($loginDiagnostic, [
+      'area' => 'client',
+      'reason' => count($portalCandidates) > 0 ? 'password_mismatch' : 'user_not_found',
+      'candidate_count' => count($portalCandidates),
+      'attempts' => (int) ($status['attempts'] ?? 0),
+    ]));
   }
 }
 $humanChallenge = crm_math_challenge($humanChallengeKey);
@@ -354,6 +368,9 @@ $_SESSION['bitacora_user']['must_change_password'] = $mustChangePassword;
 $requestPriorities = ['Baja', 'Media', 'Alta', 'Urgente'];
 $requestCategories = ['Mantenimiento correctivo', 'Mantenimiento preventivo', 'Falla de equipo', 'Rendimiento', 'Inspeccion', 'Seguridad', 'Otro'];
 $requestImpacts = ['Sin paro', 'Operacion parcial', 'Paro total', 'Riesgo de seguridad'];
+$quoteServices = ['Cableado estructurado', 'Deteccion de incendios', 'Sistemas HVAC', 'CCTV industrial', 'Fibra optica', 'Control de accesos', 'Mantenimiento industrial', 'Otro'];
+$quoteUrgencies = ['Normal', 'Prioritaria', 'Urgente'];
+$quoteBudgets = ['Por definir', 'Menos de $50,000', '$50,000 a $150,000', '$150,000 a $500,000', 'Mas de $500,000'];
 $projectAccesses = bitacora_project_accesses($pdo, $portal);
 $selectedProjectId = max(0, (int) ($_POST['project_id'] ?? $_GET['project_id'] ?? $portal['opportunity_id'] ?? 0));
 $currentAccess = bitacora_select_project($projectAccesses, $selectedProjectId);
@@ -367,6 +384,7 @@ $clientViews = [
   'proyectos' => ['label' => 'Proyectos', 'icon' => 'projects'],
   'bitacora' => ['label' => 'Bitacora', 'icon' => 'logs'],
   'solicitudes' => ['label' => 'Solicitudes', 'icon' => 'requests'],
+  'cotizaciones' => ['label' => 'Cotizaciones', 'icon' => 'quote'],
   'notificaciones' => ['label' => 'Notificaciones', 'icon' => 'bell'],
   'perfil' => ['label' => 'Perfil', 'icon' => 'profile'],
 ];
@@ -379,6 +397,8 @@ if ($action === 'update_client_password') {
   $activeView = 'perfil';
 } elseif ($action === 'create_request') {
   $activeView = 'solicitudes';
+} elseif (in_array($action, ['create_quote_request', 'respond_quote'], true)) {
+  $activeView = 'cotizaciones';
 } elseif (in_array($action, ['mark_client_notification_read', 'mark_all_client_notifications_read'], true)) {
   $activeView = 'notificaciones';
 }
@@ -428,6 +448,208 @@ if ($action === 'update_client_password') {
   }
 }
 
+if ($action === 'create_quote_request') {
+  bitacora_check_token();
+  $service = trim((string) ($_POST['quote_service'] ?? ''));
+  $otherService = trim((string) ($_POST['quote_service_other'] ?? ''));
+  $location = trim((string) ($_POST['quote_location'] ?? ''));
+  $scope = trim((string) ($_POST['quote_scope'] ?? ''));
+  $urgency = trim((string) ($_POST['quote_urgency'] ?? 'Normal'));
+  $budget = trim((string) ($_POST['quote_budget'] ?? 'Por definir'));
+  $requestedDate = trim((string) ($_POST['quote_requested_date'] ?? ''));
+  $relatedProjectId = max(0, (int) ($_POST['related_project_id'] ?? 0));
+  $relatedAccess = $relatedProjectId > 0 ? bitacora_select_project($projectAccesses, $relatedProjectId) : null;
+
+  if ($service === 'Otro') {
+    $service = $otherService;
+  }
+  if (!in_array($urgency, $quoteUrgencies, true)) {
+    $urgency = 'Normal';
+  }
+  if (!in_array($budget, $quoteBudgets, true)) {
+    $budget = 'Por definir';
+  }
+
+  if ($relatedProjectId > 0 && (!$relatedAccess || (int) $relatedAccess['opportunity_id'] !== $relatedProjectId)) {
+    $notice = ['type' => 'error', 'text' => 'El proyecto relacionado no pertenece a tu cuenta.'];
+  } elseif ($service === '' || $location === '' || $scope === '') {
+    $notice = ['type' => 'error', 'text' => 'Completa servicio, ubicacion y alcance de la cotizacion.'];
+  } elseif (strlen($service) > 160 || strlen($location) > 190) {
+    $notice = ['type' => 'error', 'text' => 'Servicio y ubicacion deben ser mas breves.'];
+  } elseif (strlen($scope) < 30 || strlen($scope) > 5000) {
+    $notice = ['type' => 'error', 'text' => 'El alcance debe tener entre 30 y 5000 caracteres.'];
+  } elseif ($requestedDate !== '' && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $requestedDate) || strtotime($requestedDate) === false || date('Y-m-d', (int) strtotime($requestedDate)) !== $requestedDate || $requestedDate < date('Y-m-d'))) {
+    $notice = ['type' => 'error', 'text' => 'La fecha requerida debe ser igual o posterior a hoy.'];
+  } else {
+    try {
+      $attachment = crm_store_quote_attachment($_FILES['quote_attachment'] ?? null);
+    } catch (RuntimeException $error) {
+      $attachment = ['path' => null, 'name' => null, 'mime' => null, 'size' => null];
+      $notice = ['type' => 'error', 'text' => $error->getMessage()];
+    }
+
+    if (!$notice) {
+      $priorityMap = ['Normal' => 'Media', 'Prioritaria' => 'Alta', 'Urgente' => 'Urgente'];
+      $priority = $priorityMap[$urgency] ?? 'Media';
+      try {
+        $pdo->beginTransaction();
+        $opportunityStmt = $pdo->prepare('
+          INSERT INTO opportunities (
+            client_id, company_name, contact_name, contact_email, contact_phone,
+            service, source, status, priority, estimated_value, next_action_date, notes
+          ) VALUES (?, ?, ?, ?, ?, ?, "Portal cliente", "Nueva solicitud", ?, 0, ?, ?)
+        ');
+        $opportunityStmt->execute([
+          (int) $portal['client_id'],
+          (string) $currentAccess['company_name'],
+          (string) $currentAccess['contact_name'],
+          (string) $currentAccess['contact_email'],
+          (string) $currentAccess['contact_phone'],
+          $service,
+          $priority,
+          date('Y-m-d', strtotime('+1 day')),
+          $scope,
+        ]);
+        $newOpportunityId = (int) $pdo->lastInsertId();
+
+        $quoteCode = crm_next_quote_code($pdo, 'SOL');
+        $quoteStmt = $pdo->prepare('
+          INSERT INTO quotes (
+            opportunity_id, related_opportunity_id, requested_by_portal_user_id,
+            quote_code, amount, status, probability, request_scope, request_location,
+            requested_date, budget_range, client_status, visible_to_client,
+            attachment_path, attachment_original_name, attachment_mime, attachment_size
+          ) VALUES (?, ?, ?, ?, 0, "Solicitud recibida", 15, ?, ?, ?, ?, "Pendiente", 0, ?, ?, ?, ?)
+        ');
+        $quoteStmt->execute([
+          $newOpportunityId,
+          $relatedAccess ? (int) $relatedAccess['opportunity_id'] : null,
+          (int) $currentAccess['id'],
+          $quoteCode,
+          $scope,
+          $location,
+          $requestedDate ?: null,
+          $budget,
+          $attachment['path'],
+          $attachment['name'],
+          $attachment['mime'],
+          $attachment['size'],
+        ]);
+        $quoteId = (int) $pdo->lastInsertId();
+
+        $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Cotizacion", ?, ?)');
+        $activity->execute([$newOpportunityId, 'Solicitud de cotizacion recibida desde el portal cliente: ' . $quoteCode, date('Y-m-d', strtotime('+1 day'))]);
+
+        crm_create_notification($pdo, [
+          'recipient_type' => 'admin',
+          'portal_user_id' => (int) $currentAccess['id'],
+          'opportunity_id' => $newOpportunityId,
+          'event_type' => 'client_quote_requested',
+          'title' => 'Nueva solicitud de cotizacion',
+          'message' => $currentAccess['company_name'] . ' solicito cotizacion para ' . $service . ' con prioridad ' . $priority . '.',
+          'target_url' => crm_admin_url('quote', $quoteId),
+        ]);
+        crm_create_notification($pdo, [
+          'recipient_type' => 'client',
+          'portal_user_id' => (int) $currentAccess['id'],
+          'opportunity_id' => $newOpportunityId,
+          'event_type' => 'client_quote_requested',
+          'title' => 'Solicitud de cotizacion recibida',
+          'message' => 'Registramos la solicitud ' . $quoteCode . '. El equipo comercial preparara la propuesta.',
+          'target_url' => crm_portal_url('cotizaciones', (int) $currentAccess['opportunity_id'], [], 'quote-' . $quoteId),
+        ]);
+
+        $pdo->commit();
+        $_SESSION['bitacora_quote_notice'] = ['type' => 'success', 'text' => 'Solicitud ' . $quoteCode . ' registrada. Te notificaremos cuando la propuesta este disponible.'];
+        header('Location: ' . crm_portal_url('cotizaciones', (int) $currentAccess['opportunity_id'], [], 'quote-' . $quoteId));
+        exit;
+      } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+          $pdo->rollBack();
+        }
+        crm_delete_quote_attachment($attachment['path']);
+        crm_log_event('client_quote.create_failed', [
+          'portal_user_id' => (int) $currentAccess['id'],
+          'client_id' => (int) $portal['client_id'],
+          'error_class' => get_class($error),
+          'error_message' => substr($error->getMessage(), 0, 500),
+        ]);
+        $notice = ['type' => 'error', 'text' => 'No se pudo registrar la cotizacion. Intenta nuevamente.'];
+      }
+    }
+  }
+}
+
+if ($action === 'respond_quote') {
+  bitacora_check_token();
+  $quoteId = max(0, (int) ($_POST['quote_id'] ?? 0));
+  $clientStatus = trim((string) ($_POST['client_status'] ?? ''));
+  $clientComments = trim((string) ($_POST['client_comments'] ?? ''));
+  $allowedResponses = ['Aceptada', 'Cambios solicitados', 'Rechazada'];
+
+  $quoteStmt = $pdo->prepare('
+    SELECT q.id, q.quote_code, q.opportunity_id, q.visible_to_client, q.client_status, o.client_id, o.service
+    FROM quotes q
+    JOIN opportunities o ON o.id = q.opportunity_id
+    WHERE q.id = ? AND o.client_id = ? AND q.visible_to_client = 1
+    LIMIT 1
+  ');
+  $quoteStmt->execute([$quoteId, (int) $portal['client_id']]);
+  $clientQuote = $quoteStmt->fetch();
+
+  if (!$clientQuote || !in_array($clientStatus, $allowedResponses, true)) {
+    $notice = ['type' => 'error', 'text' => 'La cotizacion no esta disponible o la respuesta no es valida.'];
+  } elseif (in_array((string) ($clientQuote['client_status'] ?? ''), ['Aceptada', 'Rechazada'], true)) {
+    $notice = ['type' => 'error', 'text' => 'Esta cotizacion ya tiene una respuesta final registrada.'];
+  } elseif (in_array($clientStatus, ['Cambios solicitados', 'Rechazada'], true) && strlen($clientComments) < 10) {
+    $notice = ['type' => 'error', 'text' => 'Agrega un comentario de al menos 10 caracteres para enviar esta respuesta.'];
+  } elseif (strlen($clientComments) > 2000) {
+    $notice = ['type' => 'error', 'text' => 'El comentario no debe exceder 2000 caracteres.'];
+  } else {
+    try {
+      $pdo->beginTransaction();
+      $commercialStatus = $clientStatus === 'Aceptada'
+        ? 'Aprobada'
+        : ($clientStatus === 'Rechazada' ? 'Perdida' : 'En revision cliente');
+      $update = $pdo->prepare('UPDATE quotes SET client_status = ?, client_comments = ?, responded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, status = ? WHERE id = ?');
+      $update->execute([$clientStatus, $clientComments ?: null, $commercialStatus, $quoteId]);
+
+      $opportunityStatus = $clientStatus === 'Aceptada'
+        ? 'Proyecto ganado'
+        : ($clientStatus === 'Rechazada' ? 'Proyecto perdido' : 'Seguimiento');
+      $pdo->prepare('UPDATE opportunities SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')->execute([$opportunityStatus, (int) $clientQuote['opportunity_id']]);
+
+      $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Respuesta cliente", ?, NULL)');
+      $activity->execute([(int) $clientQuote['opportunity_id'], 'Cotizacion ' . $clientQuote['quote_code'] . ': ' . $clientStatus . ($clientComments !== '' ? '. ' . $clientComments : '')]);
+
+      crm_create_notification($pdo, [
+        'recipient_type' => 'admin',
+        'portal_user_id' => (int) $currentAccess['id'],
+        'opportunity_id' => (int) $clientQuote['opportunity_id'],
+        'event_type' => 'client_quote_response',
+        'title' => 'Respuesta de cliente a cotizacion',
+        'message' => $currentAccess['company_name'] . ' marco ' . $clientQuote['quote_code'] . ' como ' . $clientStatus . '.',
+        'target_url' => crm_admin_url('quote', $quoteId),
+      ]);
+
+      $pdo->commit();
+      $_SESSION['bitacora_quote_notice'] = ['type' => 'success', 'text' => 'Respuesta enviada para la cotizacion ' . $clientQuote['quote_code'] . '.'];
+      header('Location: ' . crm_portal_url('cotizaciones', (int) $currentAccess['opportunity_id'], [], 'quote-' . $quoteId));
+      exit;
+    } catch (Throwable $error) {
+      if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+      }
+      crm_log_event('client_quote.response_failed', [
+        'quote_id' => $quoteId,
+        'client_id' => (int) $portal['client_id'],
+        'error_class' => get_class($error),
+        'error_message' => substr($error->getMessage(), 0, 500),
+      ]);
+      $notice = ['type' => 'error', 'text' => 'No se pudo guardar tu respuesta. Intenta nuevamente.'];
+    }
+  }
+}
 if ($action === 'create_request') {
   bitacora_check_token();
   $postedProjectId = max(0, (int) ($_POST['project_id'] ?? 0));
@@ -542,6 +764,10 @@ if ($action === 'create_request') {
 }
 $projectAccesses = bitacora_project_accesses($pdo, $portal);
 $currentAccess = bitacora_select_project($projectAccesses, (int) $currentAccess['opportunity_id']) ?: $currentAccess;
+if (!$notice && !empty($_SESSION['bitacora_quote_notice'])) {
+  $notice = $_SESSION['bitacora_quote_notice'];
+  unset($_SESSION['bitacora_quote_notice']);
+}
 $token = bitacora_token();
 $projects = $projectAccesses;
 $project = $currentAccess;
@@ -572,6 +798,18 @@ $logs = $logsStmt->fetchAll();
 $requestsStmt = $pdo->prepare('SELECT * FROM client_requests WHERE opportunity_id = ? AND portal_user_id = ? ORDER BY created_at DESC');
 $requestsStmt->execute([$activeOpportunityId, $activePortalUserId]);
 $requests = $requestsStmt->fetchAll();
+$clientQuotesStmt = $pdo->prepare('
+  SELECT q.*, o.company_name, o.service, o.source, o.status AS opportunity_status,
+    ro.service AS related_service
+  FROM quotes q
+  JOIN opportunities o ON o.id = q.opportunity_id
+  LEFT JOIN opportunities ro ON ro.id = q.related_opportunity_id
+  WHERE o.client_id = ?
+    AND (q.requested_by_portal_user_id IS NOT NULL OR q.visible_to_client = 1)
+  ORDER BY q.created_at DESC, q.id DESC
+');
+$clientQuotesStmt->execute([(int) $portal['client_id']]);
+$clientQuotes = $clientQuotesStmt->fetchAll();
 $clientUnreadNotifications = crm_unread_notification_count($pdo, 'client', $activePortalUserId);
 $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUserId, 20);
 ?>
@@ -648,6 +886,7 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
               <a class="crm-button" href="<?php echo h(bitacora_client_url('proyectos', $activeOpportunityId)); ?>">Ver proyectos</a>
               <a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('bitacora', $activeOpportunityId)); ?>">Ver bitacora</a>
               <a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('solicitudes', $activeOpportunityId)); ?>">Crear solicitud</a>
+              <a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('cotizaciones', $activeOpportunityId)); ?>">Solicitar cotizacion</a>
             </div>
           </section>
         </section>
@@ -669,7 +908,102 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
             <div class="crm-client-actions-row">
               <a class="crm-button" href="<?php echo h(bitacora_client_url('bitacora', $activeOpportunityId)); ?>">Abrir bitacora</a>
               <a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('solicitudes', $activeOpportunityId)); ?>">Solicitar mantenimiento</a>
+              <a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('cotizaciones', $activeOpportunityId)); ?>">Cotizar ampliacion</a>
             </div>
+          </section>
+        </section>
+      <?php elseif ($activeView === 'cotizaciones'): ?>
+        <section class="crm-client-module crm-client-module--cotizaciones">
+          <div class="crm-module-head"><p class="eyebrow">Cotizaciones</p><h1>Solicitudes comerciales</h1><p>Solicita ampliaciones, nuevos servicios o trabajos relacionados con tus proyectos.</p></div>
+
+          <section class="crm-client-workspace crm-client-workspace--quotes">
+            <article class="crm-card crm-quote-intake">
+              <div class="crm-section-head"><div><h2>Nueva solicitud</h2><p>El equipo comercial revisara el alcance antes de publicar una propuesta.</p></div><span class="crm-pill crm-pill--neutral">Respuesta comercial</span></div>
+              <form class="crm-form crm-request-intake" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                <input type="hidden" name="action" value="create_quote_request">
+                <fieldset class="crm-request-form-section">
+                  <legend>Servicio requerido</legend>
+                  <div class="crm-request-form-grid">
+                    <label class="crm-field">Proyecto relacionado
+                      <select name="related_project_id">
+                        <option value="0">Nuevo servicio / sin relacion</option>
+                        <?php foreach ($projects as $projectOption): ?>
+                          <option value="<?php echo (int) $projectOption['opportunity_id']; ?>" <?php echo (int) ($_POST['related_project_id'] ?? $activeOpportunityId) === (int) $projectOption['opportunity_id'] ? 'selected' : ''; ?>><?php echo h($projectOption['service']); ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                    </label>
+                    <label class="crm-field">Servicio<select name="quote_service" required><?php foreach ($quoteServices as $serviceOption): ?><option <?php echo (($_POST['quote_service'] ?? '') === $serviceOption) ? 'selected' : ''; ?>><?php echo h($serviceOption); ?></option><?php endforeach; ?></select></label>
+                    <label class="crm-field">Otro servicio<input name="quote_service_other" maxlength="160" value="<?php echo h($_POST['quote_service_other'] ?? ''); ?>" placeholder="Especifica si elegiste Otro"></label>
+                    <label class="crm-field">Ubicacion<input name="quote_location" maxlength="190" value="<?php echo h($_POST['quote_location'] ?? ''); ?>" placeholder="Planta, nave, edificio o area" required></label>
+                    <label class="crm-field">Prioridad<select name="quote_urgency"><?php foreach ($quoteUrgencies as $urgencyOption): ?><option <?php echo (($_POST['quote_urgency'] ?? 'Normal') === $urgencyOption) ? 'selected' : ''; ?>><?php echo h($urgencyOption); ?></option><?php endforeach; ?></select></label>
+                    <label class="crm-field">Presupuesto estimado<select name="quote_budget"><?php foreach ($quoteBudgets as $budgetOption): ?><option <?php echo (($_POST['quote_budget'] ?? 'Por definir') === $budgetOption) ? 'selected' : ''; ?>><?php echo h($budgetOption); ?></option><?php endforeach; ?></select></label>
+                    <label class="crm-field">Fecha requerida<input type="date" name="quote_requested_date" min="<?php echo h(date('Y-m-d')); ?>" value="<?php echo h($_POST['quote_requested_date'] ?? ''); ?>"></label>
+                  </div>
+                </fieldset>
+                <fieldset class="crm-request-form-section">
+                  <legend>Alcance</legend>
+                  <label class="crm-field">Descripcion del requerimiento<textarea name="quote_scope" rows="7" minlength="30" maxlength="5000" placeholder="Describe cantidades, capacidades, medidas, areas involucradas y resultado esperado." required><?php echo h($_POST['quote_scope'] ?? ''); ?></textarea></label>
+                </fieldset>
+                <fieldset class="crm-request-form-section">
+                  <legend>Archivo tecnico</legend>
+                  <label class="crm-evidence-upload">
+                    <span class="crm-evidence-upload__icon"><?php echo bitacora_icon('quote'); ?></span>
+                    <span><strong>Adjuntar plano, fotografia o PDF</strong><small>PDF, JPG, PNG o WEBP. Maximo 8 MB. Archivo opcional.</small></span>
+                    <input type="file" name="quote_attachment" accept="application/pdf,image/jpeg,image/png,image/webp">
+                  </label>
+                </fieldset>
+                <div class="crm-request-submit"><p>La solicitud quedara asociada a <strong><?php echo h($project['company_name']); ?></strong>.</p><button class="crm-button" type="submit">Enviar solicitud</button></div>
+              </form>
+            </article>
+
+            <section class="crm-quote-list" aria-label="Historial de cotizaciones">
+              <div class="crm-section-head"><div><h2>Historial</h2><p>Solicitudes enviadas y propuestas publicadas para tu empresa.</p></div><span class="crm-pill crm-pill--neutral"><?php echo count($clientQuotes); ?> registro(s)</span></div>
+              <?php foreach ($clientQuotes as $clientQuote): ?>
+                <?php
+                  $isPublished = (int) ($clientQuote['visible_to_client'] ?? 0) === 1;
+                  $clientQuoteStatus = trim((string) ($clientQuote['client_status'] ?? 'Pendiente')) ?: 'Pendiente';
+                ?>
+                <article id="quote-<?php echo (int) $clientQuote['id']; ?>" class="crm-card crm-quote-card">
+                  <div class="crm-quote-card__head">
+                    <div><span class="crm-pill <?php echo h(bitacora_pill_class((string) $clientQuote['status'])); ?>"><?php echo h($clientQuote['status']); ?></span><h3><?php echo h($clientQuote['quote_code']); ?> - <?php echo h($clientQuote['service']); ?></h3></div>
+                    <strong><?php echo $isPublished ? '$' . number_format((float) $clientQuote['amount'], 2) : 'En preparacion'; ?></strong>
+                  </div>
+                  <div class="crm-request-meta">
+                    <span><strong>Cliente</strong><?php echo h($clientQuoteStatus); ?></span>
+                    <span><strong>Ubicacion</strong><?php echo h($clientQuote['request_location'] ?: 'Sin especificar'); ?></span>
+                    <span><strong>Fecha requerida</strong><?php echo h($clientQuote['requested_date'] ?: 'Por definir'); ?></span>
+                    <span><strong>Vigencia</strong><?php echo h($isPublished ? ($clientQuote['valid_until'] ?: 'Sin vigencia') : 'Pendiente'); ?></span>
+                  </div>
+                  <details class="crm-report-details">
+                    <summary>Ver detalle</summary>
+                    <div class="crm-report-details__body">
+                      <p><strong>Alcance solicitado</strong><br><?php echo nl2br(h($clientQuote['request_scope'] ?: 'Sin alcance registrado.')); ?></p>
+                      <p><strong>Presupuesto indicado</strong><br><?php echo h($clientQuote['budget_range'] ?: 'Por definir'); ?></p>
+                      <?php if (!empty($clientQuote['related_service'])): ?><p><strong>Proyecto relacionado</strong><br><?php echo h($clientQuote['related_service']); ?></p><?php endif; ?>
+                      <?php if ($isPublished && !empty($clientQuote['terms'])): ?><p><strong>Condiciones de la propuesta</strong><br><?php echo nl2br(h($clientQuote['terms'])); ?></p><?php endif; ?>
+                      <div class="crm-client-actions-row">
+                        <?php if (!empty($clientQuote['attachment_path'])): ?><a class="crm-button crm-button--ghost" href="<?php echo h(crm_quote_attachment_url((int) $clientQuote['id'])); ?>" target="_blank" rel="noopener">Ver archivo tecnico</a><?php endif; ?>
+                        <?php if ($isPublished && !empty($clientQuote['proposal_path'])): ?><a class="crm-button" href="<?php echo h(crm_quote_attachment_url((int) $clientQuote['id'], 'proposal')); ?>" target="_blank" rel="noopener">Abrir propuesta PDF</a><?php endif; ?>
+                      </div>
+                    </div>
+                  </details>
+                  <?php if ($isPublished && !in_array($clientQuoteStatus, ['Aceptada', 'Rechazada'], true)): ?>
+                    <form class="crm-quote-response" method="post">
+                      <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                      <input type="hidden" name="action" value="respond_quote">
+                      <input type="hidden" name="quote_id" value="<?php echo (int) $clientQuote['id']; ?>">
+                      <label class="crm-field">Respuesta<select name="client_status" required><option value="Aceptada">Aceptar propuesta</option><option value="Cambios solicitados">Solicitar cambios</option><option value="Rechazada">Rechazar propuesta</option></select></label>
+                      <label class="crm-field crm-field--wide">Comentarios<textarea name="client_comments" rows="3" maxlength="2000" placeholder="Obligatorio para solicitar cambios o rechazar."></textarea></label>
+                      <button class="crm-button" type="submit">Enviar respuesta</button>
+                    </form>
+                  <?php elseif ($isPublished): ?>
+                    <div class="crm-quote-response-summary"><span class="crm-pill <?php echo $clientQuoteStatus === 'Aceptada' ? 'crm-pill--success' : 'crm-pill--danger'; ?>"><?php echo h($clientQuoteStatus); ?></span><?php if (!empty($clientQuote['client_comments'])): ?><p><?php echo nl2br(h($clientQuote['client_comments'])); ?></p><?php endif; ?></div>
+                  <?php endif; ?>
+                </article>
+              <?php endforeach; ?>
+              <?php if (!$clientQuotes): ?><div class="crm-card"><p>Aun no hay solicitudes de cotizacion para esta empresa.</p></div><?php endif; ?>
+            </section>
           </section>
         </section>
       <?php elseif ($activeView === 'bitacora'): ?>
@@ -874,7 +1208,7 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
   </div>
   <script>
     (() => {
-      const legacyViews = ['resumen', 'proyectos', 'bitacora', 'solicitudes', 'notificaciones', 'perfil'];
+      const legacyViews = ['resumen', 'proyectos', 'bitacora', 'solicitudes', 'cotizaciones', 'notificaciones', 'perfil'];
       const params = new URLSearchParams(window.location.search);
       const hashView = window.location.hash ? window.location.hash.slice(1) : '';
       if (hashView && legacyViews.includes(hashView) && !params.has('view')) {

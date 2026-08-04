@@ -32,11 +32,13 @@ DirectoryIndex index.php index.html
   RewriteRule ^crm/portal/proyectos/?$ crm/cliente.php?view=proyectos [QSA,L]
   RewriteRule ^crm/portal/bitacora/?$ crm/cliente.php?view=bitacora [QSA,L]
   RewriteRule ^crm/portal/solicitudes/?$ crm/cliente.php?view=solicitudes [QSA,L]
+  RewriteRule ^crm/portal/cotizaciones/?$ crm/cliente.php?view=cotizaciones [QSA,L]
   RewriteRule ^crm/portal/notificaciones/?$ crm/cliente.php?view=notificaciones [QSA,L]
   RewriteRule ^crm/portal/perfil/?$ crm/cliente.php?view=perfil [QSA,L]
   RewriteRule ^crm/portal/?$ crm/cliente.php?view=resumen [QSA,L]
 
   # CRM administration and protected evidence.
+  RewriteRule ^crm/archivos-cotizacion/([0-9]+)/?$ crm/quote-file.php?id=$1 [QSA,L]
   RewriteRule ^crm/evidencias/([0-9]+)/?$ crm/evidence.php?id=$1 [QSA,L]
   RewriteRule ^crm/notificaciones/estado/?$ crm/index.php?notification_poll=1 [QSA,L]
   RewriteRule ^crm/salir/?$ crm/index.php?logout=1 [QSA,L]

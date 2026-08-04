@@ -19,14 +19,9 @@ if (crm_uses_legacy_php_url('index.php')) {
   exit;
 }
 
-$sessionDir = __DIR__ . '/data/sessions';
-if (!is_dir($sessionDir)) {
-  mkdir($sessionDir, 0755, true);
-}
-session_save_path($sessionDir);
-session_start();
 try {
   $pdo = crm_db();
+  crm_start_database_session($pdo);
 } catch (Throwable $error) {
   crm_log_event('login.bootstrap_failed', [
     'area' => 'admin',
@@ -262,7 +257,7 @@ if (($_POST['action'] ?? '') === 'login') {
   $humanAnswer = (string) ($_POST['human_answer'] ?? '');
   $loginIdentifier = $email !== '' ? $email : 'anonimo';
   $lockStatus = crm_login_lock_status($pdo, 'admin', $loginIdentifier);
-  $loginDiagnostic = crm_login_diagnostic_context($pdo, $loginIdentifier, $sessionDir);
+  $loginDiagnostic = crm_login_diagnostic_context($pdo, $loginIdentifier);
   crm_log_event('login.started', array_merge($loginDiagnostic, ['area' => 'admin']));
 
   if (!empty($lockStatus['locked'])) {
@@ -605,12 +600,48 @@ if (($_POST['action'] ?? '') === 'update_opportunity') {
 
 if (($_POST['action'] ?? '') === 'convert_client') {
   crm_check_token();
-  $_SESSION['crm_flash'] = [
-    'type' => 'info',
-    'title' => 'Conversion desde seguimiento',
-    'text' => 'El prospecto se convierte a cliente cuando la oportunidad se marca como Proyecto iniciado. Bitacora ID se activa al marcar Proyecto entregado.',
-  ];
-  header('Location: ' . crm_admin_url('clients'));
+  $clientId = max(0, (int) ($_POST['client_id'] ?? 0));
+  $opportunityId = max(0, (int) ($_POST['opportunity_id'] ?? 0));
+  $clientStmt = $pdo->prepare('SELECT id, name, lifecycle_stage FROM clients WHERE id = ? LIMIT 1');
+  $clientStmt->execute([$clientId]);
+  $client = $clientStmt->fetch();
+
+  if (!$client) {
+    $_SESSION['crm_flash'] = [
+      'type' => 'error',
+      'title' => 'Prospecto no encontrado',
+      'text' => 'No fue posible localizar el registro que intentas convertir.',
+    ];
+  } elseif ((string) $client['lifecycle_stage'] === 'Cliente') {
+    $_SESSION['crm_flash'] = [
+      'type' => 'info',
+      'title' => 'Cliente ya convertido',
+      'text' => $client['name'] . ' ya forma parte de la cartera de clientes.',
+    ];
+  } else {
+    $update = $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP) WHERE id = ?');
+    $update->execute(['Cliente', 'Prospecto', 'Industrial', $clientId]);
+
+    if ($opportunityId > 0) {
+      $belongsStmt = $pdo->prepare('SELECT COUNT(*) FROM opportunities WHERE id = ? AND client_id = ?');
+      $belongsStmt->execute([$opportunityId, $clientId]);
+      if ((int) $belongsStmt->fetchColumn() > 0) {
+        $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Conversion", "Prospecto convertido a cliente.", NULL)');
+        $activity->execute([$opportunityId]);
+      }
+    }
+
+    $_SESSION['crm_flash'] = [
+      'type' => 'success',
+      'title' => 'Cliente convertido',
+      'text' => $client['name'] . ' ahora aparece como cliente en el CRM.',
+    ];
+  }
+
+  $redirect = ($_POST['return_to'] ?? '') === 'opportunity' && $opportunityId > 0
+    ? crm_admin_url('opportunity', $opportunityId)
+    : crm_admin_url('clients');
+  header('Location: ' . $redirect);
   exit;
 }
 if (($_POST['action'] ?? '') === 'reset_portal_access') {
@@ -802,36 +833,170 @@ if (($_POST['action'] ?? '') === 'create_quote') {
 }
 if (($_POST['action'] ?? '') === 'update_quote') {
   crm_check_token();
-  $status = trim($_POST['status'] ?? '') ?: 'En elaboracion';
-  $quoteId = (int) $_POST['quote_id'];
-  $stmt = $pdo->prepare('UPDATE quotes SET amount = ?, status = ?, probability = ?, valid_until = ? WHERE id = ?');
-  $stmt->execute([
-    max(0, (float) ($_POST['amount'] ?? 0)),
-    $status,
-    max(0, min(100, (int) ($_POST['probability'] ?? 40))),
-    $_POST['valid_until'] ?: null,
-    $quoteId,
-  ]);
+  $quoteId = max(0, (int) ($_POST['quote_id'] ?? 0));
+  $status = trim((string) ($_POST['status'] ?? 'En elaboracion')) ?: 'En elaboracion';
+  if (!in_array($status, $quoteStatuses, true)) {
+    $status = 'En elaboracion';
+  }
+  $amount = max(0, (float) ($_POST['amount'] ?? 0));
+  $probability = max(0, min(100, (int) ($_POST['probability'] ?? 40)));
+  $validUntil = trim((string) ($_POST['valid_until'] ?? '')) ?: null;
+  $terms = trim((string) ($_POST['terms'] ?? ''));
+  $visibleToClient = isset($_POST['visible_to_client']) ? 1 : 0;
 
-  if ($status === 'Aprobada') {
-    $pdo->prepare('UPDATE opportunities SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = (SELECT opportunity_id FROM quotes WHERE id = ?)')->execute(['Proyecto ganado', $quoteId]);
-  } elseif ($status === 'Perdida') {
-    $pdo->prepare('UPDATE opportunities SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = (SELECT opportunity_id FROM quotes WHERE id = ?)')->execute(['Proyecto perdido', $quoteId]);
+  $beforeStmt = $pdo->prepare('
+    SELECT q.*, o.client_id, o.company_name, o.service
+    FROM quotes q
+    JOIN opportunities o ON o.id = q.opportunity_id
+    WHERE q.id = ?
+    LIMIT 1
+  ');
+  $beforeStmt->execute([$quoteId]);
+  $before = $beforeStmt->fetch();
+
+  if (!$before) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'Cotizacion no encontrada', 'text' => 'El registro solicitado ya no existe.'];
+    header('Location: ' . crm_admin_url('quotes'));
+    exit;
+  }
+
+  try {
+    $proposal = crm_store_quote_proposal($_FILES['proposal_file'] ?? null);
+  } catch (RuntimeException $error) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'PDF no valido', 'text' => $error->getMessage()];
+    header('Location: ' . crm_admin_url('quote', $quoteId));
+    exit;
+  }
+
+  $proposalPath = $proposal['path'] ?: ($before['proposal_path'] ?? null);
+  $proposalName = $proposal['name'] ?: ($before['proposal_original_name'] ?? null);
+  $proposalMime = $proposal['mime'] ?: ($before['proposal_mime'] ?? null);
+  $proposalSize = $proposal['size'] ?: ($before['proposal_size'] ?? null);
+
+  if ($validUntil !== null && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $validUntil) || strtotime($validUntil) === false || date('Y-m-d', (int) strtotime($validUntil)) !== $validUntil)) {
+    crm_delete_quote_attachment($proposal['path']);
+    $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'Vigencia no valida', 'text' => 'Selecciona una fecha de vigencia valida.'];
+  } elseif ($visibleToClient && $amount <= 0) {
+    crm_delete_quote_attachment($proposal['path']);
+    $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'Monto requerido', 'text' => 'Define un monto mayor a cero antes de publicar la propuesta.'];
+  } elseif ($visibleToClient && !$validUntil) {
+    crm_delete_quote_attachment($proposal['path']);
+    $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'Vigencia requerida', 'text' => 'Indica la vigencia de la propuesta antes de publicarla.'];
+  } elseif ($visibleToClient && strlen($terms) < 20) {
+    crm_delete_quote_attachment($proposal['path']);
+    $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'Condiciones requeridas', 'text' => 'Agrega al menos 20 caracteres de condiciones comerciales.'];
+  } elseif ($visibleToClient && !$proposalPath) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'PDF requerido', 'text' => 'Adjunta el PDF formal antes de publicar la propuesta al cliente.'];
+  } else {
+    try {
+      $pdo->beginTransaction();
+      $proposalChanged = $amount !== (float) $before['amount']
+        || $validUntil !== ($before['valid_until'] ?: null)
+        || $terms !== trim((string) ($before['terms'] ?? ''))
+        || !empty($proposal['path']);
+      $effectiveStatus = $visibleToClient && !in_array($status, ['Aprobada', 'Perdida'], true) ? 'Enviada' : $status;
+      $clientStatus = $proposalChanged && (string) ($before['client_status'] ?? '') === 'Cambios solicitados'
+        ? 'Pendiente'
+        : (string) ($before['client_status'] ?? 'Pendiente');
+
+      $stmt = $pdo->prepare('
+        UPDATE quotes SET
+          amount = ?, status = ?, probability = ?, valid_until = ?, terms = ?,
+          visible_to_client = ?, published_at = CASE WHEN ? = 1 THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END,
+          sent_at = CASE WHEN ? = 1 THEN COALESCE(sent_at, ?) ELSE sent_at END,
+          client_status = ?, proposal_path = ?, proposal_original_name = ?,
+          proposal_mime = ?, proposal_size = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      ');
+      $stmt->execute([
+        $amount,
+        $effectiveStatus,
+        $probability,
+        $validUntil,
+        $terms ?: null,
+        $visibleToClient,
+        $visibleToClient,
+        $visibleToClient,
+        date('Y-m-d'),
+        $clientStatus,
+        $proposalPath,
+        $proposalName,
+        $proposalMime,
+        $proposalSize,
+        $quoteId,
+      ]);
+
+      if ($effectiveStatus === 'Aprobada') {
+        $pdo->prepare('UPDATE opportunities SET status = "Proyecto ganado", updated_at = CURRENT_TIMESTAMP WHERE id = ?')->execute([(int) $before['opportunity_id']]);
+      } elseif ($effectiveStatus === 'Perdida') {
+        $pdo->prepare('UPDATE opportunities SET status = "Proyecto perdido", updated_at = CURRENT_TIMESTAMP WHERE id = ?')->execute([(int) $before['opportunity_id']]);
+      } elseif ($visibleToClient) {
+        $pdo->prepare('UPDATE opportunities SET status = "Cotizacion enviada", updated_at = CURRENT_TIMESTAMP WHERE id = ?')->execute([(int) $before['opportunity_id']]);
+      }
+
+      $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Cotizacion", ?, ?)');
+      $activity->execute([(int) $before['opportunity_id'], $visibleToClient ? 'Propuesta publicada al cliente: ' . $before['quote_code'] : 'Cotizacion actualizada: ' . $before['quote_code'], $validUntil]);
+
+      $shouldNotify = $visibleToClient && ((int) ($before['visible_to_client'] ?? 0) === 0 || $proposalChanged);
+      if ($shouldNotify) {
+        $recipientStmt = $pdo->prepare('
+          SELECT cpu.id, cpu.opportunity_id
+          FROM client_portal_users cpu
+          WHERE cpu.is_active = 1 AND (cpu.id = ? OR cpu.client_id = ?)
+          ORDER BY CASE WHEN cpu.id = ? THEN 0 ELSE 1 END, cpu.updated_at DESC, cpu.id DESC
+          LIMIT 1
+        ');
+        $requestedBy = (int) ($before['requested_by_portal_user_id'] ?? 0);
+        $recipientStmt->execute([$requestedBy, (int) $before['client_id'], $requestedBy]);
+        $recipient = $recipientStmt->fetch();
+        if ($recipient) {
+          crm_create_notification($pdo, [
+            'recipient_type' => 'client',
+            'portal_user_id' => (int) $recipient['id'],
+            'opportunity_id' => (int) $before['opportunity_id'],
+            'event_type' => 'quote_published',
+            'title' => 'Cotizacion disponible',
+            'message' => 'La propuesta ' . $before['quote_code'] . ' para ' . $before['service'] . ' ya esta disponible.',
+            'target_url' => crm_portal_url('cotizaciones', (int) $recipient['opportunity_id'], [], 'quote-' . $quoteId),
+          ]);
+        }
+      }
+
+      $pdo->commit();
+      if (!empty($proposal['path']) && !empty($before['proposal_path'])) {
+        crm_delete_quote_attachment((string) $before['proposal_path']);
+      }
+      $_SESSION['crm_flash'] = [
+        'type' => 'success',
+        'title' => $visibleToClient ? 'Propuesta publicada' : 'Cotizacion actualizada',
+        'text' => $visibleToClient ? 'El cliente ya puede consultar el monto, las condiciones y el PDF.' : 'Los cambios quedaron guardados como borrador interno.',
+      ];
+    } catch (Throwable $error) {
+      if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+      }
+      crm_delete_quote_attachment($proposal['path']);
+      crm_log_event('admin_quote.update_failed', [
+        'quote_id' => $quoteId,
+        'error_class' => get_class($error),
+        'error_message' => substr($error->getMessage(), 0, 500),
+      ]);
+      $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'No se pudo guardar', 'text' => 'MySQL rechazo la actualizacion de la cotizacion.'];
+    }
   }
 
   $redirect = ($_POST['return_to'] ?? '') === 'quote' ? crm_admin_url('quote', $quoteId) : crm_admin_url('quotes');
   header('Location: ' . $redirect);
   exit;
 }
-
 $view = $_GET['view'] ?? 'dashboard';
 $flash = $_SESSION['crm_flash'] ?? null;
 unset($_SESSION['crm_flash']);
 $token = crm_token();
 $counts = [
   'leads' => (int) $pdo->query('SELECT COUNT(*) FROM opportunities')->fetchColumn(),
-  'clients' => (int) $pdo->query("SELECT COUNT(DISTINCT c.id) FROM clients c JOIN opportunities o ON o.client_id = c.id WHERE o.status IN ('Proyecto iniciado', 'Proyecto entregado')")->fetchColumn(),
-  'prospects' => (int) $pdo->query("SELECT COUNT(*) FROM clients c WHERE NOT EXISTS (SELECT 1 FROM opportunities o WHERE o.client_id = c.id AND o.status IN ('Proyecto iniciado', 'Proyecto entregado'))")->fetchColumn(),
+  'clients' => (int) $pdo->query("SELECT COUNT(*) FROM clients WHERE lifecycle_stage = 'Cliente'")->fetchColumn(),
+  'prospects' => (int) $pdo->query("SELECT COUNT(*) FROM clients WHERE lifecycle_stage = 'Prospecto'")->fetchColumn(),
   'open_quotes' => (int) $pdo->query("SELECT COUNT(*) FROM quotes WHERE status NOT IN ('Aprobada', 'Perdida')")->fetchColumn(),
   'delivered' => (int) $pdo->query("SELECT COUNT(*) FROM opportunities WHERE status = 'Proyecto entregado'")->fetchColumn(),
   'portal' => (int) $pdo->query('SELECT COUNT(*) FROM client_portal_users WHERE is_active = 1')->fetchColumn(),
@@ -914,7 +1079,7 @@ if ($view === 'opportunity') {
   }
 }
 $quotes = $pdo->query('
-  SELECT q.*, o.company_name, o.service, o.status AS opportunity_status
+  SELECT q.*, o.company_name, o.service, o.source, o.status AS opportunity_status
   FROM quotes q
   JOIN opportunities o ON o.id = q.opportunity_id
   ORDER BY q.created_at DESC
@@ -948,7 +1113,7 @@ $clients = $pdo->query('
   FROM clients c
   LEFT JOIN opportunities o ON o.client_id = c.id
   GROUP BY c.id
-  ORDER BY CASE WHEN COALESCE(SUM(CASE WHEN o.status IN ("Proyecto iniciado", "Proyecto entregado") THEN 1 ELSE 0 END), 0) = 0 THEN 0 ELSE 1 END, c.created_at DESC, c.name
+  ORDER BY CASE WHEN c.lifecycle_stage = "Prospecto" THEN 0 ELSE 1 END, c.created_at DESC, c.name
 ')->fetchAll();
 $portalUsers = $pdo->query('
   SELECT cpu.*, o.company_name, o.contact_name, o.contact_email, o.service, o.status AS opportunity_status
@@ -1330,7 +1495,10 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
 
             <div class="crm-grid">
               <article class="crm-card">
-                <h2>Datos del contacto</h2>
+                <div class="crm-section-head">
+                  <h2>Datos del contacto</h2>
+                  <span class="crm-pill <?php echo ($selectedOpportunity['lifecycle_stage'] ?? 'Prospecto') === 'Cliente' ? 'crm-pill--success' : 'crm-pill--warning'; ?>"><?php echo h($selectedOpportunity['lifecycle_stage'] ?: 'Prospecto'); ?></span>
+                </div>
                 <div class="crm-list crm-list--compact">
                   <div class="crm-list__item"><strong>Empresa</strong><span><?php echo h($selectedOpportunity['company_name']); ?></span></div>
                   <div class="crm-list__item"><strong>Contacto</strong><span><?php echo h($selectedOpportunity['contact_name']); ?></span></div>
@@ -1338,6 +1506,16 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                   <div class="crm-list__item"><strong>Telefono</strong><span><?php echo h($selectedOpportunity['contact_phone'] ?: 'Sin telefono'); ?></span></div>
                   <div class="crm-list__item"><strong>Origen</strong><span><?php echo h($selectedOpportunity['source']); ?></span></div>
                 </div>
+                <?php if (($selectedOpportunity['lifecycle_stage'] ?? 'Prospecto') !== 'Cliente' && (int) ($selectedOpportunity['client_id'] ?? 0) > 0): ?>
+                  <form class="crm-inline-form crm-conversion-form" method="post">
+                    <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                    <input type="hidden" name="action" value="convert_client">
+                    <input type="hidden" name="client_id" value="<?php echo (int) $selectedOpportunity['client_id']; ?>">
+                    <input type="hidden" name="opportunity_id" value="<?php echo (int) $selectedOpportunity['id']; ?>">
+                    <input type="hidden" name="return_to" value="opportunity">
+                    <button class="crm-button" type="submit">Convertir en cliente</button>
+                  </form>
+                <?php endif; ?>
               </article>
 
               <article class="crm-card crm-form-card">
@@ -1417,7 +1595,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
           <article class="crm-card">
             <div class="crm-table-wrap">
               <table class="crm-table crm-table--compact">
-                <thead><tr><th>Folio</th><th>Empresa</th><th>Servicio</th><th>Estatus</th><th>Ver</th></tr></thead>
+                <thead><tr><th>Folio</th><th>Empresa</th><th>Servicio</th><th>Origen</th><th>Estatus</th><th>Cliente</th><th>Ver</th></tr></thead>
                 <tbody>
                   <?php foreach ($quotes as $quote): ?>
                     <?php $quoteStatus = trim((string) ($quote['status'] ?? '')); ?>
@@ -1426,14 +1604,16 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                       <td><strong><?php echo h($quote['quote_code']); ?></strong></td>
                       <td><?php echo h($quote['company_name']); ?></td>
                       <td><?php echo h($quote['service']); ?></td>
+                      <td><?php echo h($quote['source'] ?? 'CRM'); ?></td>
                       <td><span class="crm-pill crm-pill--neutral"><?php echo h($quoteStatus); ?></span></td>
+                      <td><span class="crm-pill <?php echo (int) ($quote['visible_to_client'] ?? 0) === 1 ? 'crm-pill--success' : 'crm-pill--neutral'; ?>"><?php echo h((int) ($quote['visible_to_client'] ?? 0) === 1 ? ($quote['client_status'] ?? 'Pendiente') : 'Borrador'); ?></span></td>
                       <td>
                         <a class="crm-button crm-button--ghost" href="<?php echo h(crm_admin_url('quote', (int) $quote['id'])); ?>">Ver</a>
                       </td>
                     </tr>
                   <?php endforeach; ?>
                   <?php if (!$quotes): ?>
-                    <tr><td colspan="5">Aun no hay cotizaciones. Crea la primera desde una oportunidad activa.</td></tr>
+                    <tr><td colspan="7">Aun no hay cotizaciones. Crea la primera desde una oportunidad activa.</td></tr>
                   <?php endif; ?>
                 </tbody>
               </table>
@@ -1460,7 +1640,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             <div class="crm-kpis crm-kpis--secondary">
               <article class="crm-card"><h2>Monto</h2><p><?php echo crm_money($selectedQuote['amount']); ?></p></article>
               <article class="crm-card"><h2>Estatus</h2><p><span class="crm-pill <?php echo h(crm_pill_class($quoteStatus)); ?>"><?php echo h($quoteStatus); ?></span></p></article>
-              <article class="crm-card"><h2>Probabilidad</h2><p><?php echo $quoteProbability; ?>%</p></article>
+              <article class="crm-card"><h2>Respuesta cliente</h2><p><span class="crm-pill <?php echo ($selectedQuote['client_status'] ?? 'Pendiente') === 'Aceptada' ? 'crm-pill--success' : (($selectedQuote['client_status'] ?? '') === 'Rechazada' ? 'crm-pill--danger' : 'crm-pill--neutral'); ?>"><?php echo h($selectedQuote['client_status'] ?? 'Pendiente'); ?></span></p></article>
               <article class="crm-card"><h2>Vigencia</h2><p><?php echo h($quoteValidUntil !== '' ? $quoteValidUntil : 'Sin vigencia'); ?></p></article>
             </div>
 
@@ -1483,14 +1663,22 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                   <div class="crm-list__item"><strong>Estatus comercial</strong><span><?php echo h($selectedQuote['opportunity_status']); ?></span></div>
                   <div class="crm-list__item"><strong>Prioridad</strong><span><?php echo h($selectedQuote['priority']); ?></span></div>
                   <div class="crm-list__item"><strong>Siguiente accion</strong><span><?php echo h($selectedQuote['next_action_date'] ?: 'Sin fecha'); ?></span></div>
-                  <div class="crm-list__item"><strong>Notas</strong><span><?php echo h($selectedQuote['opportunity_notes'] ?: 'Sin notas'); ?></span></div>
+                  <div class="crm-list__item"><strong>Alcance solicitado</strong><span><?php echo nl2br(h($selectedQuote['request_scope'] ?: $selectedQuote['opportunity_notes'] ?: 'Sin notas')); ?></span></div>
+                  <div class="crm-list__item"><strong>Ubicacion</strong><span><?php echo h($selectedQuote['request_location'] ?: 'Sin especificar'); ?></span></div>
+                  <div class="crm-list__item"><strong>Fecha requerida</strong><span><?php echo h($selectedQuote['requested_date'] ?: 'Por definir'); ?></span></div>
+                  <div class="crm-list__item"><strong>Presupuesto cliente</strong><span><?php echo h($selectedQuote['budget_range'] ?: 'Por definir'); ?></span></div>
+                  <?php if (!empty($selectedQuote['client_comments'])): ?><div class="crm-list__item"><strong>Comentarios del cliente</strong><span><?php echo nl2br(h($selectedQuote['client_comments'])); ?></span></div><?php endif; ?>
+                </div>
+                <div class="crm-client-actions-row">
+                  <?php if (!empty($selectedQuote['attachment_path'])): ?><a class="crm-button crm-button--ghost" href="<?php echo h(crm_quote_attachment_url((int) $selectedQuote['id'])); ?>" target="_blank" rel="noopener">Ver anexo cliente</a><?php endif; ?>
+                  <?php if (!empty($selectedQuote['proposal_path'])): ?><a class="crm-button crm-button--ghost" href="<?php echo h(crm_quote_attachment_url((int) $selectedQuote['id'], 'proposal')); ?>" target="_blank" rel="noopener">Ver PDF actual</a><?php endif; ?>
                 </div>
               </article>
             </div>
 
             <article class="crm-card crm-form-card">
               <h2>Actualizar cotizacion</h2>
-              <form class="crm-form" method="post">
+              <form class="crm-form" method="post" enctype="multipart/form-data">
                 <input type="hidden" name="token" value="<?php echo h($token); ?>">
                 <input type="hidden" name="action" value="update_quote">
                 <input type="hidden" name="return_to" value="quote">
@@ -1500,8 +1688,11 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                   <label class="crm-field">Estatus<select name="status"><?php foreach ($quoteStatuses as $status): ?><option <?php echo $status === $quoteStatus ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select></label>
                   <label class="crm-field">Probabilidad<input type="number" name="probability" min="0" max="100" value="<?php echo $quoteProbability; ?>"></label>
                   <label class="crm-field">Vigencia<input type="date" name="valid_until" value="<?php echo h($quoteValidUntil); ?>"></label>
+                  <label class="crm-field crm-field--wide">Condiciones comerciales<textarea name="terms" rows="5" maxlength="5000" placeholder="Alcance incluido, exclusiones, forma de pago y tiempos de entrega."><?php echo h($selectedQuote['terms'] ?? ''); ?></textarea></label>
+                  <label class="crm-field crm-field--wide">PDF de propuesta<input type="file" name="proposal_file" accept="application/pdf"><small><?php echo !empty($selectedQuote['proposal_original_name']) ? h('Actual: ' . $selectedQuote['proposal_original_name']) : 'PDF obligatorio para publicar. Maximo 12 MB.'; ?></small></label>
+                  <label class="crm-check crm-field--wide"><input type="checkbox" name="visible_to_client" value="1" <?php echo (int) ($selectedQuote['visible_to_client'] ?? 0) === 1 ? 'checked' : ''; ?>><span><strong>Publicar en portal cliente</strong><small>El cliente recibira una notificacion y podra aceptar, pedir cambios o rechazar.</small></span></label>
                 </div>
-                <button class="crm-button" type="submit">Guardar cambios</button>
+                <button class="crm-button" type="submit"><?php echo (int) ($selectedQuote['visible_to_client'] ?? 0) === 1 ? 'Actualizar propuesta' : 'Guardar cotizacion'; ?></button>
               </form>
             </article>
 
@@ -1526,7 +1717,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <thead><tr><th>Cliente</th><th>Etapa</th><th>Segmento</th><th>Ciudad</th><th>Contacto</th><th>Publico</th><th>Notas</th><th>Accion</th></tr></thead>
                 <tbody>
                   <?php foreach ($clients as $client): ?>
-                    <?php $clientStage = ((int) ($client['started_projects'] ?? 0) > 0) ? 'Cliente' : 'Prospecto'; ?>
+                    <?php $clientStage = (string) ($client['lifecycle_stage'] ?? 'Prospecto'); ?>
                     <tr>
                       <td><strong><?php echo h($client['name']); ?></strong></td>
                       <td><span class="crm-pill <?php echo $clientStage === 'Prospecto' ? 'crm-pill--warning' : 'crm-pill--success'; ?>"><?php echo h($clientStage); ?></span></td>
@@ -1537,9 +1728,14 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                       <td><?php echo h($client['notes']); ?></td>
                       <td>
                         <?php if ($clientStage === 'Prospecto'): ?>
-                          <span class="crm-pill crm-pill--warning">Esperando inicio</span>
+                          <form class="crm-inline-form crm-conversion-form" method="post">
+                            <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                            <input type="hidden" name="action" value="convert_client">
+                            <input type="hidden" name="client_id" value="<?php echo (int) $client['id']; ?>">
+                            <button class="crm-button" type="submit">Convertir</button>
+                          </form>
                         <?php else: ?>
-                          <span class="crm-pill crm-pill--neutral"><?php echo (int) ($client['delivered_projects'] ?? 0) > 0 ? 'Entregado' : 'En proyecto'; ?></span>
+                          <span class="crm-pill crm-pill--neutral"><?php echo (int) ($client['delivered_projects'] ?? 0) > 0 ? 'Entregado' : ((int) ($client['started_projects'] ?? 0) > 0 ? 'En proyecto' : 'Cliente convertido'); ?></span>
                         <?php endif; ?>
                       </td>
                     </tr>

@@ -64,7 +64,7 @@ function crm_log_event(string $event, array $context = []): void
   }
 }
 
-function crm_login_diagnostic_context(PDO $pdo, string $identifier, string $sessionDir): array
+function crm_login_diagnostic_context(PDO $pdo, string $identifier): array
 {
   $config = crm_config();
   $driver = crm_driver($pdo);
@@ -74,9 +74,9 @@ function crm_login_diagnostic_context(PDO $pdo, string $identifier, string $sess
     'database' => $driver === 'mysql' ? (string) ($config['database'] ?? '') : crm_db_path(),
     'config_source' => crm_config_source(),
     'app_url' => (string) ($config['app_url'] ?? ''),
-    'session_path' => $sessionDir,
-    'session_path_exists' => is_dir($sessionDir),
-    'session_path_writable' => is_dir($sessionDir) && is_writable($sessionDir),
+    'session_storage' => 'database',
+    'session_table' => 'app_sessions',
+    'session_table_exists' => crm_table_exists($pdo, 'app_sessions'),
   ];
 }
 
@@ -197,6 +197,7 @@ function crm_portal_url(string $view = 'resumen', int $projectId = 0, array $que
     'proyectos' => 'portal/proyectos',
     'bitacora' => 'portal/bitacora',
     'solicitudes' => 'portal/solicitudes',
+    'cotizaciones' => 'portal/cotizaciones',
     'notificaciones' => 'portal/notificaciones',
     'perfil' => 'portal/perfil',
     'logout' => 'portal/salir',
@@ -211,6 +212,12 @@ function crm_portal_url(string $view = 'resumen', int $projectId = 0, array $que
 function crm_evidence_url(int $requestId): string
 {
   return crm_build_path(crm_web_base_path(), 'evidencias/' . max(0, $requestId));
+}
+
+function crm_quote_attachment_url(int $quoteId, string $type = 'request'): string
+{
+  $query = $type === 'proposal' ? ['type' => 'proposal'] : [];
+  return crm_build_path(crm_web_base_path(), 'archivos-cotizacion/' . max(0, $quoteId), $query);
 }
 
 function crm_uses_legacy_php_url(string $filename): bool
@@ -289,6 +296,90 @@ function crm_driver(?PDO $pdo = null): string
   return (string) crm_config()['driver'];
 }
 
+final class CrmDatabaseSessionHandler implements SessionHandlerInterface
+{
+  private PDO $pdo;
+  private int $lifetime;
+
+  public function __construct(PDO $pdo, int $lifetime)
+  {
+    $this->pdo = $pdo;
+    $this->lifetime = max(300, $lifetime);
+  }
+
+  public function open(string $path, string $name): bool
+  {
+    return true;
+  }
+
+  public function close(): bool
+  {
+    return true;
+  }
+
+  public function read(string $id): string
+  {
+    $stmt = $this->pdo->prepare('SELECT payload FROM app_sessions WHERE session_id = ? AND last_activity >= ? LIMIT 1');
+    $stmt->execute([$id, time() - $this->lifetime]);
+    $payload = $stmt->fetchColumn();
+    return $payload === false ? '' : (string) $payload;
+  }
+
+  public function write(string $id, string $data): bool
+  {
+    if (crm_driver($this->pdo) === 'mysql') {
+      $stmt = $this->pdo->prepare('
+        INSERT INTO app_sessions (session_id, payload, last_activity)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE payload = VALUES(payload), last_activity = VALUES(last_activity)
+      ');
+    } else {
+      $stmt = $this->pdo->prepare('
+        INSERT INTO app_sessions (session_id, payload, last_activity)
+        VALUES (?, ?, ?)
+        ON CONFLICT(session_id) DO UPDATE SET payload = excluded.payload, last_activity = excluded.last_activity
+      ');
+    }
+    return $stmt->execute([$id, $data, time()]);
+  }
+
+  public function destroy(string $id): bool
+  {
+    $stmt = $this->pdo->prepare('DELETE FROM app_sessions WHERE session_id = ?');
+    return $stmt->execute([$id]);
+  }
+
+  public function gc(int $max_lifetime): int|false
+  {
+    $stmt = $this->pdo->prepare('DELETE FROM app_sessions WHERE last_activity < ?');
+    $stmt->execute([time() - max($this->lifetime, $max_lifetime)]);
+    return $stmt->rowCount();
+  }
+}
+
+function crm_start_database_session(PDO $pdo): void
+{
+  static $handler = null;
+  if (session_status() === PHP_SESSION_ACTIVE) {
+    return;
+  }
+
+  $lifetime = (int) crm_login_settings()['session_timeout'];
+  $handler = new CrmDatabaseSessionHandler($pdo, $lifetime);
+  session_name('IDINDUSTRIAL_CRM');
+  session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
+  session_set_save_handler($handler, true);
+  if (!session_start()) {
+    throw new RuntimeException('No se pudo iniciar la sesion respaldada por la base de datos.');
+  }
+}
+
 function crm_db(): PDO
 {
   static $pdo = null;
@@ -330,8 +421,38 @@ function crm_migrate(PDO $pdo): void
   }
 
   crm_ensure_columns($pdo);
-  crm_normalize_notification_urls($pdo);
   crm_sync_portal_client_links($pdo);
+  crm_normalize_client_lifecycle($pdo);
+  crm_normalize_notification_urls($pdo);
+  crm_apply_data_migrations($pdo);
+}
+
+function crm_apply_data_migrations(PDO $pdo): void
+{
+  $isMysql = crm_driver($pdo) === 'mysql';
+  $pdo->exec($isMysql
+    ? 'CREATE TABLE IF NOT EXISTS app_migrations (migration_key VARCHAR(190) NOT NULL PRIMARY KEY, applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    : 'CREATE TABLE IF NOT EXISTS app_migrations (migration_key TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
+
+  $migrationKey = '2026_08_existing_contacts_are_clients';
+  $stmt = $pdo->prepare('SELECT COUNT(*) FROM app_migrations WHERE migration_key = ?');
+  $stmt->execute([$migrationKey]);
+  if ((int) $stmt->fetchColumn() > 0) {
+    return;
+  }
+
+  $pdo->beginTransaction();
+  try {
+    $pdo->exec("UPDATE clients SET lifecycle_stage = 'Cliente', segment = CASE WHEN segment = 'Prospecto' THEN 'Industrial' ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP)");
+    $insert = $pdo->prepare('INSERT INTO app_migrations (migration_key) VALUES (?)');
+    $insert->execute([$migrationKey]);
+    $pdo->commit();
+  } catch (Throwable $error) {
+    if ($pdo->inTransaction()) {
+      $pdo->rollBack();
+    }
+    throw $error;
+  }
 }
 
 function crm_normalize_notification_urls(PDO $pdo): void
@@ -361,6 +482,46 @@ function crm_sync_portal_client_links(PDO $pdo): void
   }
 
   $pdo->exec('UPDATE client_portal_users SET client_id = (SELECT client_id FROM opportunities WHERE opportunities.id = client_portal_users.opportunity_id) WHERE client_id IS NULL');
+}
+
+function crm_normalize_client_lifecycle(PDO $pdo): void
+{
+  if (!crm_table_exists($pdo, 'clients') || !crm_column_exists($pdo, 'clients', 'lifecycle_stage')) {
+    return;
+  }
+
+  $stmt = $pdo->prepare("
+    UPDATE clients
+    SET lifecycle_stage = ?,
+        segment = CASE WHEN segment = ? THEN ? ELSE segment END,
+        converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP)
+    WHERE (lifecycle_stage IS NULL OR lifecycle_stage <> ?)
+      AND (
+        is_public = 1
+        OR EXISTS (
+          SELECT 1
+          FROM opportunities o
+          WHERE o.client_id = clients.id
+            AND o.status IN (?, ?, ?, ?)
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM client_portal_users cpu
+          LEFT JOIN opportunities po ON po.id = cpu.opportunity_id
+          WHERE cpu.client_id = clients.id OR po.client_id = clients.id
+        )
+      )
+  ");
+  $stmt->execute([
+    'Cliente',
+    'Prospecto',
+    'Industrial',
+    'Cliente',
+    'Proyecto ganado',
+    'Proyecto iniciado',
+    'Proyecto entregado',
+    'Cotizacion aprobada',
+  ]);
 }
 function crm_table_exists(PDO $pdo, string $table): bool
 {
@@ -543,6 +704,163 @@ function crm_store_request_evidence(?array $file): array
   ];
 }
 
+function crm_store_quote_attachment(?array $file): array
+{
+  if (!$file || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+    return ['path' => null, 'name' => null, 'mime' => null, 'size' => null];
+  }
+
+  if ((int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+    throw new RuntimeException('No se pudo recibir el archivo tecnico. Intenta nuevamente.');
+  }
+
+  $size = (int) ($file['size'] ?? 0);
+  if ($size <= 0 || $size > 8 * 1024 * 1024) {
+    throw new RuntimeException('El archivo tecnico debe pesar menos de 8 MB.');
+  }
+
+  $temporaryPath = (string) ($file['tmp_name'] ?? '');
+  if ($temporaryPath === '' || !is_uploaded_file($temporaryPath)) {
+    throw new RuntimeException('El archivo recibido no es valido.');
+  }
+
+  $finfo = new finfo(FILEINFO_MIME_TYPE);
+  $mime = (string) $finfo->file($temporaryPath);
+  $extensions = [
+    'application/pdf' => 'pdf',
+    'image/jpeg' => 'jpg',
+    'image/png' => 'png',
+    'image/webp' => 'webp',
+  ];
+  if (!isset($extensions[$mime])) {
+    throw new RuntimeException('Adjunta un archivo PDF, JPG, PNG o WEBP.');
+  }
+
+  if (str_starts_with($mime, 'image/')) {
+    $imageInfo = @getimagesize($temporaryPath);
+    if (!$imageInfo || ($imageInfo[0] ?? 0) > 8000 || ($imageInfo[1] ?? 0) > 8000) {
+      throw new RuntimeException('La imagen no es valida o sus dimensiones son demasiado grandes.');
+    }
+  }
+
+  $directory = dirname(__DIR__) . '/data/quote-attachments';
+  if (!is_dir($directory) && !mkdir($directory, 0750, true) && !is_dir($directory)) {
+    throw new RuntimeException('No se pudo preparar el almacenamiento de archivos tecnicos.');
+  }
+
+  $fileName = bin2hex(random_bytes(20)) . '.' . $extensions[$mime];
+  $destination = $directory . '/' . $fileName;
+  if (!move_uploaded_file($temporaryPath, $destination)) {
+    throw new RuntimeException('No se pudo guardar el archivo tecnico.');
+  }
+
+  $originalName = trim((string) ($file['name'] ?? 'archivo.' . $extensions[$mime]));
+  $originalName = preg_replace('/[^a-zA-Z0-9._ -]/', '_', basename($originalName)) ?: 'archivo.' . $extensions[$mime];
+
+  return [
+    'path' => 'quote-attachments/' . $fileName,
+    'name' => substr($originalName, 0, 190),
+    'mime' => $mime,
+    'size' => $size,
+  ];
+}
+
+function crm_store_quote_proposal(?array $file): array
+{
+  if (!$file || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+    return ['path' => null, 'name' => null, 'mime' => null, 'size' => null];
+  }
+  if ((int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+    throw new RuntimeException('No se pudo recibir el PDF de propuesta.');
+  }
+  $size = (int) ($file['size'] ?? 0);
+  if ($size <= 0 || $size > 12 * 1024 * 1024) {
+    throw new RuntimeException('El PDF de propuesta debe pesar menos de 12 MB.');
+  }
+  $temporaryPath = (string) ($file['tmp_name'] ?? '');
+  if ($temporaryPath === '' || !is_uploaded_file($temporaryPath)) {
+    throw new RuntimeException('El PDF recibido no es valido.');
+  }
+  $finfo = new finfo(FILEINFO_MIME_TYPE);
+  if ((string) $finfo->file($temporaryPath) !== 'application/pdf') {
+    throw new RuntimeException('La propuesta debe adjuntarse en formato PDF.');
+  }
+  $directory = dirname(__DIR__) . '/data/quote-proposals';
+  if (!is_dir($directory) && !mkdir($directory, 0750, true) && !is_dir($directory)) {
+    throw new RuntimeException('No se pudo preparar el almacenamiento de propuestas.');
+  }
+  $fileName = bin2hex(random_bytes(20)) . '.pdf';
+  if (!move_uploaded_file($temporaryPath, $directory . '/' . $fileName)) {
+    throw new RuntimeException('No se pudo guardar el PDF de propuesta.');
+  }
+  $originalName = preg_replace('/[^a-zA-Z0-9._ -]/', '_', basename((string) ($file['name'] ?? 'propuesta.pdf'))) ?: 'propuesta.pdf';
+  return ['path' => 'quote-proposals/' . $fileName, 'name' => substr($originalName, 0, 190), 'mime' => 'application/pdf', 'size' => $size];
+}
+
+function crm_delete_quote_attachment(?string $relativePath): void
+{
+  $relativePath = trim((string) $relativePath);
+  if ($relativePath === '') {
+    return;
+  }
+
+  $directoryName = str_starts_with(str_replace('\\', '/', $relativePath), 'quote-proposals/')
+    ? 'quote-proposals'
+    : 'quote-attachments';
+  $baseDirectory = realpath(dirname(__DIR__) . '/data/' . $directoryName);
+  $filePath = realpath(dirname(__DIR__) . '/data/' . ltrim(str_replace('\\', '/', $relativePath), '/'));
+  if ($baseDirectory && $filePath && str_starts_with($filePath, $baseDirectory . DIRECTORY_SEPARATOR) && is_file($filePath)) {
+    @unlink($filePath);
+  }
+}
+
+function crm_output_quote_attachment(PDO $pdo, int $quoteId, ?int $portalUserId = null, string $type = 'request'): void
+{
+  $isProposal = $type === 'proposal';
+  $pathColumn = $isProposal ? 'proposal_path' : 'attachment_path';
+  $nameColumn = $isProposal ? 'proposal_original_name' : 'attachment_original_name';
+  $mimeColumn = $isProposal ? 'proposal_mime' : 'attachment_mime';
+
+  $sql = 'SELECT q.' . $pathColumn . ' AS file_path, q.' . $nameColumn . ' AS file_name, q.' . $mimeColumn . ' AS file_mime FROM quotes q JOIN opportunities o ON o.id = q.opportunity_id';
+  $params = [$quoteId];
+  if ($portalUserId !== null) {
+    $sql .= ' JOIN client_portal_users cpu ON cpu.client_id = o.client_id AND cpu.id = ? AND cpu.is_active = 1';
+    array_unshift($params, $portalUserId);
+  }
+  $sql .= ' WHERE q.id = ?';
+  if ($portalUserId !== null) {
+    $sql .= $isProposal
+      ? ' AND q.visible_to_client = 1'
+      : ' AND (q.visible_to_client = 1 OR q.requested_by_portal_user_id IS NOT NULL)';
+  }
+  $sql .= ' LIMIT 1';
+
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute($params);
+  $file = $stmt->fetch();
+  if (!$file || empty($file['file_path'])) {
+    http_response_code(404);
+    exit('Archivo de cotizacion no encontrado.');
+  }
+
+  $directoryName = $isProposal ? 'quote-proposals' : 'quote-attachments';
+  $baseDirectory = realpath(dirname(__DIR__) . '/data/' . $directoryName);
+  $filePath = realpath(dirname(__DIR__) . '/data/' . ltrim(str_replace('\\', '/', (string) $file['file_path']), '/'));
+  if (!$baseDirectory || !$filePath || !str_starts_with($filePath, $baseDirectory . DIRECTORY_SEPARATOR) || !is_file($filePath)) {
+    http_response_code(404);
+    exit('Archivo de cotizacion no disponible.');
+  }
+
+  $mime = (string) ($file['file_mime'] ?: 'application/octet-stream');
+  $name = preg_replace('/[^a-zA-Z0-9._ -]/', '_', (string) ($file['file_name'] ?: basename($filePath))) ?: 'archivo-cotizacion';
+  header('Content-Type: ' . $mime);
+  header('Content-Length: ' . filesize($filePath));
+  header('Content-Disposition: inline; filename="' . addcslashes($name, '"\\') . '"');
+  header('X-Content-Type-Options: nosniff');
+  header('Cache-Control: private, no-store');
+  readfile($filePath);
+  exit;
+}
 function crm_delete_request_evidence(?string $relativePath): void
 {
   $relativePath = trim((string) $relativePath);
@@ -691,6 +1009,13 @@ function crm_record_login_success(PDO $pdo, string $area, string $identifier): v
   $stmt->execute([$area, hash('sha256', $identifier), crm_client_ip()]);
 }
 
+function crm_clear_login_failures(PDO $pdo, string $area, string $identifier): void
+{
+  $identifier = crm_login_identifier($identifier);
+  $stmt = $pdo->prepare('DELETE FROM login_attempts WHERE area = ? AND identifier_hash = ?');
+  $stmt->execute([$area, hash('sha256', $identifier)]);
+}
+
 function crm_login_lock_message(array $status): string
 {
   $minutes = max(1, (int) ceil(((int) ($status['seconds'] ?? 0)) / 60));
@@ -767,6 +1092,71 @@ function crm_ensure_columns(PDO $pdo): void
         ? 'ALTER TABLE clients ADD COLUMN converted_at DATETIME NULL AFTER created_at'
         : 'ALTER TABLE clients ADD COLUMN converted_at TEXT NULL',
     ],
+    'quotes' => [
+      'related_opportunity_id' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN related_opportunity_id INT UNSIGNED NULL AFTER opportunity_id'
+        : 'ALTER TABLE quotes ADD COLUMN related_opportunity_id INTEGER NULL',
+      'requested_by_portal_user_id' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN requested_by_portal_user_id INT UNSIGNED NULL AFTER related_opportunity_id'
+        : 'ALTER TABLE quotes ADD COLUMN requested_by_portal_user_id INTEGER NULL',
+      'request_scope' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN request_scope TEXT NULL AFTER requested_by_portal_user_id'
+        : 'ALTER TABLE quotes ADD COLUMN request_scope TEXT NULL',
+      'request_location' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN request_location VARCHAR(190) NULL AFTER request_scope'
+        : 'ALTER TABLE quotes ADD COLUMN request_location TEXT NULL',
+      'requested_date' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN requested_date DATE NULL AFTER request_location'
+        : 'ALTER TABLE quotes ADD COLUMN requested_date TEXT NULL',
+      'budget_range' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN budget_range VARCHAR(80) NULL AFTER requested_date'
+        : 'ALTER TABLE quotes ADD COLUMN budget_range TEXT NULL',
+      'terms' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN terms TEXT NULL AFTER budget_range'
+        : 'ALTER TABLE quotes ADD COLUMN terms TEXT NULL',
+      'client_status' => $isMysql
+        ? "ALTER TABLE quotes ADD COLUMN client_status VARCHAR(40) NOT NULL DEFAULT 'Pendiente' AFTER terms"
+        : "ALTER TABLE quotes ADD COLUMN client_status TEXT NOT NULL DEFAULT 'Pendiente'",
+      'client_comments' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN client_comments TEXT NULL AFTER client_status'
+        : 'ALTER TABLE quotes ADD COLUMN client_comments TEXT NULL',
+      'visible_to_client' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN visible_to_client TINYINT(1) NOT NULL DEFAULT 0 AFTER client_comments'
+        : 'ALTER TABLE quotes ADD COLUMN visible_to_client INTEGER NOT NULL DEFAULT 0',
+      'published_at' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN published_at DATETIME NULL AFTER visible_to_client'
+        : 'ALTER TABLE quotes ADD COLUMN published_at TEXT NULL',
+      'responded_at' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN responded_at DATETIME NULL AFTER published_at'
+        : 'ALTER TABLE quotes ADD COLUMN responded_at TEXT NULL',
+      'attachment_path' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN attachment_path VARCHAR(255) NULL AFTER responded_at'
+        : 'ALTER TABLE quotes ADD COLUMN attachment_path TEXT NULL',
+      'attachment_original_name' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN attachment_original_name VARCHAR(190) NULL AFTER attachment_path'
+        : 'ALTER TABLE quotes ADD COLUMN attachment_original_name TEXT NULL',
+      'attachment_mime' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN attachment_mime VARCHAR(100) NULL AFTER attachment_original_name'
+        : 'ALTER TABLE quotes ADD COLUMN attachment_mime TEXT NULL',
+      'attachment_size' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN attachment_size INT UNSIGNED NULL AFTER attachment_mime'
+        : 'ALTER TABLE quotes ADD COLUMN attachment_size INTEGER NULL',
+      'proposal_path' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN proposal_path VARCHAR(255) NULL AFTER attachment_size'
+        : 'ALTER TABLE quotes ADD COLUMN proposal_path TEXT NULL',
+      'proposal_original_name' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN proposal_original_name VARCHAR(190) NULL AFTER proposal_path'
+        : 'ALTER TABLE quotes ADD COLUMN proposal_original_name TEXT NULL',
+      'proposal_mime' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN proposal_mime VARCHAR(100) NULL AFTER proposal_original_name'
+        : 'ALTER TABLE quotes ADD COLUMN proposal_mime TEXT NULL',
+      'proposal_size' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN proposal_size INT UNSIGNED NULL AFTER proposal_mime'
+        : 'ALTER TABLE quotes ADD COLUMN proposal_size INTEGER NULL',
+      'updated_at' => $isMysql
+        ? 'ALTER TABLE quotes ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at'
+        : 'ALTER TABLE quotes ADD COLUMN updated_at TEXT NULL',
+    ],
     'client_portal_users' => [
       'password_change_required' => $isMysql
         ? 'ALTER TABLE client_portal_users ADD COLUMN password_change_required TINYINT(1) NOT NULL DEFAULT 1 AFTER is_active'
@@ -841,6 +1231,10 @@ function crm_ensure_columns(PDO $pdo): void
     }
   }
 
+  if (!$isMysql && crm_table_exists($pdo, 'quotes') && crm_column_exists($pdo, 'quotes', 'updated_at')) {
+    $pdo->exec("UPDATE quotes SET updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL OR updated_at = ''");
+  }
+
   if ($isMysql && crm_table_exists($pdo, 'client_portal_users')) {
     try {
       if (!crm_index_exists($pdo, 'client_portal_users', 'idx_client_portal_client')) {
@@ -902,13 +1296,34 @@ function crm_migrate_sqlite(PDO $pdo): void
     CREATE TABLE IF NOT EXISTS quotes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       opportunity_id INTEGER NOT NULL,
+      related_opportunity_id INTEGER,
+      requested_by_portal_user_id INTEGER,
       quote_code TEXT NOT NULL UNIQUE,
       amount REAL NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'En elaboracion',
       probability INTEGER NOT NULL DEFAULT 40,
       sent_at TEXT,
       valid_until TEXT,
+      request_scope TEXT,
+      request_location TEXT,
+      requested_date TEXT,
+      budget_range TEXT,
+      terms TEXT,
+      client_status TEXT NOT NULL DEFAULT 'Pendiente',
+      client_comments TEXT,
+      visible_to_client INTEGER NOT NULL DEFAULT 0,
+      published_at TEXT,
+      responded_at TEXT,
+      attachment_path TEXT,
+      attachment_original_name TEXT,
+      attachment_mime TEXT,
+      attachment_size INTEGER,
+      proposal_path TEXT,
+      proposal_original_name TEXT,
+      proposal_mime TEXT,
+      proposal_size INTEGER,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
     );
 
@@ -1005,6 +1420,12 @@ function crm_migrate_sqlite(PDO $pdo): void
       FOREIGN KEY (client_request_id) REFERENCES client_requests(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS app_sessions (
+      session_id TEXT PRIMARY KEY,
+      payload BLOB NOT NULL,
+      last_activity INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS login_attempts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       area TEXT NOT NULL,
@@ -1028,6 +1449,7 @@ function crm_migrate_sqlite(PDO $pdo): void
     CREATE INDEX IF NOT EXISTS idx_notifications_recipient ON notifications(recipient_type, portal_user_id, is_read, created_at);
     CREATE INDEX IF NOT EXISTS idx_notifications_request ON notifications(client_request_id);
     CREATE INDEX IF NOT EXISTS idx_login_attempts_locked ON login_attempts(locked_until);
+    CREATE INDEX IF NOT EXISTS idx_app_sessions_activity ON app_sessions(last_activity);
   ");
 }
 
@@ -1087,17 +1509,40 @@ function crm_migrate_mysql(PDO $pdo): void
     CREATE TABLE IF NOT EXISTS quotes (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       opportunity_id INT UNSIGNED NOT NULL,
+      related_opportunity_id INT UNSIGNED NULL,
+      requested_by_portal_user_id INT UNSIGNED NULL,
       quote_code VARCHAR(60) NOT NULL,
       amount DECIMAL(12,2) NOT NULL DEFAULT 0,
       status VARCHAR(80) NOT NULL DEFAULT 'En elaboracion',
       probability TINYINT UNSIGNED NOT NULL DEFAULT 40,
       sent_at DATE NULL,
       valid_until DATE NULL,
+      request_scope TEXT NULL,
+      request_location VARCHAR(190) NULL,
+      requested_date DATE NULL,
+      budget_range VARCHAR(80) NULL,
+      terms TEXT NULL,
+      client_status VARCHAR(40) NOT NULL DEFAULT 'Pendiente',
+      client_comments TEXT NULL,
+      visible_to_client TINYINT(1) NOT NULL DEFAULT 0,
+      published_at DATETIME NULL,
+      responded_at DATETIME NULL,
+      attachment_path VARCHAR(255) NULL,
+      attachment_original_name VARCHAR(190) NULL,
+      attachment_mime VARCHAR(100) NULL,
+      attachment_size INT UNSIGNED NULL,
+      proposal_path VARCHAR(255) NULL,
+      proposal_original_name VARCHAR(190) NULL,
+      proposal_mime VARCHAR(100) NULL,
+      proposal_size INT UNSIGNED NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       UNIQUE KEY uq_quotes_code (quote_code),
       KEY idx_quotes_opportunity (opportunity_id),
       KEY idx_quotes_status (status),
+      KEY idx_quotes_visibility (visible_to_client, client_status),
+      KEY idx_quotes_requested_by (requested_by_portal_user_id),
       CONSTRAINT fk_quotes_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1209,6 +1654,14 @@ function crm_migrate_mysql(PDO $pdo): void
       CONSTRAINT fk_notifications_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE,
       CONSTRAINT fk_notifications_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
       CONSTRAINT fk_notifications_request FOREIGN KEY (client_request_id) REFERENCES client_requests(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS app_sessions (
+      session_id VARCHAR(128) NOT NULL,
+      payload MEDIUMBLOB NOT NULL,
+      last_activity INT UNSIGNED NOT NULL,
+      PRIMARY KEY (session_id),
+      KEY idx_app_sessions_activity (last_activity)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
     CREATE TABLE IF NOT EXISTS login_attempts (
@@ -1376,13 +1829,18 @@ function crm_capture_public_lead(array $data): ?int
     $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Primer contacto", "Contactar prospecto y preparar cotizacion.", ?)');
     $activity->execute([$opportunityId, date('Y-m-d', strtotime('+1 day'))]);
     $pdo->commit();
-    return true;
+    return $opportunityId;
   } catch (Throwable $error) {
     if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
       $pdo->rollBack();
     }
-    error_log('CRM lead capture failed: ' . $error->getMessage());
-    return false;
+    crm_log_event('public_lead.capture_failed', [
+      'driver' => isset($pdo) && $pdo instanceof PDO ? crm_driver($pdo) : (string) (crm_config()['driver'] ?? ''),
+      'database' => (string) (crm_config()['database'] ?? ''),
+      'error_class' => get_class($error),
+      'error_message' => substr($error->getMessage(), 0, 500),
+    ]);
+    return null;
   }
 }
 
@@ -1413,7 +1871,7 @@ function crm_unique_portal_username(PDO $pdo, array $opportunity): string
 
   $username = $base;
   $suffix = 1;
-  $stmt = $pdo->prepare('SELECT COUNT(*) FROM client_portal_users WHERE username = ?');
+  $stmt = $pdo->prepare('SELECT COUNT(*) FROM client_portal_users WHERE LOWER(username) = LOWER(?)');
   while (true) {
     $stmt->execute([$username]);
     if ((int) $stmt->fetchColumn() === 0) {
@@ -1437,25 +1895,82 @@ function crm_enable_client_portal(PDO $pdo, int $opportunityId): array
   $existingStmt->execute([$opportunityId]);
   $existing = $existingStmt->fetch();
   if ($existing && (int) $existing['is_active'] === 1) {
+    crm_clear_login_failures($pdo, 'client', (string) $existing['username']);
+    crm_log_event('portal.access_already_active', [
+      'portal_user_id' => (int) $existing['id'],
+      'opportunity_id' => $opportunityId,
+      'identifier' => crm_mask_identifier((string) $existing['username']),
+      'driver' => crm_driver($pdo),
+      'config_source' => crm_config_source(),
+    ]);
     return ['created' => false, 'username' => $existing['username'], 'password' => null, 'opportunity' => $opportunity];
   }
 
   $password = crm_random_password();
   $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-  if ($existing) {
-    $update = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, is_active = 1, password_change_required = 1, password_changed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
-    $update->execute([$passwordHash, (int) $existing['id']]);
-    $username = (string) $existing['username'];
-    $portalUserId = (int) $existing['id'];
-  } else {
-    $username = crm_unique_portal_username($pdo, $opportunity);
-    $insert = $pdo->prepare('INSERT INTO client_portal_users (opportunity_id, client_id, username, password_hash, is_active, password_change_required) VALUES (?, ?, ?, ?, 1, 1)');
-    $insert->execute([$opportunityId, $opportunity['client_id'] ?: null, $username, $passwordHash]);
-    $portalUserId = (int) $pdo->lastInsertId();
-  }
+  $startedTransaction = false;
+  try {
+    if (!$pdo->inTransaction()) {
+      $pdo->beginTransaction();
+      $startedTransaction = true;
+    }
 
-  $log = $pdo->prepare('INSERT INTO maintenance_logs (opportunity_id, portal_user_id, type, title, status, scheduled_date, notes, visible_to_client) VALUES (?, ?, "Entrega", "Bitacora ID activada", "Activo", ?, "Portal de mantenimiento habilitado para el cliente.", 1)');
-  $log->execute([$opportunityId, $portalUserId, date('Y-m-d')]);
+    if ($existing) {
+      $update = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, is_active = 1, password_change_required = 1, password_changed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+      $update->execute([$passwordHash, (int) $existing['id']]);
+      $username = (string) $existing['username'];
+      $portalUserId = (int) $existing['id'];
+    } else {
+      $username = crm_unique_portal_username($pdo, $opportunity);
+      $insert = $pdo->prepare('INSERT INTO client_portal_users (opportunity_id, client_id, username, password_hash, is_active, password_change_required) VALUES (?, ?, ?, ?, 1, 1)');
+      $insert->execute([$opportunityId, $opportunity['client_id'] ?: null, $username, $passwordHash]);
+      $portalUserId = (int) $pdo->lastInsertId();
+    }
+
+    if ($portalUserId <= 0) {
+      throw new RuntimeException('MySQL no devolvio el ID del acceso cliente.');
+    }
+
+    crm_clear_login_failures($pdo, 'client', $username);
+    $log = $pdo->prepare('INSERT INTO maintenance_logs (opportunity_id, portal_user_id, type, title, status, scheduled_date, notes, visible_to_client) VALUES (?, ?, "Entrega", "Bitacora ID activada", "Activo", ?, "Portal de mantenimiento habilitado para el cliente.", 1)');
+    $log->execute([$opportunityId, $portalUserId, date('Y-m-d')]);
+
+    $verify = $pdo->prepare('SELECT id, opportunity_id, username, password_hash, is_active FROM client_portal_users WHERE id = ? AND opportunity_id = ? LIMIT 1');
+    $verify->execute([$portalUserId, $opportunityId]);
+    $persisted = $verify->fetch();
+    if (!$persisted || (int) $persisted['is_active'] !== 1 || !password_verify($password, (string) $persisted['password_hash'])) {
+      throw new RuntimeException('La verificacion posterior al guardado del acceso cliente fallo.');
+    }
+
+    if ($startedTransaction) {
+      $pdo->commit();
+    }
+
+    crm_log_event('portal.access_persisted', [
+      'portal_user_id' => $portalUserId,
+      'opportunity_id' => $opportunityId,
+      'identifier' => crm_mask_identifier($username),
+      'driver' => crm_driver($pdo),
+      'database' => crm_driver($pdo) === 'mysql' ? (string) (crm_config()['database'] ?? '') : crm_db_path(),
+      'config_source' => crm_config_source(),
+      'active' => true,
+      'password_hash_verified' => true,
+      'transaction_committed' => $startedTransaction,
+    ]);
+  } catch (Throwable $error) {
+    if ($startedTransaction && $pdo->inTransaction()) {
+      $pdo->rollBack();
+    }
+    crm_log_event('portal.access_persistence_failed', [
+      'opportunity_id' => $opportunityId,
+      'driver' => crm_driver($pdo),
+      'database' => crm_driver($pdo) === 'mysql' ? (string) (crm_config()['database'] ?? '') : crm_db_path(),
+      'config_source' => crm_config_source(),
+      'error_class' => get_class($error),
+      'error_message' => substr($error->getMessage(), 0, 500),
+    ]);
+    throw $error;
+  }
 
   return ['created' => true, 'username' => $username, 'password' => $password, 'opportunity' => $opportunity];
 }
@@ -1479,6 +1994,16 @@ function crm_reset_client_portal_password(PDO $pdo, int $portalUserId): array
   $passwordHash = password_hash($password, PASSWORD_DEFAULT);
   $update = $pdo->prepare('UPDATE client_portal_users SET password_hash = ?, is_active = 1, password_change_required = 1, password_changed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
   $update->execute([$passwordHash, $portalUserId]);
+
+  $verify = $pdo->prepare('SELECT id, username, password_hash, is_active FROM client_portal_users WHERE id = ? LIMIT 1');
+  $verify->execute([$portalUserId]);
+  $persisted = $verify->fetch();
+  if (!$persisted || (int) $persisted['is_active'] !== 1 || !password_verify($password, (string) $persisted['password_hash'])) {
+    crm_log_event('portal.password_persistence_failed', ['portal_user_id' => $portalUserId, 'identifier' => crm_mask_identifier((string) $portalUser['username'])]);
+    throw new RuntimeException('La nueva contrasena no pudo verificarse despues del guardado.');
+  }
+  crm_clear_login_failures($pdo, 'client', (string) $portalUser['username']);
+  crm_log_event('portal.password_persisted', ['portal_user_id' => $portalUserId, 'identifier' => crm_mask_identifier((string) $portalUser['username']), 'password_hash_verified' => true]);
 
   $log = $pdo->prepare('INSERT INTO maintenance_logs (opportunity_id, portal_user_id, type, title, status, scheduled_date, notes, visible_to_client) VALUES (?, ?, "Acceso", "Password Bitacora ID regenerado", "Activo", ?, "El equipo administrativo regenero el acceso del cliente.", 0)');
   $log->execute([(int) $portalUser['opportunity_id'], $portalUserId, date('Y-m-d')]);
@@ -1758,18 +2283,29 @@ function crm_send_portal_credentials(array $opportunity, string $username, strin
 
   return crm_send_email($email, 'Acceso a Bitacora ID - ID Industrial', $plainBody, $htmlBody);
 }
-function crm_portal_user_by_username(PDO $pdo, string $username): ?array
+function crm_portal_users_by_identifier(PDO $pdo, string $identifier): array
 {
+  $identifier = strtolower(trim($identifier));
+  if ($identifier === '') {
+    return [];
+  }
+
   $stmt = $pdo->prepare('
     SELECT cpu.*, o.company_name, o.contact_name, o.contact_email, o.contact_phone, o.service, o.status AS opportunity_status, o.next_action_date, o.notes AS opportunity_notes
     FROM client_portal_users cpu
     JOIN opportunities o ON o.id = cpu.opportunity_id
-    WHERE cpu.username = ? AND cpu.is_active = 1
-    LIMIT 1
+    WHERE cpu.is_active = 1
+      AND (LOWER(cpu.username) = ? OR LOWER(o.contact_email) = ?)
+    ORDER BY CASE WHEN LOWER(cpu.username) = ? THEN 0 ELSE 1 END, cpu.id DESC
   ');
-  $stmt->execute([trim($username)]);
-  $user = $stmt->fetch();
-  return $user ?: null;
+  $stmt->execute([$identifier, $identifier, $identifier]);
+  return $stmt->fetchAll();
+}
+
+function crm_portal_user_by_username(PDO $pdo, string $username): ?array
+{
+  $users = crm_portal_users_by_identifier($pdo, $username);
+  return $users[0] ?? null;
 }
 
 function crm_update_portal_last_login(PDO $pdo, int $portalUserId): void
