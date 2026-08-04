@@ -223,17 +223,17 @@ if (empty($_SESSION['bitacora_user'])):
       <h1 id="client-login-title">Acceso cliente</h1>
       <p>Consulta tu proyecto entregado, mantenimientos y solicitudes de servicio.</p>
       <?php if ($loginError): ?><p class="crm-alert"><?php echo h($loginError); ?></p><?php endif; ?>
-      <form method="post" autocomplete="off" data-login-form novalidate>
+      <form method="post" autocomplete="on" data-login-form novalidate>
         <input type="hidden" name="action" value="client_login">
         <label class="crm-field">
           Usuario
-          <input name="bitacora_user" autocomplete="off" autocapitalize="none" spellcheck="false" required data-login-email>
+          <input name="bitacora_user" autocomplete="username" autocapitalize="none" spellcheck="false" required data-login-email>
           <span class="crm-field__error">Ingresa tu usuario de Bitacora ID.</span>
         </label>
         <label class="crm-field">
           Password
           <span class="crm-password-field">
-            <input id="bitacora-password" type="password" name="bitacora_password" autocomplete="new-password" minlength="8" required data-login-password>
+            <input id="bitacora-password" type="password" name="bitacora_password" autocomplete="current-password" minlength="8" required data-login-password>
             <button class="crm-password-toggle" type="button" aria-label="Mostrar password" aria-controls="bitacora-password" data-password-toggle>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg>
             </button>
@@ -243,8 +243,12 @@ if (empty($_SESSION['bitacora_user'])):
         <label class="crm-field crm-human-check">
           Verificacion humana
           <span class="crm-human-check__row">
-            <span class="crm-human-check__question"><?php echo h((string) $humanChallenge['a']); ?> + <?php echo h((string) $humanChallenge['b']); ?></span>
-            <input type="number" name="human_answer" inputmode="numeric" min="0" max="18" autocomplete="off" required data-human-answer placeholder="Resultado" aria-label="Resultado de la suma">
+            <span class="crm-human-check__question">
+              <small>Resuelve</small>
+              <strong><?php echo h((string) $humanChallenge['a']); ?> + <?php echo h((string) $humanChallenge['b']); ?></strong>
+            </span>
+            <span class="crm-human-check__equals" aria-hidden="true">=</span>
+            <input type="text" name="human_answer" inputmode="numeric" pattern="[0-9]{1,2}" maxlength="2" autocomplete="off" enterkeyhint="done" required data-human-answer placeholder="Respuesta" aria-label="Respuesta de la suma">
           </span>
           <span class="crm-field__error">Resuelve la suma para continuar.</span>
         </label>

@@ -3443,3 +3443,144 @@ button {
     justify-content: center;
   }
 }
+
+/* Login: contraste de campos y verificacion humana */
+.crm-login .crm-field > input,
+.crm-login .crm-password-field > input {
+  min-height: 56px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: #f7f7f4;
+  color: #15191b;
+  caret-color: #15191b;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.crm-login .crm-field > input::placeholder,
+.crm-login .crm-password-field > input::placeholder {
+  color: #72777b;
+  opacity: 1;
+}
+
+.crm-login .crm-field > input:focus,
+.crm-login .crm-password-field > input:focus {
+  border-color: #e0aa1a;
+  background: #fff;
+  color: #15191b;
+  box-shadow: 0 0 0 4px rgba(224, 170, 26, 0.2);
+}
+
+.crm-login .crm-field > input:-webkit-autofill,
+.crm-login .crm-field > input:-webkit-autofill:hover,
+.crm-login .crm-field > input:-webkit-autofill:focus,
+.crm-login .crm-password-field > input:-webkit-autofill,
+.crm-login .crm-password-field > input:-webkit-autofill:hover,
+.crm-login .crm-password-field > input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #15191b;
+  caret-color: #15191b;
+  box-shadow: 0 0 0 1000px #f7f7f4 inset, 0 0 0 4px rgba(224, 170, 26, 0.16);
+}
+
+.crm-login .crm-password-toggle {
+  color: #4d555a;
+}
+
+.crm-login .crm-password-toggle:hover,
+.crm-login .crm-password-toggle:focus-visible,
+.crm-login .crm-password-toggle.is-active {
+  background: #eee6cf;
+  color: #765900;
+  outline: 2px solid transparent;
+}
+
+.crm-login .crm-human-check__row {
+  grid-template-columns: minmax(0, 1fr) 48px 126px;
+  min-height: 64px;
+  overflow: visible;
+  border: 1px solid rgba(224, 170, 26, 0.4);
+  border-radius: 8px;
+  background: rgba(224, 170, 26, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.crm-login .crm-human-check__question {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 2px;
+  padding: 10px 16px;
+  white-space: normal;
+}
+
+.crm-login .crm-human-check__question::before,
+.crm-login .crm-human-check__question::after {
+  display: none;
+}
+
+.crm-login .crm-human-check__question small {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.crm-login .crm-human-check__question strong {
+  color: #fff;
+  font-size: 1.12rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.crm-human-check__equals {
+  display: grid;
+  place-items: center;
+  color: var(--crm-gold-strong);
+  font-size: 1.25rem;
+  font-weight: 950;
+}
+
+.crm-login .crm-human-check input {
+  min-height: 62px;
+  border: 0;
+  border-left: 1px solid rgba(224, 170, 26, 0.3);
+  border-radius: 0 7px 7px 0;
+  background: #f7f7f4;
+  color: #15191b;
+  caret-color: #15191b;
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.crm-login .crm-human-check input::placeholder {
+  color: #72777b;
+  font-size: 0.76rem;
+  font-weight: 700;
+  opacity: 1;
+}
+
+.crm-login .crm-human-check input:focus {
+  background: #fff;
+  color: #15191b;
+  box-shadow: inset 0 0 0 2px #e0aa1a;
+}
+
+@media (max-width: 420px) {
+  .crm-login .crm-human-check__row {
+    grid-template-columns: minmax(0, 1fr) 38px 104px;
+  }
+
+  .crm-login .crm-human-check__question {
+    padding-inline: 12px;
+  }
+}
