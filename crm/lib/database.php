@@ -34,6 +34,135 @@ function crm_config(): array
   return $config;
 }
 
+function crm_web_base_path(): string
+{
+  $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+  $crmPosition = strpos($scriptName, '/crm/');
+  if ($crmPosition !== false) {
+    return rtrim(substr($scriptName, 0, $crmPosition) . '/crm', '/');
+  }
+
+  $publicDirectory = trim(str_replace('\\', '/', dirname($scriptName)), '/.');
+  return ($publicDirectory !== '' ? '/' . $publicDirectory : '') . '/crm';
+}
+
+function crm_build_path(string $base, string $path = '', array $query = [], string $fragment = ''): string
+{
+  $url = rtrim($base, '/');
+  $path = trim($path, '/');
+  if ($path !== '') {
+    $url .= '/' . $path;
+  }
+  if ($query) {
+    $url .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+  }
+  if ($fragment !== '') {
+    $url .= '#' . rawurlencode(ltrim($fragment, '#'));
+  }
+  return $url !== '' ? $url : '/';
+}
+
+function crm_public_url(string $path = '', array $query = [], string $fragment = ''): string
+{
+  $crmBase = crm_web_base_path();
+  $publicBase = substr($crmBase, 0, -4);
+  return crm_build_path($publicBase, $path, $query, $fragment);
+}
+
+function crm_admin_url(string $view = 'dashboard', int $id = 0, array $query = [], string $fragment = ''): string
+{
+  $paths = [
+    'dashboard' => '',
+    'opportunities' => 'oportunidades',
+    'quotes' => 'cotizaciones',
+    'clients' => 'clientes',
+    'bitacora' => 'bitacora',
+    'notifications' => 'notificaciones',
+    'profile' => 'perfil',
+    'logout' => 'salir',
+    'notification_poll' => 'notificaciones/estado',
+  ];
+  if ($view === 'opportunity') {
+    return crm_build_path(crm_web_base_path(), 'oportunidades/' . max(0, $id), $query, $fragment);
+  }
+  if ($view === 'quote') {
+    return crm_build_path(crm_web_base_path(), 'cotizaciones/' . max(0, $id), $query, $fragment);
+  }
+  return crm_build_path(crm_web_base_path(), $paths[$view] ?? '', $query, $fragment);
+}
+
+function crm_portal_url(string $view = 'resumen', int $projectId = 0, array $query = [], string $fragment = ''): string
+{
+  $paths = [
+    'resumen' => 'portal',
+    'proyectos' => 'portal/proyectos',
+    'bitacora' => 'portal/bitacora',
+    'solicitudes' => 'portal/solicitudes',
+    'notificaciones' => 'portal/notificaciones',
+    'perfil' => 'portal/perfil',
+    'logout' => 'portal/salir',
+    'notification_poll' => 'portal/notificaciones/estado',
+  ];
+  if ($projectId > 0) {
+    $query['project_id'] = $projectId;
+  }
+  return crm_build_path(crm_web_base_path(), $paths[$view] ?? $paths['resumen'], $query, $fragment);
+}
+
+function crm_evidence_url(int $requestId): string
+{
+  return crm_build_path(crm_web_base_path(), 'evidencias/' . max(0, $requestId));
+}
+
+function crm_uses_legacy_php_url(string $filename): bool
+{
+  if (!in_array(strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')), ['GET', 'HEAD'], true)) {
+    return false;
+  }
+  $path = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?? '');
+  return strtolower(basename($path)) === strtolower($filename);
+}
+
+function crm_clean_internal_url(?string $url, string $recipientType = 'admin'): string
+{
+  $url = trim((string) $url);
+  if ($url === '') {
+    return $recipientType === 'client' ? crm_portal_url('notificaciones') : crm_admin_url('notifications', 0, [], 'reportes-recibidos');
+  }
+
+  $parts = parse_url(html_entity_decode($url, ENT_QUOTES, 'UTF-8'));
+  if ($parts === false) {
+    return $recipientType === 'client' ? crm_portal_url() : crm_admin_url();
+  }
+  $path = (string) ($parts['path'] ?? '');
+  $file = strtolower(basename($path));
+  parse_str((string) ($parts['query'] ?? ''), $query);
+  $fragment = (string) ($parts['fragment'] ?? '');
+
+  if ($file === 'index.php') {
+    $view = (string) ($query['view'] ?? 'dashboard');
+    $id = (int) ($query['id'] ?? 0);
+    $isNotifications = $view === 'bitacora' && isset($query['notifications']);
+    unset($query['view'], $query['id'], $query['notifications']);
+    return crm_admin_url($isNotifications ? 'notifications' : $view, $id, $query, $fragment);
+  }
+  if ($file === 'cliente.php') {
+    $view = (string) ($query['view'] ?? 'resumen');
+    $projectId = (int) ($query['project_id'] ?? 0);
+    if (isset($query['logout'])) {
+      $view = 'logout';
+    } elseif (isset($query['notification_poll'])) {
+      $view = 'notification_poll';
+    }
+    unset($query['view'], $query['project_id'], $query['logout'], $query['notification_poll']);
+    return crm_portal_url($view, $projectId, $query, $fragment);
+  }
+  if ($file === 'evidence.php') {
+    return crm_evidence_url((int) ($query['id'] ?? 0));
+  }
+
+  return $url;
+}
 function crm_db_path(): string
 {
   return __DIR__ . '/../data/idindustrial_crm.sqlite';
@@ -193,7 +322,7 @@ function crm_recent_notifications(PDO $pdo, string $recipientType, ?int $portalU
   [$where, $params] = crm_notification_scope($recipientType, $portalUserId);
   $limit = max(1, min(60, $limit));
   $stmt = $pdo->prepare('
-    SELECT n.*, cr.status AS request_status, cr.priority AS request_priority, o.company_name, o.service
+    SELECT n.*, cr.title AS request_title, cr.message AS request_message, cr.status AS request_status, cr.priority AS request_priority, cr.category AS request_category, cr.location AS request_location, cr.equipment AS request_equipment, cr.impact AS request_impact, cr.occurred_at AS request_occurred_at, cr.actions_taken AS request_actions_taken, cr.evidence_path AS request_evidence_path, cr.evidence_original_name AS request_evidence_name, o.company_name, o.service
     FROM notifications n
     LEFT JOIN client_requests cr ON cr.id = n.client_request_id
     LEFT JOIN opportunities o ON o.id = n.opportunity_id
@@ -224,6 +353,118 @@ function crm_mark_all_notifications_read(PDO $pdo, string $recipientType, ?int $
   $stmt->execute($params);
 }
 
+function crm_store_request_evidence(?array $file): array
+{
+  if (!$file || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+    return ['path' => null, 'name' => null, 'mime' => null, 'size' => null];
+  }
+
+  $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+  if ($error !== UPLOAD_ERR_OK) {
+    throw new RuntimeException('No se pudo recibir la fotografia. Intenta nuevamente.');
+  }
+
+  $size = (int) ($file['size'] ?? 0);
+  if ($size <= 0 || $size > 5 * 1024 * 1024) {
+    throw new RuntimeException('La evidencia debe pesar menos de 5 MB.');
+  }
+
+  $temporaryPath = (string) ($file['tmp_name'] ?? '');
+  if ($temporaryPath === '' || !is_uploaded_file($temporaryPath)) {
+    throw new RuntimeException('La evidencia recibida no es un archivo valido.');
+  }
+
+  $finfo = new finfo(FILEINFO_MIME_TYPE);
+  $mime = (string) $finfo->file($temporaryPath);
+  $extensions = [
+    'image/jpeg' => 'jpg',
+    'image/png' => 'png',
+    'image/webp' => 'webp',
+  ];
+  $imageInfo = @getimagesize($temporaryPath);
+  if (!isset($extensions[$mime]) || !$imageInfo) {
+    throw new RuntimeException('Usa una fotografia JPG, PNG o WEBP.');
+  }
+  if (($imageInfo[0] ?? 0) < 1 || ($imageInfo[1] ?? 0) < 1 || ($imageInfo[0] ?? 0) > 8000 || ($imageInfo[1] ?? 0) > 8000) {
+    throw new RuntimeException('La fotografia no es valida o sus dimensiones son demasiado grandes.');
+  }
+
+  $directory = dirname(__DIR__) . '/data/request-evidence';
+  if (!is_dir($directory) && !mkdir($directory, 0750, true) && !is_dir($directory)) {
+    throw new RuntimeException('No se pudo preparar el almacenamiento de evidencias.');
+  }
+
+  $fileName = bin2hex(random_bytes(20)) . '.' . $extensions[$mime];
+  $destination = $directory . '/' . $fileName;
+  if (!move_uploaded_file($temporaryPath, $destination)) {
+    throw new RuntimeException('No se pudo guardar la fotografia de evidencia.');
+  }
+
+  $originalName = trim((string) ($file['name'] ?? 'evidencia.' . $extensions[$mime]));
+  $originalName = preg_replace('/[^a-zA-Z0-9._ -]/', '_', basename($originalName)) ?: 'evidencia.' . $extensions[$mime];
+
+  return [
+    'path' => 'request-evidence/' . $fileName,
+    'name' => substr($originalName, 0, 190),
+    'mime' => $mime,
+    'size' => $size,
+  ];
+}
+
+function crm_delete_request_evidence(?string $relativePath): void
+{
+  $relativePath = trim((string) $relativePath);
+  if ($relativePath === '') {
+    return;
+  }
+
+  $baseDirectory = realpath(dirname(__DIR__) . '/data/request-evidence');
+  $filePath = realpath(dirname(__DIR__) . '/data/' . ltrim(str_replace('\\', '/', $relativePath), '/'));
+  if ($baseDirectory && $filePath && str_starts_with($filePath, $baseDirectory . DIRECTORY_SEPARATOR) && is_file($filePath)) {
+    @unlink($filePath);
+  }
+}
+
+function crm_output_request_evidence(PDO $pdo, int $requestId, ?int $portalUserId = null): void
+{
+  $sql = 'SELECT evidence_path, evidence_original_name, evidence_mime, evidence_size FROM client_requests WHERE id = ?';
+  $params = [$requestId];
+  if ($portalUserId !== null) {
+    $sql .= ' AND portal_user_id = ?';
+    $params[] = $portalUserId;
+  }
+  $sql .= ' LIMIT 1';
+
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute($params);
+  $evidence = $stmt->fetch();
+  if (!$evidence || empty($evidence['evidence_path'])) {
+    http_response_code(404);
+    exit('Evidencia no encontrada.');
+  }
+
+  $baseDirectory = realpath(dirname(__DIR__) . '/data/request-evidence');
+  $filePath = realpath(dirname(__DIR__) . '/data/' . ltrim(str_replace('\\', '/', (string) $evidence['evidence_path']), '/'));
+  if (!$baseDirectory || !$filePath || !str_starts_with($filePath, $baseDirectory . DIRECTORY_SEPARATOR) || !is_file($filePath)) {
+    http_response_code(404);
+    exit('Evidencia no encontrada.');
+  }
+
+  $mime = (string) ($evidence['evidence_mime'] ?: 'application/octet-stream');
+  if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+    http_response_code(415);
+    exit('Tipo de evidencia no permitido.');
+  }
+
+  $name = preg_replace('/[^a-zA-Z0-9._ -]/', '_', (string) ($evidence['evidence_original_name'] ?: basename($filePath))) ?: 'evidencia';
+  header('Content-Type: ' . $mime);
+  header('Content-Length: ' . filesize($filePath));
+  header('Content-Disposition: inline; filename="' . $name . '"');
+  header('Cache-Control: private, max-age=300');
+  header('X-Content-Type-Options: nosniff');
+  readfile($filePath);
+  exit;
+}
 function crm_login_settings(): array
 {
   return [
@@ -427,6 +668,36 @@ function crm_ensure_columns(PDO $pdo): void
       'internal_notes' => $isMysql
         ? 'ALTER TABLE client_requests ADD COLUMN internal_notes TEXT NULL AFTER admin_response'
         : 'ALTER TABLE client_requests ADD COLUMN internal_notes TEXT NULL',
+      'category' => $isMysql
+        ? "ALTER TABLE client_requests ADD COLUMN category VARCHAR(80) NOT NULL DEFAULT 'Mantenimiento correctivo' AFTER message"
+        : "ALTER TABLE client_requests ADD COLUMN category TEXT NOT NULL DEFAULT 'Mantenimiento correctivo'",
+      'location' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN location VARCHAR(190) NULL AFTER category'
+        : 'ALTER TABLE client_requests ADD COLUMN location TEXT NULL',
+      'equipment' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN equipment VARCHAR(190) NULL AFTER location'
+        : 'ALTER TABLE client_requests ADD COLUMN equipment TEXT NULL',
+      'impact' => $isMysql
+        ? "ALTER TABLE client_requests ADD COLUMN impact VARCHAR(80) NOT NULL DEFAULT 'Sin paro' AFTER equipment"
+        : "ALTER TABLE client_requests ADD COLUMN impact TEXT NOT NULL DEFAULT 'Sin paro'",
+      'occurred_at' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN occurred_at DATETIME NULL AFTER impact'
+        : 'ALTER TABLE client_requests ADD COLUMN occurred_at TEXT NULL',
+      'actions_taken' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN actions_taken TEXT NULL AFTER occurred_at'
+        : 'ALTER TABLE client_requests ADD COLUMN actions_taken TEXT NULL',
+      'evidence_path' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN evidence_path VARCHAR(255) NULL AFTER actions_taken'
+        : 'ALTER TABLE client_requests ADD COLUMN evidence_path TEXT NULL',
+      'evidence_original_name' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN evidence_original_name VARCHAR(190) NULL AFTER evidence_path'
+        : 'ALTER TABLE client_requests ADD COLUMN evidence_original_name TEXT NULL',
+      'evidence_mime' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN evidence_mime VARCHAR(80) NULL AFTER evidence_original_name'
+        : 'ALTER TABLE client_requests ADD COLUMN evidence_mime TEXT NULL',
+      'evidence_size' => $isMysql
+        ? 'ALTER TABLE client_requests ADD COLUMN evidence_size INT UNSIGNED NULL AFTER evidence_mime'
+        : 'ALTER TABLE client_requests ADD COLUMN evidence_size INTEGER NULL',
     ],
   ];
 
@@ -558,6 +829,16 @@ function crm_migrate_sqlite(PDO $pdo): void
       portal_user_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       message TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Mantenimiento correctivo',
+      location TEXT,
+      equipment TEXT,
+      impact TEXT NOT NULL DEFAULT 'Sin paro',
+      occurred_at TEXT,
+      actions_taken TEXT,
+      evidence_path TEXT,
+      evidence_original_name TEXT,
+      evidence_mime TEXT,
+      evidence_size INTEGER,
       admin_response TEXT,
       status TEXT NOT NULL DEFAULT 'Recibida',
       priority TEXT NOT NULL DEFAULT 'Media',
@@ -747,6 +1028,16 @@ function crm_migrate_mysql(PDO $pdo): void
       portal_user_id INT UNSIGNED NOT NULL,
       title VARCHAR(190) NOT NULL,
       message TEXT NOT NULL,
+      category VARCHAR(80) NOT NULL DEFAULT 'Mantenimiento correctivo',
+      location VARCHAR(190) NULL,
+      equipment VARCHAR(190) NULL,
+      impact VARCHAR(80) NOT NULL DEFAULT 'Sin paro',
+      occurred_at DATETIME NULL,
+      actions_taken TEXT NULL,
+      evidence_path VARCHAR(255) NULL,
+      evidence_original_name VARCHAR(190) NULL,
+      evidence_mime VARCHAR(80) NULL,
+      evidence_size INT UNSIGNED NULL,
       admin_response TEXT NULL,
       status VARCHAR(80) NOT NULL DEFAULT 'Recibida',
       priority VARCHAR(40) NOT NULL DEFAULT 'Media',

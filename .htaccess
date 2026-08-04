@@ -3,25 +3,52 @@ DirectoryIndex index.php index.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteCond %{QUERY_STRING} (^|&)servicio= [NC]
-  RewriteRule ^$ index.php [L]
 
+  # Canonical host and protocol in production.
+  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
   RewriteCond %{HTTPS} !=on
-  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
   RewriteCond %{HTTP_HOST} ^www\.idindustrial\.com\.mx$ [NC]
-  RewriteRule ^ https://idindustrial.com.mx%{REQUEST_URI} [L,R=301]
+  RewriteRule ^ https://idindustrial.com.mx%{REQUEST_URI} [R=301,L]
 
-  RewriteCond %{REQUEST_URI} !^/sistema/ [NC]
-  RewriteRule ^industriales/cableado-estructurado-queretaro/?$ /sistema/industriales/cableado-estructurado-queretaro/ [L,R=301]
-  RewriteCond %{REQUEST_URI} !^/sistema/ [NC]
-  RewriteRule ^instalacion-aire-acondicionado-industrial-queretaro/?$ /sistema/instalacion-aire-acondicionado-industrial-queretaro/ [L,R=301]
-  RewriteCond %{REQUEST_URI} !^/sistema/ [NC]
-  RewriteRule ^control-de-acceso-de-personal-queretaro/?$ /sistema/control-de-acceso-de-personal-queretaro/ [L,R=301]
-  RewriteCond %{REQUEST_URI} !^/sistema/ [NC]
-  RewriteRule ^instalacion-camaras-seguridad-industrial-queretaro/?$ /sistema/instalacion-camaras-seguridad-industrial-queretaro/ [L,R=301]
-  RewriteCond %{REQUEST_URI} !^/sistema/ [NC]
-  RewriteRule ^instalacion-camaras-seguridad-industrial-queretaro\.php$ /sistema/instalacion-camaras-seguridad-industrial-queretaro/ [L,R=301]
+  # Public legacy files now use directory URLs.
+  RewriteRule ^instalacion-camaras-seguridad-industrial-queretaro\.php$ instalacion-camaras-seguridad-industrial-queretaro/ [R=301,L,NE]
+
+  RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.php(?:[?\s]) [NC]
+  RewriteCond %{REQUEST_URI} !/crm/ [NC]
+  RewriteRule ^(.+)/index\.php$ $1/ [R=301,L,NE]
+
+  RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.php(?:[?\s]) [NC]
+  RewriteRule ^index\.php$ ./ [R=301,L,NE]
+
+  # Client portal routes.
+  RewriteRule ^crm/portal/notificaciones/estado/?$ crm/cliente.php?notification_poll=1 [QSA,L]
+  RewriteRule ^crm/portal/salir/?$ crm/cliente.php?logout=1 [QSA,L]
+  RewriteRule ^crm/portal/proyectos/?$ crm/cliente.php?view=proyectos [QSA,L]
+  RewriteRule ^crm/portal/bitacora/?$ crm/cliente.php?view=bitacora [QSA,L]
+  RewriteRule ^crm/portal/solicitudes/?$ crm/cliente.php?view=solicitudes [QSA,L]
+  RewriteRule ^crm/portal/notificaciones/?$ crm/cliente.php?view=notificaciones [QSA,L]
+  RewriteRule ^crm/portal/perfil/?$ crm/cliente.php?view=perfil [QSA,L]
+  RewriteRule ^crm/portal/?$ crm/cliente.php?view=resumen [QSA,L]
+
+  # CRM administration and protected evidence.
+  RewriteRule ^crm/evidencias/([0-9]+)/?$ crm/evidence.php?id=$1 [QSA,L]
+  RewriteRule ^crm/notificaciones/estado/?$ crm/index.php?notification_poll=1 [QSA,L]
+  RewriteRule ^crm/salir/?$ crm/index.php?logout=1 [QSA,L]
+  RewriteRule ^crm/oportunidades/([0-9]+)/?$ crm/index.php?view=opportunity&id=$1 [QSA,L]
+  RewriteRule ^crm/oportunidades/?$ crm/index.php?view=opportunities [QSA,L]
+  RewriteRule ^crm/cotizaciones/([0-9]+)/?$ crm/index.php?view=quote&id=$1 [QSA,L]
+  RewriteRule ^crm/cotizaciones/?$ crm/index.php?view=quotes [QSA,L]
+  RewriteRule ^crm/clientes/?$ crm/index.php?view=clients [QSA,L]
+  RewriteRule ^crm/notificaciones/?$ crm/index.php?view=bitacora&notifications=1 [QSA,L]
+  RewriteRule ^crm/bitacora/?$ crm/index.php?view=bitacora [QSA,L]
+  RewriteRule ^crm/perfil/?$ crm/index.php?view=profile [QSA,L]
+  RewriteRule ^crm/?$ crm/index.php?view=dashboard [QSA,L]
+
+  # Preserve service preselection on the public quote form.
+  RewriteCond %{QUERY_STRING} (^|&)servicio= [NC]
+  RewriteRule ^$ index.php [L]
 </IfModule>
 
 <IfModule mod_deflate.c>

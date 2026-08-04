@@ -29,6 +29,7 @@ function bitacora_icon(string $name): string
     'menu' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>',
     'check' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
     'bell' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+    'camera' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5 13 3h-2L9.5 5H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3h-4.5Z"/><circle cx="12" cy="12.5" r="4"/></svg>',
   ];
   return $icons[$name] ?? $icons['dashboard'];
 }
@@ -71,6 +72,15 @@ function bitacora_request_next_step(string $status): string
   ];
   return $steps[$status] ?? 'Seguimiento en actualizacion.';
 }
+
+function bitacora_file_size(int $bytes): string
+{
+  if ($bytes >= 1024 * 1024) {
+    return number_format($bytes / (1024 * 1024), 1) . ' MB';
+  }
+  return max(1, (int) ceil($bytes / 1024)) . ' KB';
+}
+
 function bitacora_project_accesses(PDO $pdo, array $portal): array
 {
   $clientId = (int) ($portal['client_id'] ?? 0);
@@ -306,6 +316,8 @@ $mustChangePassword = (int) ($portalAccount['password_change_required'] ?? 1) ==
 $portal['must_change_password'] = $mustChangePassword;
 $_SESSION['bitacora_user']['must_change_password'] = $mustChangePassword;
 $requestPriorities = ['Baja', 'Media', 'Alta', 'Urgente'];
+$requestCategories = ['Mantenimiento correctivo', 'Mantenimiento preventivo', 'Falla de equipo', 'Rendimiento', 'Inspeccion', 'Seguridad', 'Otro'];
+$requestImpacts = ['Sin paro', 'Operacion parcial', 'Paro total', 'Riesgo de seguridad'];
 $projectAccesses = bitacora_project_accesses($pdo, $portal);
 $selectedProjectId = max(0, (int) ($_POST['project_id'] ?? $_GET['project_id'] ?? $portal['opportunity_id'] ?? 0));
 $currentAccess = bitacora_select_project($projectAccesses, $selectedProjectId);
@@ -326,30 +338,31 @@ $activeView = (string) ($_GET['view'] ?? 'resumen');
 if (!isset($clientViews[$activeView])) {
   $activeView = 'resumen';
 }
-if (($_POST['action'] ?? '') === 'update_client_password') {
+$action = (string) ($_POST['action'] ?? '');
+if ($action === 'update_client_password') {
   $activeView = 'perfil';
-} elseif (($_POST['action'] ?? '') === 'create_request') {
+} elseif ($action === 'create_request') {
   $activeView = 'solicitudes';
-} elseif (in_array(($_POST['action'] ?? ''), ['mark_client_notification_read', 'mark_all_client_notifications_read'], true)) {
+} elseif (in_array($action, ['mark_client_notification_read', 'mark_all_client_notifications_read'], true)) {
   $activeView = 'notificaciones';
 }
 $notice = null;
 
-if (($_POST['action'] ?? '') === 'mark_client_notification_read') {
+if ($action === 'mark_client_notification_read') {
   bitacora_check_token();
   crm_mark_notification_read($pdo, (int) ($_POST['notification_id'] ?? 0), 'client', (int) $currentAccess['id']);
   header('Location: ' . bitacora_client_url('notificaciones', (int) $currentAccess['opportunity_id']));
   exit;
 }
 
-if (($_POST['action'] ?? '') === 'mark_all_client_notifications_read') {
+if ($action === 'mark_all_client_notifications_read') {
   bitacora_check_token();
   crm_mark_all_notifications_read($pdo, 'client', (int) $currentAccess['id']);
   header('Location: ' . bitacora_client_url('notificaciones', (int) $currentAccess['opportunity_id']));
   exit;
 }
 
-if (($_POST['action'] ?? '') === 'update_client_password') {
+if ($action === 'update_client_password') {
   bitacora_check_token();
   $currentPassword = (string) ($_POST['current_password'] ?? '');
   $newPassword = (string) ($_POST['new_password'] ?? '');
@@ -379,49 +392,118 @@ if (($_POST['action'] ?? '') === 'update_client_password') {
   }
 }
 
-if (($_POST['action'] ?? '') === 'create_request') {
+if ($action === 'create_request') {
   bitacora_check_token();
   $postedProjectId = max(0, (int) ($_POST['project_id'] ?? 0));
   $postedAccess = bitacora_select_project($projectAccesses, $postedProjectId);
   if ($postedAccess) {
     $currentAccess = $postedAccess;
   }
+
   $title = trim((string) ($_POST['title'] ?? ''));
+  $category = trim((string) ($_POST['category'] ?? 'Mantenimiento correctivo'));
+  $location = trim((string) ($_POST['location'] ?? ''));
+  $equipment = trim((string) ($_POST['equipment'] ?? ''));
+  $impact = trim((string) ($_POST['impact'] ?? 'Sin paro'));
+  $occurredAtInput = trim((string) ($_POST['occurred_at'] ?? ''));
+  $occurredTimestamp = $occurredAtInput !== '' ? strtotime($occurredAtInput) : false;
+  $occurredAt = $occurredTimestamp ? date('Y-m-d H:i:s', $occurredTimestamp) : null;
+  $actionsTaken = trim((string) ($_POST['actions_taken'] ?? ''));
   $message = trim((string) ($_POST['message'] ?? ''));
   $priority = trim((string) ($_POST['priority'] ?? 'Media'));
+
   if (!in_array($priority, $requestPriorities, true)) {
     $priority = 'Media';
   }
-  if ($title === '' || $message === '') {
-    $notice = ['type' => 'error', 'text' => 'Completa asunto y descripcion de la solicitud.'];
+  if (!in_array($category, $requestCategories, true)) {
+    $category = 'Otro';
+  }
+  if (!in_array($impact, $requestImpacts, true)) {
+    $impact = 'Sin paro';
+  }
+
+  if ($title === '' || $location === '' || $message === '') {
+    $notice = ['type' => 'error', 'text' => 'Completa asunto, ubicacion y descripcion tecnica del reporte.'];
+  } elseif (strlen($title) > 160 || strlen($location) > 190 || strlen($equipment) > 190) {
+    $notice = ['type' => 'error', 'text' => 'Revisa los campos: asunto, ubicacion y equipo deben ser mas breves.'];
+  } elseif (strlen($message) < 20 || strlen($message) > 4000) {
+    $notice = ['type' => 'error', 'text' => 'La descripcion tecnica debe tener entre 20 y 4000 caracteres.'];
+  } elseif (strlen($actionsTaken) > 2000) {
+    $notice = ['type' => 'error', 'text' => 'Las acciones realizadas no deben exceder 2000 caracteres.'];
+  } elseif ($occurredAtInput !== '' && (!$occurredTimestamp || $occurredTimestamp > time() + 300)) {
+    $notice = ['type' => 'error', 'text' => 'La fecha y hora del evento no es valida o esta en el futuro.'];
   } else {
-    $stmt = $pdo->prepare('INSERT INTO client_requests (opportunity_id, portal_user_id, title, message, status, priority, due_date) VALUES (?, ?, ?, ?, "Recibida", ?, ?)');
-    $stmt->execute([(int) $currentAccess['opportunity_id'], (int) $currentAccess['id'], $title, $message, $priority, bitacora_request_due_date($priority)]);
-    $requestId = (int) $pdo->lastInsertId();
-    crm_create_notification($pdo, [
-      'recipient_type' => 'admin',
-      'opportunity_id' => (int) $currentAccess['opportunity_id'],
-      'portal_user_id' => (int) $currentAccess['id'],
-      'client_request_id' => $requestId,
-      'event_type' => 'report_received',
-      'title' => 'Nuevo reporte recibido',
-      'message' => ($currentAccess['company_name'] ?? 'Cliente') . ' envio un reporte para ' . ($currentAccess['service'] ?? 'Proyecto') . ': ' . $title,
-      'target_url' => 'index.php?view=bitacora#request-' . $requestId,
-    ]);
-    crm_create_notification($pdo, [
-      'recipient_type' => 'client',
-      'portal_user_id' => (int) $currentAccess['id'],
-      'opportunity_id' => (int) $currentAccess['opportunity_id'],
-      'client_request_id' => $requestId,
-      'event_type' => 'report_received',
-      'title' => 'Reporte recibido',
-      'message' => 'ID Industrial recibio tu reporte "' . $title . '" y dara seguimiento por proyecto.',
-      'target_url' => 'cliente.php?view=solicitudes&project_id=' . (int) $currentAccess['opportunity_id'] . '#request-' . $requestId,
-    ]);
-    $notice = ['type' => 'success', 'text' => 'Solicitud recibida. El equipo de ID Industrial dara seguimiento por proyecto.'];
+    try {
+      $evidence = crm_store_request_evidence($_FILES['evidence'] ?? null);
+    } catch (RuntimeException $error) {
+      $evidence = ['path' => null, 'name' => null, 'mime' => null, 'size' => null];
+      $notice = ['type' => 'error', 'text' => $error->getMessage()];
+    }
+
+    if (!$notice) {
+      try {
+        $pdo->beginTransaction();
+        $stmt = $pdo->prepare('
+          INSERT INTO client_requests (
+            opportunity_id, portal_user_id, title, message, category, location, equipment,
+            impact, occurred_at, actions_taken, evidence_path, evidence_original_name,
+            evidence_mime, evidence_size, status, priority, due_date
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "Recibida", ?, ?)
+        ');
+        $stmt->execute([
+          (int) $currentAccess['opportunity_id'],
+          (int) $currentAccess['id'],
+          $title,
+          $message,
+          $category,
+          $location,
+          $equipment ?: null,
+          $impact,
+          $occurredAt,
+          $actionsTaken ?: null,
+          $evidence['path'],
+          $evidence['name'],
+          $evidence['mime'],
+          $evidence['size'],
+          $priority,
+          bitacora_request_due_date($priority),
+        ]);
+        $requestId = (int) $pdo->lastInsertId();
+
+        crm_create_notification($pdo, [
+          'recipient_type' => 'admin',
+          'opportunity_id' => (int) $currentAccess['opportunity_id'],
+          'portal_user_id' => (int) $currentAccess['id'],
+          'client_request_id' => $requestId,
+          'event_type' => 'report_received',
+          'title' => 'Nuevo reporte recibido',
+          'message' => ($currentAccess['company_name'] ?? 'Cliente') . ' reporto ' . $category . ' en ' . $location . ' con prioridad ' . $priority . ': ' . $title,
+          'target_url' => 'index.php?view=bitacora&notifications=1#request-' . $requestId,
+        ]);
+        crm_create_notification($pdo, [
+          'recipient_type' => 'client',
+          'portal_user_id' => (int) $currentAccess['id'],
+          'opportunity_id' => (int) $currentAccess['opportunity_id'],
+          'client_request_id' => $requestId,
+          'event_type' => 'report_received',
+          'title' => 'Reporte recibido',
+          'message' => 'ID Industrial recibio tu reporte "' . $title . '" y dara seguimiento por proyecto.',
+          'target_url' => 'cliente.php?view=solicitudes&project_id=' . (int) $currentAccess['opportunity_id'] . '#request-' . $requestId,
+        ]);
+        $pdo->commit();
+        $notice = ['type' => 'success', 'text' => 'Reporte registrado correctamente. El equipo de ID Industrial ya puede consultar el detalle y la evidencia.'];
+        $_POST = [];
+      } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+          $pdo->rollBack();
+        }
+        crm_delete_request_evidence($evidence['path']);
+        error_log('Client report creation failed: ' . $error->getMessage());
+        $notice = ['type' => 'error', 'text' => 'No se pudo registrar el reporte. Intenta nuevamente.'];
+      }
+    }
   }
 }
-
 $projectAccesses = bitacora_project_accesses($pdo, $portal);
 $currentAccess = bitacora_select_project($projectAccesses, (int) $currentAccess['opportunity_id']) ?: $currentAccess;
 $token = bitacora_token();
@@ -430,6 +512,24 @@ $project = $currentAccess;
 $activeProject = $currentAccess;
 $activeOpportunityId = (int) $currentAccess['opportunity_id'];
 $activePortalUserId = (int) $currentAccess['id'];
+
+if ($activeView === 'notificaciones') {
+  crm_mark_all_notifications_read($pdo, 'client', $activePortalUserId);
+}
+
+if (isset($_GET['notification_poll'])) {
+  $latestNotification = crm_recent_notifications($pdo, 'client', $activePortalUserId, 1)[0] ?? null;
+  header('Content-Type: application/json; charset=utf-8');
+  header('Cache-Control: no-store');
+  echo json_encode([
+    'unread' => crm_unread_notification_count($pdo, 'client', $activePortalUserId),
+    'latest_id' => (int) ($latestNotification['id'] ?? 0),
+    'latest_title' => (string) ($latestNotification['title'] ?? ''),
+    'latest_url' => (string) ($latestNotification['target_url'] ?? bitacora_client_url('notificaciones', $activeOpportunityId)),
+  ], JSON_UNESCAPED_UNICODE);
+  exit;
+}
+
 $logsStmt = $pdo->prepare('SELECT * FROM maintenance_logs WHERE opportunity_id = ? AND visible_to_client = 1 ORDER BY COALESCE(scheduled_date, created_at) DESC, id DESC');
 $logsStmt->execute([$activeOpportunityId]);
 $logs = $logsStmt->fetchAll();
@@ -448,7 +548,7 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
   <title>Bitacora ID | <?php echo h($project['company_name']); ?></title>
   <link rel="stylesheet" href="../assets/css/crm.css">
 </head>
-<body class="crm-app crm-client-app crm-client-portal">
+<body class="crm-app crm-client-app crm-client-portal" data-notification-poll="cliente.php?notification_poll=1&amp;project_id=<?php echo (int) $activeOpportunityId; ?>">
   <div class="crm-client-layout">
     <aside class="crm-client-sidebar" id="cliente-sidebar">
       <div class="crm-client-brand">
@@ -458,7 +558,7 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
       <nav class="crm-client-nav" aria-label="Navegacion del portal cliente">
         <?php foreach ($clientViews as $viewKey => $viewItem): ?>
           <a href="<?php echo h(bitacora_client_url($viewKey, $activeOpportunityId)); ?>" class="<?php echo $activeView === $viewKey ? 'is-active' : ''; ?>">
-            <span><?php echo bitacora_icon($viewItem['icon']); ?></span><?php echo h($viewItem['label']); ?><?php if ($viewKey === 'notificaciones' && $clientUnreadNotifications > 0): ?><em><?php echo $clientUnreadNotifications; ?></em><?php endif; ?>
+            <span><?php echo bitacora_icon($viewItem['icon']); ?></span><?php echo h($viewItem['label']); ?><?php if ($viewKey === 'notificaciones'): ?><em data-notification-count <?php echo $clientUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $clientUnreadNotifications; ?></em><?php endif; ?>
           </a>
         <?php endforeach; ?>
       </nav>
@@ -477,13 +577,13 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
         <div class="crm-topbar__actions crm-client-topbar__actions">
           <a class="crm-notification-trigger" href="<?php echo h(bitacora_client_url('notificaciones', $activeOpportunityId)); ?>" aria-label="Notificaciones">
             <?php echo bitacora_icon('bell'); ?>
-            <?php if ($clientUnreadNotifications > 0): ?><span><?php echo $clientUnreadNotifications; ?></span><?php endif; ?>
+            <span data-notification-count <?php echo $clientUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $clientUnreadNotifications; ?></span>
           </a>
           <a class="crm-button crm-button--ghost" href="cliente.php?logout=1">Cerrar sesion</a>
         </div>
       </header>
 
-      <?php if ($notice): ?><div class="crm-flash crm-flash--<?php echo h($notice['type']); ?>"><p><?php echo h($notice['text']); ?></p></div><?php endif; ?>
+      <?php if ($notice && $activeView !== 'perfil'): ?><div class="crm-flash crm-flash--<?php echo h($notice['type']); ?>"><p><?php echo h($notice['text']); ?></p></div><?php endif; ?>
       <?php if ($mustChangePassword && $activeView !== 'perfil'): ?>
         <section class="crm-security-callout" aria-live="polite">
           <span><?php echo bitacora_icon('lock'); ?></span>
@@ -559,14 +659,38 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
           <section class="crm-client-workspace crm-client-workspace--requests">
             <article class="crm-card">
               <div class="crm-section-head"><div><h2>Nueva solicitud</h2><p>Describe el requerimiento para que el equipo lo pueda programar.</p></div><a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('proyectos', $activeOpportunityId)); ?>">Cambiar proyecto</a></div>
-              <form class="crm-form" method="post">
+              <form class="crm-form crm-request-intake" method="post" enctype="multipart/form-data" data-request-form>
                 <input type="hidden" name="token" value="<?php echo h($token); ?>">
                 <input type="hidden" name="action" value="create_request">
                 <input type="hidden" name="project_id" value="<?php echo (int) $activeOpportunityId; ?>">
-                <label class="crm-field">Asunto<input name="title" required></label>
-                <label class="crm-field">Prioridad<select name="priority"><?php foreach ($requestPriorities as $priority): ?><option><?php echo h($priority); ?></option><?php endforeach; ?></select></label>
-                <label class="crm-field">Descripcion<textarea name="message" rows="5" required></textarea></label>
-                <button class="crm-button" type="submit">Enviar solicitud</button>
+                <fieldset class="crm-request-form-section">
+                  <legend>Identificacion del reporte</legend>
+                  <div class="crm-request-form-grid">
+                    <label class="crm-field crm-field--wide">Asunto<input name="title" maxlength="160" value="<?php echo h($_POST['title'] ?? ''); ?>" placeholder="Ej. Falla en unidad manejadora de aire" required></label>
+                    <label class="crm-field">Categoria<select name="category" required><?php foreach ($requestCategories as $category): ?><option <?php echo (($_POST['category'] ?? '') === $category) ? 'selected' : ''; ?>><?php echo h($category); ?></option><?php endforeach; ?></select></label>
+                    <label class="crm-field">Prioridad<select name="priority" required><?php foreach ($requestPriorities as $priority): ?><option <?php echo (($_POST['priority'] ?? 'Media') === $priority) ? 'selected' : ''; ?>><?php echo h($priority); ?></option><?php endforeach; ?></select></label>
+                    <label class="crm-field">Ubicacion exacta<input name="location" maxlength="190" value="<?php echo h($_POST['location'] ?? ''); ?>" placeholder="Area, nivel o linea" required></label>
+                    <label class="crm-field">Equipo afectado<input name="equipment" maxlength="190" value="<?php echo h($_POST['equipment'] ?? ''); ?>" placeholder="Nombre, modelo o identificador"></label>
+                    <label class="crm-field">Impacto operativo<select name="impact" required><?php foreach ($requestImpacts as $impact): ?><option <?php echo (($_POST['impact'] ?? 'Sin paro') === $impact) ? 'selected' : ''; ?>><?php echo h($impact); ?></option><?php endforeach; ?></select></label>
+                    <label class="crm-field">Fecha del incidente<input type="datetime-local" name="occurred_at" max="<?php echo h(date('Y-m-d\TH:i')); ?>" value="<?php echo h($_POST['occurred_at'] ?? date('Y-m-d\TH:i')); ?>"></label>
+                  </div>
+                </fieldset>
+                <fieldset class="crm-request-form-section">
+                  <legend>Descripcion tecnica</legend>
+                  <label class="crm-field">Que esta ocurriendo<textarea name="message" rows="6" minlength="20" maxlength="4000" placeholder="Describe sintomas, frecuencia, ruidos, alarmas o cambios observados." required><?php echo h($_POST['message'] ?? ''); ?></textarea></label>
+                  <label class="crm-field">Acciones realizadas<textarea name="actions_taken" rows="3" maxlength="2000" placeholder="Indica si se detuvo el equipo, reinicio el sistema o se aislo el area."><?php echo h($_POST['actions_taken'] ?? ''); ?></textarea></label>
+                </fieldset>
+                <fieldset class="crm-request-form-section">
+                  <legend>Evidencia</legend>
+                  <label class="crm-evidence-upload">
+                    <span class="crm-evidence-upload__icon"><?php echo bitacora_icon('camera'); ?></span>
+                    <span><strong>Adjuntar fotografia</strong><small id="request-evidence-help">JPG, PNG o WEBP. Maximo 5 MB. Archivo opcional.</small></span>
+                    <input id="request-evidence" type="file" name="evidence" accept="image/jpeg,image/png,image/webp" capture="environment" aria-describedby="request-evidence-help" data-evidence-input>
+                  </label>
+                  <p class="crm-field-error" hidden data-evidence-error role="alert"></p>
+                  <div class="crm-evidence-preview" hidden data-evidence-preview><img alt="Vista previa de evidencia"><div><strong data-evidence-name></strong><small data-evidence-size></small></div><button type="button" data-evidence-remove>Quitar</button></div>
+                </fieldset>
+                <div class="crm-request-submit"><p>El reporte quedara ligado a <strong><?php echo h($project['service']); ?></strong>.</p><button class="crm-button" type="submit">Enviar reporte</button></div>
               </form>
             </article>
             <article class="crm-card">
@@ -575,9 +699,33 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
                 <?php foreach ($requests as $request): ?>
                   <?php $requestStatus = trim((string) ($request['status'] ?? 'Recibida')) ?: 'Recibida'; ?>
                   <div id="request-<?php echo (int) $request['id']; ?>" class="crm-list__item crm-request-card">
-                    <div class="crm-request-card__head"><span class="crm-pill <?php echo h(bitacora_pill_class($requestStatus)); ?>"><?php echo h($requestStatus); ?></span><small><?php echo h($request['updated_at'] ?: $request['created_at']); ?></small></div>
-                    <strong><?php echo h($request['title']); ?></strong><p><?php echo h($request['message']); ?></p>
-                    <div class="crm-request-meta crm-request-meta--client"><span><strong>Prioridad</strong><?php echo h($request['priority'] ?? 'Media'); ?></span><span><strong>Objetivo</strong><?php echo h($request['due_date'] ?? 'Por confirmar'); ?></span><span><strong>Programada</strong><?php echo h($request['scheduled_date'] ?: 'Por confirmar'); ?></span><span><strong>Responsable</strong><?php echo h($request['assigned_to'] ?: 'Por asignar'); ?></span></div>
+                    <div class="crm-request-card__head"><span class="crm-pill <?php echo h(bitacora_pill_class($requestStatus)); ?>"><?php echo h($requestStatus); ?></span><small>Folio ID-<?php echo str_pad((string) $request['id'], 5, '0', STR_PAD_LEFT); ?> - <?php echo h($request['updated_at'] ?: $request['created_at']); ?></small></div>
+                    <div class="crm-request-title"><span><?php echo h($request['category'] ?? 'Mantenimiento correctivo'); ?></span><strong><?php echo h($request['title']); ?></strong></div>
+                    <div class="crm-request-meta crm-request-meta--client">
+                      <span><strong>Prioridad</strong><?php echo h($request['priority'] ?? 'Media'); ?></span>
+                      <span><strong>Ubicacion</strong><?php echo h($request['location'] ?: 'Sin especificar'); ?></span>
+                      <span><strong>Impacto</strong><?php echo h($request['impact'] ?? 'Sin paro'); ?></span>
+                      <span><strong>Incidente</strong><?php echo h($request['occurred_at'] ?: $request['created_at']); ?></span>
+                    </div>
+                    <details class="crm-report-details">
+                      <summary>Ver detalle completo</summary>
+                      <div class="crm-report-details__body">
+                        <div class="crm-report-detail-grid">
+                          <span><strong>Equipo afectado</strong><?php echo h($request['equipment'] ?: 'No especificado'); ?></span>
+                          <span><strong>Fecha objetivo</strong><?php echo h($request['due_date'] ?: 'Por confirmar'); ?></span>
+                          <span><strong>Fecha programada</strong><?php echo h($request['scheduled_date'] ?: 'Por confirmar'); ?></span>
+                          <span><strong>Responsable</strong><?php echo h($request['assigned_to'] ?: 'Por asignar'); ?></span>
+                        </div>
+                        <section><strong>Descripcion del reporte</strong><p><?php echo nl2br(h($request['message'])); ?></p></section>
+                        <?php if (!empty($request['actions_taken'])): ?><section><strong>Acciones realizadas</strong><p><?php echo nl2br(h($request['actions_taken'])); ?></p></section><?php endif; ?>
+                        <?php if (!empty($request['evidence_path'])): ?>
+                          <a class="crm-evidence-card" href="evidence.php?id=<?php echo (int) $request['id']; ?>" target="_blank" rel="noopener">
+                            <img src="evidence.php?id=<?php echo (int) $request['id']; ?>" alt="Evidencia del reporte <?php echo h($request['title']); ?>" loading="lazy">
+                            <span><strong>Fotografia de evidencia</strong><small><?php echo h($request['evidence_original_name'] ?: 'Evidencia adjunta'); ?> - <?php echo h(bitacora_file_size((int) ($request['evidence_size'] ?? 0))); ?></small></span>
+                          </a>
+                        <?php endif; ?>
+                      </div>
+                    </details>
                     <p class="crm-request-next"><strong>Seguimiento:</strong> <?php echo h(bitacora_request_next_step($requestStatus)); ?><?php if (!empty($request['resolved_at'])): ?> Resuelta: <?php echo h($request['resolved_at']); ?>.<?php endif; ?></p>
                     <?php if (!empty($request['admin_response'])): ?><div class="crm-response"><strong>Respuesta ID Industrial</strong><p><?php echo h($request['admin_response']); ?></p></div><?php endif; ?>
                   </div>
@@ -616,6 +764,28 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
                     <span><strong>Estatus</strong><?php echo h($notification['request_status'] ?: 'Recibida'); ?></span>
                     <span><strong>Prioridad</strong><?php echo h($notification['request_priority'] ?: 'Media'); ?></span>
                   </div>
+                  <?php if (!empty($notification['client_request_id'])): ?>
+                    <details class="crm-report-details crm-report-details--notification">
+                      <summary>Ver detalles del reporte <span>Folio ID-<?php echo str_pad((string) $notification['client_request_id'], 5, '0', STR_PAD_LEFT); ?></span></summary>
+                      <div class="crm-report-details__body">
+                        <div class="crm-report-detail-grid">
+                          <span><strong>Categoria</strong><?php echo h($notification['request_category'] ?: 'Mantenimiento correctivo'); ?></span>
+                          <span><strong>Ubicacion</strong><?php echo h($notification['request_location'] ?: 'Sin especificar'); ?></span>
+                          <span><strong>Equipo</strong><?php echo h($notification['request_equipment'] ?: 'No especificado'); ?></span>
+                          <span><strong>Impacto</strong><?php echo h($notification['request_impact'] ?: 'Sin paro'); ?></span>
+                          <span><strong>Fecha del incidente</strong><?php echo h($notification['request_occurred_at'] ?: $notification['created_at']); ?></span>
+                        </div>
+                        <section><strong><?php echo h($notification['request_title'] ?: 'Descripcion del reporte'); ?></strong><p><?php echo nl2br(h($notification['request_message'] ?: $notification['message'])); ?></p></section>
+                        <?php if (!empty($notification['request_actions_taken'])): ?><section><strong>Acciones realizadas</strong><p><?php echo nl2br(h($notification['request_actions_taken'])); ?></p></section><?php endif; ?>
+                        <?php if (!empty($notification['request_evidence_path'])): ?>
+                          <a class="crm-evidence-card" href="evidence.php?id=<?php echo (int) $notification['client_request_id']; ?>" target="_blank" rel="noopener">
+                            <img src="evidence.php?id=<?php echo (int) $notification['client_request_id']; ?>" alt="Evidencia del reporte" loading="lazy">
+                            <span><strong>Fotografia de evidencia</strong><small><?php echo h($notification['request_evidence_name'] ?: 'Abrir evidencia'); ?></small></span>
+                          </a>
+                        <?php endif; ?>
+                      </div>
+                    </details>
+                  <?php endif; ?>
                   <div class="crm-notification-actions">
                     <?php if (!empty($notification['target_url'])): ?><a class="crm-button" href="<?php echo h($notification['target_url']); ?>">Ver reporte</a><?php endif; ?>
                     <?php if ($notificationIsUnread): ?>
@@ -636,17 +806,34 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
       <?php else: ?>
         <section class="crm-client-module crm-client-module--perfil">
           <div class="crm-module-head"><p class="eyebrow">Perfil</p><h1>Perfil de acceso</h1><p>Administra tu password y revisa los datos asociados al portal.</p></div>
-          <section class="crm-card crm-client-profile">
-            <div class="crm-section-head"><div><h2>Seguridad de cuenta</h2><p>Actualiza el password de acceso al portal cliente.</p></div><span class="crm-pill <?php echo $mustChangePassword ? 'crm-pill--warning' : 'crm-pill--success'; ?>"><?php echo $mustChangePassword ? 'Cambio requerido' : 'Protegido'; ?></span></div>
-            <div class="crm-profile-grid">
-              <div class="crm-profile-summary"><span><?php echo bitacora_icon('profile'); ?></span><div><strong><?php echo h($project['contact_name'] ?: $project['company_name']); ?></strong><p><?php echo h($project['company_name']); ?></p><code><?php echo h($portal['username']); ?></code></div></div>
-              <form class="crm-form crm-password-form" method="post" autocomplete="off" data-password-change-form>
-                <input type="hidden" name="token" value="<?php echo h($token); ?>"><input type="hidden" name="action" value="update_client_password">
-                <label class="crm-field">Password actual<span class="crm-password-field"><input id="current-password" type="password" name="current_password" autocomplete="current-password" required><button class="crm-password-toggle" type="button" aria-label="Mostrar password actual" aria-controls="current-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
-                <label class="crm-field">Nuevo password<span class="crm-password-field"><input id="new-password" type="password" name="new_password" autocomplete="new-password" minlength="10" required><button class="crm-password-toggle" type="button" aria-label="Mostrar nuevo password" aria-controls="new-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span><small>Minimo 10 caracteres.</small></label>
-                <label class="crm-field">Confirmar password<span class="crm-password-field"><input id="confirm-password" type="password" name="confirm_password" autocomplete="new-password" minlength="10" required><button class="crm-password-toggle" type="button" aria-label="Mostrar confirmacion" aria-controls="confirm-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
-                <button class="crm-button" type="submit">Actualizar password</button>
-              </form>
+          <section class="crm-card crm-client-profile crm-account-security">
+            <div class="crm-section-head">
+              <div><h2>Seguridad de cuenta</h2><p>Administra las credenciales de acceso al portal.</p></div>
+              <span class="crm-pill <?php echo $mustChangePassword ? 'crm-pill--warning' : 'crm-pill--success'; ?>"><?php echo $mustChangePassword ? 'Cambio requerido' : 'Protegido'; ?></span>
+            </div>
+            <?php if ($notice): ?>
+              <div class="crm-account-feedback crm-account-feedback--<?php echo h($notice['type']); ?>" role="status">
+                <strong><?php echo $notice['type'] === 'success' ? 'Password actualizado' : 'Revisa los datos'; ?></strong>
+                <span><?php echo h($notice['text']); ?></span>
+              </div>
+            <?php endif; ?>
+            <div class="crm-profile-grid crm-profile-grid--security">
+              <aside class="crm-profile-summary crm-profile-summary--security">
+                <span><?php echo bitacora_icon('profile'); ?></span>
+                <div><small>Cuenta del cliente</small><strong><?php echo h($project['contact_name'] ?: $project['company_name']); ?></strong><p><?php echo h($project['company_name']); ?></p><code><?php echo h($portal['username']); ?></code></div>
+              </aside>
+              <div class="crm-password-panel">
+                <div class="crm-password-panel__head"><h3>Cambiar password</h3><p>Usa una clave distinta a la actual y confirma el nuevo acceso.</p></div>
+                <form class="crm-form crm-password-form" method="post" autocomplete="on" data-password-change-form>
+                  <input type="hidden" name="token" value="<?php echo h($token); ?>"><input type="hidden" name="action" value="update_client_password">
+                  <label class="crm-field">Password actual<span class="crm-password-field"><input id="current-password" type="password" name="current_password" autocomplete="current-password" required><button class="crm-password-toggle" type="button" aria-label="Mostrar password actual" aria-controls="current-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
+                  <div class="crm-password-pair">
+                    <label class="crm-field">Nuevo password<span class="crm-password-field"><input id="new-password" type="password" name="new_password" autocomplete="new-password" minlength="10" required data-password-new><button class="crm-password-toggle" type="button" aria-label="Mostrar nuevo password" aria-controls="new-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
+                    <label class="crm-field">Confirmar password<span class="crm-password-field"><input id="confirm-password" type="password" name="confirm_password" autocomplete="new-password" minlength="10" required data-password-confirm><button class="crm-password-toggle" type="button" aria-label="Mostrar confirmacion" aria-controls="confirm-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
+                  </div>
+                  <div class="crm-password-actions"><small>Minimo 10 caracteres.</small><button class="crm-button" type="submit">Actualizar password</button></div>
+                </form>
+              </div>
             </div>
           </section>
         </section>
@@ -683,6 +870,142 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
           button.setAttribute('aria-label', showing ? 'Mostrar password' : 'Ocultar password');
         });
       });
+      document.querySelectorAll('[data-password-change-form]').forEach((form) => {
+        const newPassword = form.querySelector('[data-password-new]');
+        const confirmation = form.querySelector('[data-password-confirm]');
+        if (!newPassword || !confirmation) return;
+        const validateMatch = () => {
+          confirmation.setCustomValidity(newPassword.value === confirmation.value ? '' : 'La confirmacion no coincide.');
+        };
+        newPassword.addEventListener('input', validateMatch);
+        confirmation.addEventListener('input', validateMatch);
+        form.addEventListener('submit', (event) => {
+          validateMatch();
+          form.classList.add('was-validated');
+          if (!form.checkValidity()) {
+            event.preventDefault();
+            form.querySelector(':invalid')?.focus();
+          }
+        });
+      });
+      const requestForm = document.querySelector('[data-request-form]');
+      const evidenceInput = document.querySelector('[data-evidence-input]');
+      const evidencePreview = document.querySelector('[data-evidence-preview]');
+      const evidenceImage = evidencePreview?.querySelector('img');
+      const evidenceName = evidencePreview?.querySelector('[data-evidence-name]');
+      const evidenceSize = evidencePreview?.querySelector('[data-evidence-size]');
+      const evidenceRemove = evidencePreview?.querySelector('[data-evidence-remove]');
+      const evidenceError = document.querySelector('[data-evidence-error]');
+      let evidenceObjectUrl = '';
+
+      const setEvidenceError = (message = '') => {
+        if (!evidenceError) return;
+        evidenceError.textContent = message;
+        evidenceError.hidden = message === '';
+      };
+
+      const clearEvidencePreview = (clearInput = false) => {
+        if (evidenceObjectUrl) {
+          URL.revokeObjectURL(evidenceObjectUrl);
+          evidenceObjectUrl = '';
+        }
+        if (clearInput && evidenceInput) evidenceInput.value = '';
+        if (evidenceInput) evidenceInput.setCustomValidity('');
+        if (evidenceImage) evidenceImage.removeAttribute('src');
+        if (evidencePreview) evidencePreview.hidden = true;
+      };
+
+      if (evidenceInput && evidencePreview && evidenceImage) {
+        evidenceInput.addEventListener('change', () => {
+          setEvidenceError();
+          clearEvidencePreview(false);
+          const file = evidenceInput.files?.[0];
+          if (!file) return;
+
+          const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+          if (!allowedTypes.includes(file.type)) {
+            evidenceInput.setCustomValidity('Selecciona una fotografia JPG, PNG o WEBP.');
+            setEvidenceError(evidenceInput.validationMessage);
+            clearEvidencePreview(true);
+            return;
+          }
+          if (file.size > 5 * 1024 * 1024) {
+            evidenceInput.setCustomValidity('La fotografia debe pesar menos de 5 MB.');
+            setEvidenceError(evidenceInput.validationMessage);
+            clearEvidencePreview(true);
+            return;
+          }
+
+          evidenceObjectUrl = URL.createObjectURL(file);
+          evidenceImage.src = evidenceObjectUrl;
+          if (evidenceName) evidenceName.textContent = file.name;
+          if (evidenceSize) evidenceSize.textContent = Math.max(1, Math.ceil(file.size / 1024)) + ' KB';
+          evidencePreview.hidden = false;
+        });
+        evidenceRemove?.addEventListener('click', () => {
+          clearEvidencePreview(true);
+          setEvidenceError();
+        });
+      }
+
+      if (requestForm) {
+        requestForm.addEventListener('submit', (event) => {
+          requestForm.classList.add('was-validated');
+          if (!requestForm.checkValidity()) {
+            event.preventDefault();
+            requestForm.querySelector(':invalid')?.focus();
+            return;
+          }
+          const submitButton = requestForm.querySelector('button[type="submit"]');
+          if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'Enviando reporte...';
+          }
+        });
+      }
+
+      const notificationPollUrl = document.body.dataset.notificationPoll;
+      const notificationCounters = Array.from(document.querySelectorAll('[data-notification-count]'));
+      let notificationCount = notificationCounters.reduce((max, counter) => Math.max(max, Number.parseInt(counter.textContent || '0', 10) || 0), 0);
+      const renderNotificationCount = (count) => {
+        notificationCount = Math.max(0, Number(count) || 0);
+        notificationCounters.forEach((counter) => {
+          counter.textContent = notificationCount > 99 ? '99+' : String(notificationCount);
+          counter.toggleAttribute('hidden', notificationCount === 0);
+        });
+      };
+      const showLiveNotification = (data) => {
+        document.querySelector('[data-live-notification]')?.remove();
+        const notice = document.createElement('a');
+        notice.className = 'crm-live-notification';
+        notice.href = data.latest_url || '#';
+        notice.dataset.liveNotification = 'true';
+        notice.setAttribute('role', 'status');
+        notice.setAttribute('aria-live', 'polite');
+        notice.innerHTML = '<span>Nueva actualizacion</span><strong></strong><small>Abrir notificaciones</small>';
+        notice.querySelector('strong').textContent = data.latest_title || 'Tienes una notificacion nueva';
+        document.body.appendChild(notice);
+        window.setTimeout(() => notice.remove(), 9000);
+      };
+      const pollNotifications = async () => {
+        if (!notificationPollUrl || document.visibilityState === 'hidden') return;
+        try {
+          const response = await fetch(notificationPollUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+          if (!response.ok) return;
+          const data = await response.json();
+          const nextCount = Math.max(0, Number(data.unread) || 0);
+          if (nextCount > notificationCount) showLiveNotification(data);
+          renderNotificationCount(nextCount);
+        } catch (error) {
+          // El siguiente intervalo vuelve a intentar sin interrumpir el trabajo.
+        }
+      };
+      if (notificationPollUrl) {
+        window.setInterval(pollNotifications, 8000);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') pollNotifications();
+        });
+      }
     })();
   </script>
 </body>
