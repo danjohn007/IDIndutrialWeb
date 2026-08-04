@@ -2,6 +2,23 @@
 declare(strict_types=1);
 
 require __DIR__ . '/lib/database.php';
+if (crm_uses_legacy_php_url('cliente.php')) {
+  $legacyQuery = $_GET;
+  if (isset($legacyQuery['logout'])) {
+    $canonicalUrl = crm_portal_url('logout');
+  } elseif (isset($legacyQuery['notification_poll'])) {
+    $projectId = (int) ($legacyQuery['project_id'] ?? 0);
+    unset($legacyQuery['logout'], $legacyQuery['notification_poll'], $legacyQuery['project_id'], $legacyQuery['view']);
+    $canonicalUrl = crm_portal_url('notification_poll', $projectId, $legacyQuery);
+  } else {
+    $legacyView = (string) ($legacyQuery['view'] ?? 'resumen');
+    $projectId = (int) ($legacyQuery['project_id'] ?? 0);
+    unset($legacyQuery['view'], $legacyQuery['project_id'], $legacyQuery['logout'], $legacyQuery['notification_poll']);
+    $canonicalUrl = crm_portal_url($legacyView, $projectId, $legacyQuery);
+  }
+  header('Location: ' . $canonicalUrl, true, 301);
+  exit;
+}
 
 $sessionDir = __DIR__ . '/data/sessions';
 if (!is_dir($sessionDir)) {
@@ -127,7 +144,7 @@ function bitacora_client_url(string $view, int $projectId = 0): string
   if ($projectId > 0) {
     $params['project_id'] = $projectId;
   }
-  return 'cliente.php?' . http_build_query($params);
+  return crm_portal_url((string) $params['view'], $projectId);
 }
 function bitacora_token(): string
 {
@@ -147,11 +164,11 @@ function bitacora_check_token(): void
 
 if (isset($_GET['logout'])) {
   unset($_SESSION['bitacora_user'], $_SESSION['bitacora_token'], $_SESSION['bitacora_user_last_activity']);
-  header('Location: cliente.php');
+  header('Location: ' . crm_portal_url());
   exit;
 }
 
-crm_enforce_session_timeout('bitacora_user', 'bitacora_token', 'cliente.php?expired=1');
+crm_enforce_session_timeout('bitacora_user', 'bitacora_token', crm_portal_url('resumen', 0, ['expired' => 1]));
 
 $humanChallengeKey = 'bitacora_login_human_challenge';
 $loginError = isset($_GET['expired']) ? 'Sesion cerrada por inactividad. Vuelve a iniciar sesion.' : '';
@@ -192,7 +209,7 @@ if (($_POST['action'] ?? '') === 'client_login') {
       ];
       $_SESSION['bitacora_user_last_activity'] = time();
       bitacora_token();
-      header('Location: cliente.php');
+      header('Location: ' . crm_portal_url());
       exit;
     }
     $status = crm_record_login_failure($pdo, 'client', $loginIdentifier);
@@ -210,12 +227,12 @@ if (empty($_SESSION['bitacora_user'])):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Bitacora ID | Acceso cliente</title>
-  <link rel="stylesheet" href="../assets/css/crm.css">
+  <link rel="stylesheet" href="<?php echo h(crm_public_url('assets/css/crm.css')); ?>">
 </head>
 <body class="crm-login">
   <main class="crm-login__panel crm-login__panel--client">
     <section class="crm-login__media" aria-label="Bitacora ID mantenimiento industrial">
-      <img src="../assets/img/optimized/home-hero-control-acceso.jpg" alt="Mantenimiento industrial ID Industrial" width="1920" height="500">
+      <img src="<?php echo h(crm_public_url('assets/img/optimized/home-hero-control-acceso.jpg')); ?>" alt="Mantenimiento industrial ID Industrial" width="1920" height="500">
       <div class="crm-login__media-copy">
         <span>Bitacora ID</span>
         <strong>Mantenimiento, evidencia y seguimiento despues de la entrega.</strong>
@@ -224,7 +241,7 @@ if (empty($_SESSION['bitacora_user'])):
 
     <section class="crm-login__card" aria-labelledby="client-login-title">
       <div class="crm-login__brand">
-        <img src="../assets/img/logo-idindustrial-small.webp" alt="ID Industrial" width="280" height="74">
+        <img src="<?php echo h(crm_public_url('assets/img/logo-idindustrial-small.webp')); ?>" alt="ID Industrial" width="280" height="74">
         <div>
           <strong>Bitacora ID</strong>
           <span>Portal cliente</span>
@@ -309,7 +326,7 @@ $accountStmt->execute([(int) ($portal['id'] ?? 0)]);
 $portalAccount = $accountStmt->fetch();
 if (!$portalAccount) {
   unset($_SESSION['bitacora_user'], $_SESSION['bitacora_token']);
-  header('Location: cliente.php');
+  header('Location: ' . crm_portal_url());
   exit;
 }
 $mustChangePassword = (int) ($portalAccount['password_change_required'] ?? 1) === 1 || empty($portalAccount['password_changed_at']);
@@ -323,7 +340,7 @@ $selectedProjectId = max(0, (int) ($_POST['project_id'] ?? $_GET['project_id'] ?
 $currentAccess = bitacora_select_project($projectAccesses, $selectedProjectId);
 if (!$currentAccess) {
   unset($_SESSION['bitacora_user'], $_SESSION['bitacora_token']);
-  header('Location: cliente.php');
+  header('Location: ' . crm_portal_url());
   exit;
 }
 $clientViews = [
@@ -478,7 +495,7 @@ if ($action === 'create_request') {
           'event_type' => 'report_received',
           'title' => 'Nuevo reporte recibido',
           'message' => ($currentAccess['company_name'] ?? 'Cliente') . ' reporto ' . $category . ' en ' . $location . ' con prioridad ' . $priority . ': ' . $title,
-          'target_url' => 'index.php?view=bitacora&notifications=1#request-' . $requestId,
+          'target_url' => crm_admin_url('notifications', 0, [], 'request-' . $requestId),
         ]);
         crm_create_notification($pdo, [
           'recipient_type' => 'client',
@@ -488,7 +505,7 @@ if ($action === 'create_request') {
           'event_type' => 'report_received',
           'title' => 'Reporte recibido',
           'message' => 'ID Industrial recibio tu reporte "' . $title . '" y dara seguimiento por proyecto.',
-          'target_url' => 'cliente.php?view=solicitudes&project_id=' . (int) $currentAccess['opportunity_id'] . '#request-' . $requestId,
+          'target_url' => crm_portal_url('solicitudes', (int) $currentAccess['opportunity_id'], [], 'request-' . $requestId),
         ]);
         $pdo->commit();
         $notice = ['type' => 'success', 'text' => 'Reporte registrado correctamente. El equipo de ID Industrial ya puede consultar el detalle y la evidencia.'];
@@ -525,7 +542,7 @@ if (isset($_GET['notification_poll'])) {
     'unread' => crm_unread_notification_count($pdo, 'client', $activePortalUserId),
     'latest_id' => (int) ($latestNotification['id'] ?? 0),
     'latest_title' => (string) ($latestNotification['title'] ?? ''),
-    'latest_url' => (string) ($latestNotification['target_url'] ?? bitacora_client_url('notificaciones', $activeOpportunityId)),
+    'latest_url' => crm_clean_internal_url($latestNotification['target_url'] ?? bitacora_client_url('notificaciones', $activeOpportunityId), 'client'),
   ], JSON_UNESCAPED_UNICODE);
   exit;
 }
@@ -546,13 +563,13 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Bitacora ID | <?php echo h($project['company_name']); ?></title>
-  <link rel="stylesheet" href="../assets/css/crm.css">
+  <link rel="stylesheet" href="<?php echo h(crm_public_url('assets/css/crm.css')); ?>">
 </head>
-<body class="crm-app crm-client-app crm-client-portal" data-notification-poll="cliente.php?notification_poll=1&amp;project_id=<?php echo (int) $activeOpportunityId; ?>">
+<body class="crm-app crm-client-app crm-client-portal" data-notification-poll="<?php echo h(crm_portal_url('notification_poll', $activeOpportunityId)); ?>">
   <div class="crm-client-layout">
     <aside class="crm-client-sidebar" id="cliente-sidebar">
       <div class="crm-client-brand">
-        <img src="../assets/img/logo-idindustrial-small.webp" alt="ID Industrial" width="280" height="74">
+        <img src="<?php echo h(crm_public_url('assets/img/logo-idindustrial-small.webp')); ?>" alt="ID Industrial" width="280" height="74">
         <div><strong>Bitacora ID</strong><span>Portal cliente</span></div>
       </div>
       <nav class="crm-client-nav" aria-label="Navegacion del portal cliente">
@@ -565,7 +582,7 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
       <div class="crm-client-sidebar__footer">
         <span>Usuario</span>
         <strong><?php echo h($portal['username']); ?></strong>
-        <a href="cliente.php?logout=1"><span><?php echo bitacora_icon('logout'); ?></span>Cerrar sesion</a>
+        <a href="<?php echo h(crm_portal_url('logout')); ?>"><span><?php echo bitacora_icon('logout'); ?></span>Cerrar sesion</a>
       </div>
     </aside>
     <button class="crm-client-overlay" type="button" aria-label="Cerrar menu" data-client-menu-close></button>
@@ -579,7 +596,7 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
             <?php echo bitacora_icon('bell'); ?>
             <span data-notification-count <?php echo $clientUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $clientUnreadNotifications; ?></span>
           </a>
-          <a class="crm-button crm-button--ghost" href="cliente.php?logout=1">Cerrar sesion</a>
+          <a class="crm-button crm-button--ghost" href="<?php echo h(crm_portal_url('logout')); ?>">Cerrar sesion</a>
         </div>
       </header>
 
@@ -719,8 +736,8 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
                         <section><strong>Descripcion del reporte</strong><p><?php echo nl2br(h($request['message'])); ?></p></section>
                         <?php if (!empty($request['actions_taken'])): ?><section><strong>Acciones realizadas</strong><p><?php echo nl2br(h($request['actions_taken'])); ?></p></section><?php endif; ?>
                         <?php if (!empty($request['evidence_path'])): ?>
-                          <a class="crm-evidence-card" href="evidence.php?id=<?php echo (int) $request['id']; ?>" target="_blank" rel="noopener">
-                            <img src="evidence.php?id=<?php echo (int) $request['id']; ?>" alt="Evidencia del reporte <?php echo h($request['title']); ?>" loading="lazy">
+                          <a class="crm-evidence-card" href="<?php echo h(crm_evidence_url((int) $request['id'])); ?>" target="_blank" rel="noopener">
+                            <img src="<?php echo h(crm_evidence_url((int) $request['id'])); ?>" alt="Evidencia del reporte <?php echo h($request['title']); ?>" loading="lazy">
                             <span><strong>Fotografia de evidencia</strong><small><?php echo h($request['evidence_original_name'] ?: 'Evidencia adjunta'); ?> - <?php echo h(bitacora_file_size((int) ($request['evidence_size'] ?? 0))); ?></small></span>
                           </a>
                         <?php endif; ?>
@@ -778,8 +795,8 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
                         <section><strong><?php echo h($notification['request_title'] ?: 'Descripcion del reporte'); ?></strong><p><?php echo nl2br(h($notification['request_message'] ?: $notification['message'])); ?></p></section>
                         <?php if (!empty($notification['request_actions_taken'])): ?><section><strong>Acciones realizadas</strong><p><?php echo nl2br(h($notification['request_actions_taken'])); ?></p></section><?php endif; ?>
                         <?php if (!empty($notification['request_evidence_path'])): ?>
-                          <a class="crm-evidence-card" href="evidence.php?id=<?php echo (int) $notification['client_request_id']; ?>" target="_blank" rel="noopener">
-                            <img src="evidence.php?id=<?php echo (int) $notification['client_request_id']; ?>" alt="Evidencia del reporte" loading="lazy">
+                          <a class="crm-evidence-card" href="<?php echo h(crm_evidence_url((int) $notification['client_request_id'])); ?>" target="_blank" rel="noopener">
+                            <img src="<?php echo h(crm_evidence_url((int) $notification['client_request_id'])); ?>" alt="Evidencia del reporte" loading="lazy">
                             <span><strong>Fotografia de evidencia</strong><small><?php echo h($notification['request_evidence_name'] ?: 'Abrir evidencia'); ?></small></span>
                           </a>
                         <?php endif; ?>
@@ -787,7 +804,7 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
                     </details>
                   <?php endif; ?>
                   <div class="crm-notification-actions">
-                    <?php if (!empty($notification['target_url'])): ?><a class="crm-button" href="<?php echo h($notification['target_url']); ?>">Ver reporte</a><?php endif; ?>
+                    <?php if (!empty($notification['target_url'])): ?><a class="crm-button" href="<?php echo h(crm_clean_internal_url($notification['target_url'], 'client')); ?>">Ver reporte</a><?php endif; ?>
                     <?php if ($notificationIsUnread): ?>
                       <form method="post">
                         <input type="hidden" name="token" value="<?php echo h($token); ?>">

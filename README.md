@@ -14,7 +14,7 @@ Sitio PHP listo para cPanel de ID Industrial. Incluye navegación por secciones,
 ## Prueba local
 
 ```powershell
-C:\xampp\php\php.exe -S 127.0.0.1:8099 -t .
+C:\xampp\php\php.exe -S 127.0.0.1:8099 router.php
 ```
 
 Abrir:
@@ -39,3 +39,24 @@ Después de publicar, visitar:
 - `https://idindustrial.com.mx/`
 - `https://idindustrial.com.mx/robots.txt`
 - `https://idindustrial.com.mx/sitemap.xml`
+
+## Rutas limpias
+
+- /crm/
+- /crm/oportunidades
+- /crm/oportunidades/{id}
+- /crm/cotizaciones
+- /crm/cotizaciones/{id}
+- /crm/clientes
+- /crm/bitacora
+- /crm/notificaciones
+- /crm/perfil
+- /crm/portal
+- /crm/portal/proyectos
+- /crm/portal/bitacora
+- /crm/portal/solicitudes
+- /crm/portal/notificaciones
+- /crm/portal/perfil
+- /crm/evidencias/{reporte_id}
+
+Apache usa .htaccess y el servidor embebido de PHP usa router.php. Las URLs antiguas con extension PHP se redirigen de forma permanente a su ruta limpia.

@@ -7,6 +7,10 @@ $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
 $currentSection = 'inicio';
 require_once __DIR__ . '/crm/lib/database.php';
+if (crm_uses_legacy_php_url('index.php')) {
+  header('Location: ' . crm_public_url('', $_GET), true, 301);
+  exit;
+}
 
 $title = 'Infraestructura industrial en Querétaro | ID Industrial';
 $description = 'Ingeniería industrial en Querétaro para cableado estructurado, fibra óptica, CCTV, control de accesos, detección de incendios y sistemas HVAC.';
@@ -253,7 +257,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'event_type' => 'web_lead_received',
             'title' => 'Nuevo lead web',
             'message' => $formData['name'] . ' solicito ' . $notificationService . ' desde el formulario publico.',
-            'target_url' => 'index.php?view=opportunity&id=' . $opportunityId,
+            'target_url' => crm_admin_url('opportunity', $opportunityId),
           ]);
         } catch (Throwable $error) {
           error_log('CRM web lead notification failed: ' . $error->getMessage());
@@ -535,7 +539,7 @@ include __DIR__ . '/includes/navbar.php';
           <strong>Propuesta</strong>
         </div>
       </div>
-      <form id="cotizacion" class="contact-form reveal reveal--delay" action="index.php#cotizacion" method="post" data-contact-form novalidate>
+      <form id="cotizacion" class="contact-form reveal reveal--delay" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" data-contact-form novalidate>
         <div class="form-head">
           <span>Solicitud técnica</span>
           <h3>Agenda una evaluación</h3>

@@ -66,7 +66,18 @@ function crm_public_url(string $path = '', array $query = [], string $fragment =
 {
   $crmBase = crm_web_base_path();
   $publicBase = substr($crmBase, 0, -4);
-  return crm_build_path($publicBase, $path, $query, $fragment);
+  if (trim($path, '/') !== '') {
+    return crm_build_path($publicBase, $path, $query, $fragment);
+  }
+
+  $url = rtrim($publicBase, '/') . '/';
+  if ($query) {
+    $url .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+  }
+  if ($fragment !== '') {
+    $url .= '#' . rawurlencode(ltrim($fragment, '#'));
+  }
+  return $url;
 }
 
 function crm_admin_url(string $view = 'dashboard', int $id = 0, array $query = [], string $fragment = ''): string
@@ -1613,7 +1624,7 @@ function crm_send_portal_credentials(array $opportunity, string $username, strin
   $service = trim((string) ($opportunity['service'] ?? ''));
   $name = $contact !== '' ? $contact : ($company !== '' ? $company : 'cliente');
   $project = $service !== '' ? $service : 'Mantenimiento ID Industrial';
-  $portalUrl = crm_app_url('cliente.php');
+  $portalUrl = crm_app_url('portal');
   $plainBody = "Hola " . $name . ",\n\n"
     . "Tu acceso a Bitacora ID ya esta activo.\n\n"
     . "Proyecto: " . $project . "\n"
