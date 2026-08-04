@@ -3187,3 +3187,189 @@ p {
     padding: 20px;
   }
 }
+/* Controles del hero y redes sociales v7 */
+.footer__socials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.footer__socials a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(255, 255, 255, 0.82);
+  padding: 0 13px;
+  font-size: 0.82rem;
+  font-weight: 850;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.footer__socials a:hover,
+.footer__socials a:focus-visible {
+  border-color: rgba(243, 198, 35, 0.44);
+  background: rgba(243, 198, 35, 0.08);
+  color: var(--yellow);
+}
+
+.footer__socials svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  fill: currentColor;
+}
+
+@media (max-width: 860px) {
+  .hero__grid {
+    padding-bottom: 108px;
+  }
+
+  .hero-carousel__arrow {
+    top: auto;
+    bottom: 26px;
+    width: 42px;
+    height: 42px;
+    transform: none;
+  }
+
+  .hero-carousel__arrow--prev {
+    left: 14px;
+  }
+
+  .hero-carousel__arrow--next {
+    right: 14px;
+  }
+
+  .hero-carousel__dots {
+    bottom: 31px;
+  }
+
+  .hero-carousel__arrow:hover,
+  .hero-carousel__arrow:focus-visible {
+    transform: scale(1.05);
+  }
+}
+
+@media (max-width: 560px) {
+  .hero__grid {
+    padding: 88px 0 94px;
+  }
+
+  .hero-carousel__arrow {
+    bottom: 20px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .hero-carousel__dots {
+    bottom: 24px;
+    gap: 0;
+  }
+
+  .hero-carousel__dot {
+    width: 28px;
+    height: 28px;
+  }
+
+  .hero-carousel__dot.is-active {
+    width: 32px;
+  }
+
+  .footer__socials {
+    width: 100%;
+  }
+
+  .footer__socials a {
+    flex: 1 1 130px;
+  }
+}
+
+/* Iconos sociales de marca y movimiento sutil v8 */
+.social-dock__link::before {
+  display: none;
+  animation: none;
+}
+
+.social-dock__link {
+  transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.social-dock__link:hover,
+.social-dock__link:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.11);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+  outline: 0;
+}
+
+.social-dock__link--facebook {
+  border-color: rgba(24, 119, 242, 0.32);
+  background: rgba(24, 119, 242, 0.1);
+}
+
+.social-dock__link--facebook:hover,
+.social-dock__link--facebook:focus-visible {
+  border-color: rgba(24, 119, 242, 0.58);
+  background: rgba(24, 119, 242, 0.16);
+  box-shadow: 0 8px 18px rgba(24, 119, 242, 0.15);
+}
+
+.social-dock__link--instagram {
+  border-color: rgba(225, 48, 108, 0.3);
+  background: rgba(193, 53, 132, 0.09);
+}
+
+.social-dock__link--instagram:hover,
+.social-dock__link--instagram:focus-visible {
+  border-color: rgba(225, 48, 108, 0.55);
+  background: rgba(193, 53, 132, 0.14);
+  box-shadow: 0 8px 18px rgba(193, 53, 132, 0.14);
+}
+
+.social-dock__link--whatsapp:hover,
+.social-dock__link--whatsapp:focus-visible {
+  background: #2bd96d;
+  color: #062312;
+  box-shadow: 0 10px 22px rgba(37, 211, 102, 0.2);
+}
+
+.footer__social-link {
+  transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.footer__socials .footer__social-link:hover,
+.footer__socials .footer__social-link:focus-visible {
+  transform: translateY(-1px);
+  color: rgba(255, 255, 255, 0.92);
+  outline: 0;
+}
+
+.footer__socials .footer__social-link--facebook {
+  border-color: rgba(24, 119, 242, 0.3);
+  background: rgba(24, 119, 242, 0.08);
+}
+
+.footer__socials .footer__social-link--facebook:hover,
+.footer__socials .footer__social-link--facebook:focus-visible {
+  border-color: rgba(24, 119, 242, 0.52);
+  background: rgba(24, 119, 242, 0.13);
+}
+
+.footer__socials .footer__social-link--instagram {
+  border-color: rgba(225, 48, 108, 0.28);
+  background: rgba(193, 53, 132, 0.07);
+}
+
+.footer__socials .footer__social-link--instagram:hover,
+.footer__socials .footer__social-link--instagram:focus-visible {
+  border-color: rgba(225, 48, 108, 0.48);
+  background: rgba(193, 53, 132, 0.12);
+}

@@ -1,5 +1,5 @@
 User-agent: *
 Allow: /
-Disallow: /sistema/crm/
+Disallow: /crm/
 
-Sitemap: https://idindustrial.com.mx/sistema/sitemap.xml
+Sitemap: https://idindustrial.com.mx/sitemap.xml

@@ -4,6 +4,10 @@ DirectoryIndex index.php index.html
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Redirect the previous /sistema deployment to the public root.
+  RewriteCond %{THE_REQUEST} \s/+sistema(?:[/?\s]) [NC]
+  RewriteRule ^sistema(?:/(.*))?$ /$1 [R=301,L,NE]
+
   # Canonical host and protocol in production.
   RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
   RewriteCond %{HTTPS} !=on
@@ -73,6 +77,12 @@ DirectoryIndex index.php index.html
   </FilesMatch>
 </IfModule>
 
-<FilesMatch "\.(sqlite|db)$">
-  Require all denied
+<FilesMatch "(^config(?:\.sample)?\.php$|^DEPLOY_PUBLIC_HTML\.md$|\.(?:sqlite|db|sql|log|bak|ini)$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
 </FilesMatch>

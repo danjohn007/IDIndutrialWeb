@@ -10,7 +10,7 @@ function crm_config(): array
     'username' => '',
     'password' => '',
     'charset' => 'utf8mb4',
-    'app_url' => 'https://idindustrial.com.mx/sistema/crm',
+    'app_url' => 'https://idindustrial.com.mx/crm',
     'smtp' => [
       'enabled' => false,
       'host' => 'mail.idindustrial.com.mx',
@@ -1366,7 +1366,7 @@ function crm_reset_client_portal_password(PDO $pdo, int $portalUserId): array
 }
 function crm_app_url(string $path = ''): string
 {
-  $base = rtrim((string) (crm_config()['app_url'] ?? 'https://idindustrial.com.mx/sistema/crm'), '/');
+  $base = rtrim((string) (crm_config()['app_url'] ?? 'https://idindustrial.com.mx/crm'), '/');
   $path = ltrim($path, '/');
   return $path === '' ? $base : $base . '/' . $path;
 }

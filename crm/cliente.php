@@ -592,10 +592,6 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
         <button class="crm-client-menu" type="button" aria-label="Abrir menu" aria-controls="cliente-sidebar" aria-expanded="false" data-client-menu-toggle><?php echo bitacora_icon('menu'); ?></button>
         <div><small>ID Industrial</small><strong>Bitacora ID</strong></div>
         <div class="crm-topbar__actions crm-client-topbar__actions">
-          <a class="crm-notification-trigger" href="<?php echo h(bitacora_client_url('notificaciones', $activeOpportunityId)); ?>" aria-label="Notificaciones">
-            <?php echo bitacora_icon('bell'); ?>
-            <span data-notification-count <?php echo $clientUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $clientUnreadNotifications; ?></span>
-          </a>
           <a class="crm-button crm-button--ghost" href="<?php echo h(crm_portal_url('logout')); ?>">Cerrar sesion</a>
         </div>
       </header>

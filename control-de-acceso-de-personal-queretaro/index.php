@@ -1,8 +1,8 @@
 <?php
 $basePath = '../';
-$siteUrl = 'https://idindustrial.com.mx/sistema/';
-$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
-$canonicalUrl = 'https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/';
+$siteUrl = 'https://idindustrial.com.mx/';
+$assetUrlBase = 'https://idindustrial.com.mx/';
+$canonicalUrl = 'https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
@@ -176,14 +176,14 @@ include __DIR__ . '/../includes/navbar.php';
   "@graph": [
     {
       "@type": "Service",
-      "@id": "https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/#service",
+      "@id": "https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/#service",
       "name": "Control de acceso de personal en Querétaro",
       "serviceType": "Control de acceso, asistencia e integración con CCTV",
       "provider": {
         "@type": "Organization",
-        "@id": "https://idindustrial.com.mx/sistema/#organization",
+        "@id": "https://idindustrial.com.mx/#organization",
         "name": "ID Industrial",
-        "url": "https://idindustrial.com.mx/sistema/"
+        "url": "https://idindustrial.com.mx/"
       },
       "areaServed": {
         "@type": "Place",
@@ -203,7 +203,7 @@ include __DIR__ . '/../includes/navbar.php';
     },
     {
       "@type": "FAQPage",
-      "@id": "https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/#faq",
+      "@id": "https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/#faq",
       "mainEntity": [
         <?php foreach ($faqItems as $index => $item): ?>
           {
@@ -219,10 +219,10 @@ include __DIR__ . '/../includes/navbar.php';
     },
     {
       "@type": "BreadcrumbList",
-      "@id": "https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/#breadcrumb",
+      "@id": "https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/#breadcrumb",
       "itemListElement": [
-        {"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://idindustrial.com.mx/sistema/"},
-        {"@type": "ListItem", "position": 2, "name": "Control de acceso", "item": "https://idindustrial.com.mx/sistema/control-de-acceso-de-personal-queretaro/"}
+        {"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://idindustrial.com.mx/"},
+        {"@type": "ListItem", "position": 2, "name": "Control de acceso", "item": "https://idindustrial.com.mx/control-de-acceso-de-personal-queretaro/"}
       ]
     }
   ]

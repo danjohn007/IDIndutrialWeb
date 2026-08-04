@@ -1,8 +1,8 @@
 <?php
 $basePath = '../';
-$siteUrl = 'https://idindustrial.com.mx/sistema/';
-$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
-$canonicalUrl = 'https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/';
+$siteUrl = 'https://idindustrial.com.mx/';
+$assetUrlBase = 'https://idindustrial.com.mx/';
+$canonicalUrl = 'https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
@@ -202,9 +202,9 @@ include __DIR__ . '/../includes/navbar.php';
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://idindustrial.com.mx/sistema/#organization",
+      "@id": "https://idindustrial.com.mx/#organization",
       "name": "ID Industrial",
-      "url": "https://idindustrial.com.mx/sistema/",
+      "url": "https://idindustrial.com.mx/",
       "areaServed": ["Querétaro", "Guanajuato", "Monterrey"],
       "knowsAbout": [
         "HVAC industrial",
@@ -220,11 +220,11 @@ include __DIR__ . '/../includes/navbar.php';
     },
     {
       "@type": "Service",
-      "@id": "https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/#service",
+      "@id": "https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/#service",
       "name": "Instalación de aire acondicionado industrial",
       "serviceType": "HVAC industrial",
       "provider": {
-        "@id": "https://idindustrial.com.mx/sistema/#organization"
+        "@id": "https://idindustrial.com.mx/#organization"
       },
       "areaServed": {
         "@type": "Place",
@@ -248,7 +248,7 @@ include __DIR__ . '/../includes/navbar.php';
     },
     {
       "@type": "FAQPage",
-      "@id": "https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/#faq",
+      "@id": "https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/#faq",
       "mainEntity": [
         <?php foreach ($faqItems as $index => $item): ?>
           {
@@ -264,10 +264,10 @@ include __DIR__ . '/../includes/navbar.php';
     },
     {
       "@type": "BreadcrumbList",
-      "@id": "https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/#breadcrumb",
+      "@id": "https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/#breadcrumb",
       "itemListElement": [
-        {"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://idindustrial.com.mx/sistema/"},
-        {"@type": "ListItem", "position": 2, "name": "Instalación de aire acondicionado industrial Querétaro", "item": "https://idindustrial.com.mx/sistema/instalacion-aire-acondicionado-industrial-queretaro/"}
+        {"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://idindustrial.com.mx/"},
+        {"@type": "ListItem", "position": 2, "name": "Instalación de aire acondicionado industrial Querétaro", "item": "https://idindustrial.com.mx/instalacion-aire-acondicionado-industrial-queretaro/"}
       ]
     }
   ]

@@ -1,7 +1,7 @@
 <?php
-$siteUrl = 'https://idindustrial.com.mx/sistema/';
+$siteUrl = 'https://idindustrial.com.mx/';
 $publicOrigin = 'https://idindustrial.com.mx';
-$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
+$assetUrlBase = 'https://idindustrial.com.mx/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
@@ -16,7 +16,7 @@ $title = 'Infraestructura industrial en Querétaro | ID Industrial';
 $description = 'Ingeniería industrial en Querétaro para cableado estructurado, fibra óptica, CCTV, control de accesos, detección de incendios y sistemas HVAC.';
 $keywords = 'ID Industrial, infraestructura industrial Querétaro, cableado estructurado Querétaro, CCTV industrial, control de accesos Querétaro, HVAC industrial';
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
-$canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/sistema/' : $requestPath);
+$canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/' : $requestPath);
 $publicClients = [];
 try {
   $publicClients = crm_public_clients();
@@ -73,19 +73,6 @@ $heroMobileImage = $homeCarouselItems[0]['image'];
 
 $serviceOverview = [
   [
-    'id' => 'cableado-estructurado',
-    'title' => 'Cableado estructurado',
-    'copy' => 'Redes de voz y datos, racks, canalización, fibra óptica y pruebas para operación estable.',
-    'application' => 'Aplicación: plantas, oficinas, sites y naves industriales.',
-    'href' => 'industriales/cableado-estructurado-queretaro/',
-    'image' => 'assets/img/optimized/card-cableado.jpg',
-    'alt' => 'Cableado estructurado industrial en Querétaro',
-    'width' => 1920,
-    'height' => 500,
-    'badge' => 'Infraestructura',
-    'linkText' => 'Conocer soluciones de cableado estructurado',
-  ],
-  [
     'id' => 'deteccion-incendios',
     'title' => 'Detección de incendios',
     'copy' => 'Paneles, sensores, estaciones manuales y alarmamiento para áreas críticas.',
@@ -123,6 +110,19 @@ $serviceOverview = [
     'height' => 500,
     'badge' => 'Videovigilancia',
     'linkText' => 'Ver más',
+  ],
+  [
+    'id' => 'cableado-estructurado',
+    'title' => 'Cableado estructurado',
+    'copy' => 'Redes de voz y datos, racks, canalización, fibra óptica y pruebas para operación estable.',
+    'application' => 'Aplicación: plantas, oficinas, sites y naves industriales.',
+    'href' => 'industriales/cableado-estructurado-queretaro/',
+    'image' => 'assets/img/optimized/card-cableado.jpg',
+    'alt' => 'Cableado estructurado industrial en Querétaro',
+    'width' => 1920,
+    'height' => 500,
+    'badge' => 'Infraestructura',
+    'linkText' => 'Conocer soluciones de cableado estructurado',
   ],
   [
     'id' => 'fibra-optica',

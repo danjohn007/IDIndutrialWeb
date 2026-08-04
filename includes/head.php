@@ -6,7 +6,7 @@
     $stylesFile = is_file(__DIR__ . '/../assets/css/styles.min.css') ? 'styles.min.css' : 'styles.css';
     $stylesVersion = @filemtime(__DIR__ . '/../assets/css/' . $stylesFile) ?: '1';
     $stylesHref = $assetBase . 'assets/css/' . $stylesFile . '?v=' . $stylesVersion;
-    $publicAssetBase = $assetUrlBase ?? 'https://idindustrial.com.mx/sistema/';
+    $publicAssetBase = $assetUrlBase ?? 'https://idindustrial.com.mx/';
   ?>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,13 +14,13 @@
   <meta name="description" content="<?php echo htmlspecialchars($description ?? 'Soluciones industriales en Querétaro.'); ?>">
   <meta name="keywords" content="<?php echo htmlspecialchars($keywords ?? 'ID Industrial'); ?>">
   <meta name="robots" content="index, follow, max-image-preview:large">
-  <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/sistema/'); ?>">
+  <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
   <meta name="theme-color" content="#0a0b0d">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="es_MX">
   <meta property="og:title" content="<?php echo htmlspecialchars($title ?? 'ID Industrial'); ?>">
   <meta property="og:description" content="<?php echo htmlspecialchars($description ?? 'Soluciones industriales en Querétaro.'); ?>">
-  <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/sistema/'); ?>">
+  <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl ?? $siteUrl ?? 'https://idindustrial.com.mx/'); ?>">
   <meta property="og:image" content="<?php echo htmlspecialchars($publicAssetBase . 'assets/img/og-id-industrial.webp'); ?>">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="<?php echo htmlspecialchars($title ?? 'ID Industrial'); ?>">
@@ -62,7 +62,7 @@
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     "name": "ID Industrial",
-    "url": "<?php echo htmlspecialchars($siteUrl ?? 'https://idindustrial.com.mx/sistema/'); ?>",
+    "url": "<?php echo htmlspecialchars($siteUrl ?? 'https://idindustrial.com.mx/'); ?>",
     "image": "<?php echo htmlspecialchars($publicAssetBase . 'assets/img/logo-idindustrial.webp'); ?>",
     "telephone": "<?php echo htmlspecialchars($phone ?? '+52 442 598 6318'); ?>",
     "email": "<?php echo htmlspecialchars($contactEmail ?? 'contacto@idindustrial.com.mx'); ?>",

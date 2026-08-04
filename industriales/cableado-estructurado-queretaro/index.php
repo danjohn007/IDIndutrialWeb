@@ -1,8 +1,8 @@
 <?php
 $basePath = '../../';
-$siteUrl = 'https://idindustrial.com.mx/sistema/';
-$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
-$canonicalUrl = 'https://idindustrial.com.mx/sistema/industriales/cableado-estructurado-queretaro/';
+$siteUrl = 'https://idindustrial.com.mx/';
+$assetUrlBase = 'https://idindustrial.com.mx/';
+$canonicalUrl = 'https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
@@ -159,9 +159,9 @@ include __DIR__ . '/../../includes/navbar.php';
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://idindustrial.com.mx/sistema/#organization",
+      "@id": "https://idindustrial.com.mx/#organization",
       "name": "ID Industrial",
-      "url": "https://idindustrial.com.mx/sistema/",
+      "url": "https://idindustrial.com.mx/",
       "areaServed": "Querétaro",
       "knowsAbout": [
         "cableado estructurado industrial",
@@ -189,11 +189,11 @@ include __DIR__ . '/../../includes/navbar.php';
     },
     {
       "@type": "Service",
-      "@id": "https://idindustrial.com.mx/sistema/industriales/cableado-estructurado-queretaro/#service",
+      "@id": "https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/#service",
       "name": "Instalación de cableado estructurado y fibra óptica",
       "serviceType": "Infraestructura de red industrial",
       "provider": {
-        "@id": "https://idindustrial.com.mx/sistema/#organization"
+        "@id": "https://idindustrial.com.mx/#organization"
       },
       "areaServed": "Querétaro",
       "audience": {
@@ -214,7 +214,7 @@ include __DIR__ . '/../../includes/navbar.php';
     },
     {
       "@type": "FAQPage",
-      "@id": "https://idindustrial.com.mx/sistema/industriales/cableado-estructurado-queretaro/#faq",
+      "@id": "https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/#faq",
       "mainEntity": [
         <?php foreach ($faqItems as $index => $item): ?>
           {
@@ -241,13 +241,13 @@ include __DIR__ . '/../../includes/navbar.php';
       "@type": "ListItem",
       "position": 1,
       "name": "Inicio",
-      "item": "https://idindustrial.com.mx/sistema/"
+      "item": "https://idindustrial.com.mx/"
     },
     {
       "@type": "ListItem",
       "position": 2,
       "name": "Cableado estructurado Querétaro",
-      "item": "https://idindustrial.com.mx/sistema/industriales/cableado-estructurado-queretaro/"
+      "item": "https://idindustrial.com.mx/industriales/cableado-estructurado-queretaro/"
     }
   ]
 }

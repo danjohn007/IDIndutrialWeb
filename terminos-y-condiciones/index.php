@@ -1,8 +1,8 @@
 <?php
 $basePath = '../';
-$siteUrl = 'https://idindustrial.com.mx/sistema/';
-$assetUrlBase = 'https://idindustrial.com.mx/sistema/';
-$canonicalUrl = 'https://idindustrial.com.mx/sistema/terminos-y-condiciones/';
+$siteUrl = 'https://idindustrial.com.mx/';
+$assetUrlBase = 'https://idindustrial.com.mx/';
+$canonicalUrl = 'https://idindustrial.com.mx/terminos-y-condiciones/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';

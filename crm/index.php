@@ -1105,17 +1105,14 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
 
     <main class="crm-main">
       <header class="crm-topbar">
-                <button class="crm-menu-toggle" type="button" aria-label="Abrir menu" aria-controls="crm-sidebar" aria-expanded="false" data-menu-toggle>
+        <button class="crm-menu-toggle" type="button" aria-label="Abrir menu" aria-controls="crm-sidebar" aria-expanded="false" data-menu-toggle>
           <span></span><span></span><span></span>
-        </button><div>
+        </button>
+        <div>
           <small>ID Industrial</small>
           <strong>CRM para servicios industriales</strong>
         </div>
         <div class="crm-topbar__actions">
-          <a class="crm-notification-trigger" href="<?php echo h(crm_admin_url('notifications', 0, [], 'reportes-recibidos')); ?>" aria-label="Reportes recibidos">
-            <?php echo crm_icon('bell'); ?>
-            <span data-notification-count <?php echo $adminUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $adminUnreadNotifications; ?></span>
-          </a>
           <span>Hola, <?php echo h($_SESSION['crm_user']['name']); ?></span>
         </div>
       </header>
@@ -1697,6 +1694,43 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                     <?php if ($maintenanceMetrics['open'] === 0): ?><tr><td colspan="5">No hay solicitudes activas al momento del corte.</td></tr><?php endif; ?>
                   </tbody>
                 </table>
+              </section>
+
+              <section class="crm-print-section crm-print-request-section">
+                <div class="crm-print-section__head"><div><span>Detalle tecnico</span><h2>Fichas de solicitudes activas</h2></div><strong><?php echo $maintenanceMetrics['open']; ?> fichas</strong></div>
+                <div class="crm-print-request-list">
+                  <?php foreach ($clientRequests as $request): ?>
+                    <?php
+                      $detailStatus = trim((string) ($request['status'] ?? 'Recibida')) ?: 'Recibida';
+                      if (crm_request_is_final($detailStatus)) { continue; }
+                      $detailPriority = trim((string) ($request['priority'] ?? 'Media')) ?: 'Media';
+                      $detailDueDate = trim((string) ($request['due_date'] ?? '')) ?: crm_request_due_date($detailPriority, (string) ($request['created_at'] ?? 'now'));
+                    ?>
+                    <article class="crm-print-request">
+                      <header><div><span>Folio ID-<?php echo str_pad((string) $request['id'], 5, '0', STR_PAD_LEFT); ?></span><h3><?php echo h($request['title']); ?></h3><p><?php echo h($request['company_name']); ?> - <?php echo h($request['service']); ?></p></div><strong><?php echo h($detailStatus); ?></strong></header>
+                      <div class="crm-print-request__meta">
+                        <span><strong>Categoria</strong><?php echo h($request['category'] ?? 'Mantenimiento correctivo'); ?></span>
+                        <span><strong>Prioridad</strong><?php echo h($detailPriority); ?></span>
+                        <span><strong>Ubicacion</strong><?php echo h($request['location'] ?: 'Sin especificar'); ?></span>
+                        <span><strong>Equipo</strong><?php echo h($request['equipment'] ?: 'No especificado'); ?></span>
+                        <span><strong>Impacto</strong><?php echo h($request['impact'] ?? 'Sin paro'); ?></span>
+                        <span><strong>Incidente</strong><?php echo h($request['occurred_at'] ?: $request['created_at']); ?></span>
+                        <span><strong>Fecha objetivo</strong><?php echo h($detailDueDate); ?></span>
+                        <span><strong>Responsable</strong><?php echo h(trim((string) ($request['assigned_to'] ?? '')) ?: 'Sin asignar'); ?></span>
+                      </div>
+                      <div class="crm-print-request__content"><strong>Descripcion reportada</strong><p><?php echo nl2br(h($request['message'])); ?></p></div>
+                      <?php if (!empty($request['actions_taken'])): ?><div class="crm-print-request__content"><strong>Acciones realizadas por el cliente</strong><p><?php echo nl2br(h($request['actions_taken'])); ?></p></div><?php endif; ?>
+                      <?php if (!empty($request['admin_response'])): ?><div class="crm-print-request__content"><strong>Respuesta de ID Industrial</strong><p><?php echo nl2br(h($request['admin_response'])); ?></p></div><?php endif; ?>
+                      <?php if (!empty($request['evidence_path'])): ?>
+                        <div class="crm-print-evidence">
+                          <img src="<?php echo h(crm_evidence_url((int) $request['id'])); ?>" alt="Evidencia del folio ID-<?php echo str_pad((string) $request['id'], 5, '0', STR_PAD_LEFT); ?>">
+                          <span><strong>Evidencia fotografica</strong><?php echo h($request['evidence_original_name'] ?: 'Fotografia adjunta'); ?></span>
+                        </div>
+                      <?php endif; ?>
+                    </article>
+                  <?php endforeach; ?>
+                  <?php if ($maintenanceMetrics['open'] === 0): ?><p class="crm-print-empty">No hay solicitudes activas para detallar.</p><?php endif; ?>
+                </div>
               </section>
 
               <section class="crm-print-section">
