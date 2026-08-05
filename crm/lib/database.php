@@ -1,6 +1,14 @@
 <?php
 declare(strict_types=1);
 
+if (!function_exists('str_starts_with')) {
+  function str_starts_with($haystack, $needle): bool
+  {
+    $needle = (string) $needle;
+    return $needle === '' || strpos((string) $haystack, $needle) === 0;
+  }
+}
+
 function crm_normalize_legacy_url(string $url): string
 {
   $normalized = preg_replace('~^(https?://[^/]+)/sistema(?=/|$)~i', '$1', trim($url));
@@ -307,17 +315,20 @@ final class CrmDatabaseSessionHandler implements SessionHandlerInterface
     $this->lifetime = max(300, $lifetime);
   }
 
-  public function open(string $path, string $name): bool
+  #[\ReturnTypeWillChange]
+  public function open($path, $name)
   {
     return true;
   }
 
-  public function close(): bool
+  #[\ReturnTypeWillChange]
+  public function close()
   {
     return true;
   }
 
-  public function read(string $id): string
+  #[\ReturnTypeWillChange]
+  public function read($id)
   {
     $stmt = $this->pdo->prepare('SELECT payload FROM app_sessions WHERE session_id = ? AND last_activity >= ? LIMIT 1');
     $stmt->execute([$id, time() - $this->lifetime]);
@@ -325,7 +336,8 @@ final class CrmDatabaseSessionHandler implements SessionHandlerInterface
     return $payload === false ? '' : (string) $payload;
   }
 
-  public function write(string $id, string $data): bool
+  #[\ReturnTypeWillChange]
+  public function write($id, $data)
   {
     if (crm_driver($this->pdo) === 'mysql') {
       $stmt = $this->pdo->prepare('
@@ -343,13 +355,15 @@ final class CrmDatabaseSessionHandler implements SessionHandlerInterface
     return $stmt->execute([$id, $data, time()]);
   }
 
-  public function destroy(string $id): bool
+  #[\ReturnTypeWillChange]
+  public function destroy($id)
   {
     $stmt = $this->pdo->prepare('DELETE FROM app_sessions WHERE session_id = ?');
     return $stmt->execute([$id]);
   }
 
-  public function gc(int $max_lifetime): int|false
+  #[\ReturnTypeWillChange]
+  public function gc($max_lifetime)
   {
     $stmt = $this->pdo->prepare('DELETE FROM app_sessions WHERE last_activity < ?');
     $stmt->execute([time() - max($this->lifetime, $max_lifetime)]);

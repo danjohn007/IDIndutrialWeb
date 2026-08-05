@@ -622,25 +622,120 @@ if (($_POST['action'] ?? '') === 'convert_client') {
     $update = $pdo->prepare('UPDATE clients SET lifecycle_stage = ?, segment = CASE WHEN segment = ? THEN ? ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP) WHERE id = ?');
     $update->execute(['Cliente', 'Prospecto', 'Industrial', $clientId]);
 
+    if ($opportunityId <= 0) {
+      $latestOpportunityStmt = $pdo->prepare('SELECT id FROM opportunities WHERE client_id = ? AND status <> "Proyecto perdido" ORDER BY updated_at DESC, id DESC LIMIT 1');
+      $latestOpportunityStmt->execute([$clientId]);
+      $opportunityId = (int) $latestOpportunityStmt->fetchColumn();
+    }
+
+    $portalFlash = null;
     if ($opportunityId > 0) {
       $belongsStmt = $pdo->prepare('SELECT COUNT(*) FROM opportunities WHERE id = ? AND client_id = ?');
       $belongsStmt->execute([$opportunityId, $clientId]);
       if ((int) $belongsStmt->fetchColumn() > 0) {
         $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Conversion", "Prospecto convertido a cliente.", NULL)');
         $activity->execute([$opportunityId]);
+        try {
+          $portalAccess = crm_enable_client_portal($pdo, $opportunityId);
+          $emailSent = $portalAccess['created'] && !empty($portalAccess['password'])
+            ? crm_send_portal_credentials($portalAccess['opportunity'], $portalAccess['username'], $portalAccess['password'])
+            : false;
+          $portalFlash = $portalAccess['created']
+            ? [
+              'type' => 'success',
+              'title' => 'Cliente y Bitacora ID activados',
+              'text' => $emailSent ? 'El cliente fue convertido y recibio su acceso por correo.' : 'El cliente fue convertido. Comparte estas credenciales; la contrasena se muestra una sola vez.',
+              'username' => $portalAccess['username'],
+              'password' => $portalAccess['password'],
+            ]
+            : [
+              'type' => 'success',
+              'title' => 'Cliente convertido',
+              'text' => 'El cliente fue convertido y ya tenia Bitacora ID activa.',
+              'username' => $portalAccess['username'],
+              'password' => null,
+            ];
+        } catch (Throwable $error) {
+          crm_log_event('portal.conversion_activation_failed', [
+            'client_id' => $clientId,
+            'opportunity_id' => $opportunityId,
+            'error_class' => get_class($error),
+            'error_message' => substr($error->getMessage(), 0, 500),
+          ]);
+          $portalFlash = [
+            'type' => 'error',
+            'title' => 'Cliente convertido; acceso pendiente',
+            'text' => 'La conversion se guardo, pero Bitacora ID no pudo activarse. Intenta nuevamente desde la ficha del cliente.',
+          ];
+        }
       }
     }
 
-    $_SESSION['crm_flash'] = [
+    $_SESSION['crm_flash'] = $portalFlash ?? [
       'type' => 'success',
       'title' => 'Cliente convertido',
-      'text' => $client['name'] . ' ahora aparece como cliente en el CRM.',
+      'text' => $client['name'] . ' ahora es cliente. Registra un proyecto para habilitar Bitacora ID.',
     ];
   }
 
   $redirect = ($_POST['return_to'] ?? '') === 'opportunity' && $opportunityId > 0
     ? crm_admin_url('opportunity', $opportunityId)
     : crm_admin_url('clients');
+  header('Location: ' . $redirect);
+  exit;
+}
+if (($_POST['action'] ?? '') === 'activate_portal_access') {
+  crm_check_token();
+  $opportunityId = max(0, (int) ($_POST['opportunity_id'] ?? 0));
+  $returnTo = (string) ($_POST['return_to'] ?? 'bitacora');
+  $opportunityStmt = $pdo->prepare('
+    SELECT o.id, o.client_id, o.company_name, o.contact_email, c.lifecycle_stage
+    FROM opportunities o
+    LEFT JOIN clients c ON c.id = o.client_id
+    WHERE o.id = ?
+    LIMIT 1
+  ');
+  $opportunityStmt->execute([$opportunityId]);
+  $portalOpportunity = $opportunityStmt->fetch();
+
+  if (!$portalOpportunity) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'Proyecto no encontrado', 'text' => 'No fue posible localizar el proyecto para activar Bitacora ID.'];
+  } elseif ((string) ($portalOpportunity['lifecycle_stage'] ?? '') !== 'Cliente') {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'Cliente requerido', 'text' => 'Convierte primero el prospecto en cliente para habilitar su acceso.'];
+  } else {
+    try {
+      $portalAccess = crm_enable_client_portal($pdo, $opportunityId);
+      $emailSent = $portalAccess['created'] && !empty($portalAccess['password'])
+        ? crm_send_portal_credentials($portalAccess['opportunity'], $portalAccess['username'], $portalAccess['password'])
+        : false;
+      $_SESSION['crm_flash'] = $portalAccess['created']
+        ? [
+          'type' => 'success',
+          'title' => 'Bitacora ID activada',
+          'text' => $emailSent ? 'El acceso se guardo y fue enviado al correo del cliente.' : 'El acceso se guardo. Comparte estas credenciales; la contrasena se muestra una sola vez.',
+          'username' => $portalAccess['username'],
+          'password' => $portalAccess['password'],
+        ]
+        : [
+          'type' => 'info',
+          'title' => 'Bitacora ID ya estaba activa',
+          'text' => 'El proyecto ya tiene un usuario activo en el portal cliente.',
+          'username' => $portalAccess['username'],
+          'password' => null,
+        ];
+    } catch (Throwable $error) {
+      crm_log_event('portal.manual_activation_failed', [
+        'opportunity_id' => $opportunityId,
+        'error_class' => get_class($error),
+        'error_message' => substr($error->getMessage(), 0, 500),
+      ]);
+      $_SESSION['crm_flash'] = ['type' => 'error', 'title' => 'No se pudo activar Bitacora ID', 'text' => 'La activacion no pudo guardarse. Revisa error_log para consultar el detalle tecnico.'];
+    }
+  }
+
+  $redirect = $returnTo === 'opportunity'
+    ? crm_admin_url('opportunity', $opportunityId)
+    : ($returnTo === 'clients' ? crm_admin_url('clients') : crm_admin_url('bitacora'));
   header('Location: ' . $redirect);
   exit;
 }
@@ -663,8 +758,11 @@ if (($_POST['action'] ?? '') === 'sync_portal_access') {
   $pendingStmt = $pdo->query('
     SELECT o.id
     FROM opportunities o
+    JOIN clients c ON c.id = o.client_id
     LEFT JOIN client_portal_users cpu ON cpu.opportunity_id = o.id
-    WHERE o.status = "Proyecto entregado" AND cpu.id IS NULL
+    WHERE c.lifecycle_stage = "Cliente"
+      AND o.status <> "Proyecto perdido"
+      AND cpu.id IS NULL
     ORDER BY o.updated_at DESC, o.created_at DESC
   ');
   $created = [];
@@ -1109,7 +1207,9 @@ $clients = $pdo->query('
   SELECT c.*,
     COALESCE(SUM(CASE WHEN o.status IN ("Proyecto iniciado", "Proyecto entregado") THEN 1 ELSE 0 END), 0) AS started_projects,
     COALESCE(SUM(CASE WHEN o.status = "Proyecto entregado" THEN 1 ELSE 0 END), 0) AS delivered_projects,
-    MAX(o.updated_at) AS last_project_update
+    MAX(o.updated_at) AS last_project_update,
+    (SELECT COUNT(*) FROM client_portal_users cpu2 WHERE cpu2.client_id = c.id AND cpu2.is_active = 1) AS portal_access_count,
+    (SELECT o2.id FROM opportunities o2 WHERE o2.client_id = c.id AND o2.status <> "Proyecto perdido" ORDER BY o2.updated_at DESC, o2.id DESC LIMIT 1) AS access_opportunity_id
   FROM clients c
   LEFT JOIN opportunities o ON o.client_id = c.id
   GROUP BY c.id
@@ -1121,12 +1221,17 @@ $portalUsers = $pdo->query('
   JOIN opportunities o ON o.id = cpu.opportunity_id
   ORDER BY cpu.updated_at DESC, cpu.created_at DESC
 ')->fetchAll();
-$missingPortalCount = (int) $pdo->query('
-  SELECT COUNT(*)
+$missingPortalOpportunities = $pdo->query('
+  SELECT o.id, o.company_name, o.contact_name, o.contact_email, o.service, o.status
   FROM opportunities o
+  JOIN clients c ON c.id = o.client_id
   LEFT JOIN client_portal_users cpu ON cpu.opportunity_id = o.id
-  WHERE o.status = "Proyecto entregado" AND cpu.id IS NULL
-')->fetchColumn();
+  WHERE c.lifecycle_stage = "Cliente"
+    AND o.status <> "Proyecto perdido"
+    AND cpu.id IS NULL
+  ORDER BY o.updated_at DESC, o.created_at DESC
+')->fetchAll();
+$missingPortalCount = count($missingPortalOpportunities);
 $clientRequests = $pdo->query('
   SELECT cr.*, o.company_name, o.service, cpu.username
   FROM client_requests cr
@@ -1490,7 +1595,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
               <article class="crm-card"><h2>Estatus</h2><p><span class="crm-pill <?php echo h(crm_pill_class((string) $selectedOpportunity['status'])); ?>"><?php echo h($selectedOpportunity['status']); ?></span></p></article>
               <article class="crm-card"><h2>Valor</h2><p><?php echo crm_money($selectedOpportunity['estimated_value']); ?></p></article>
               <article class="crm-card"><h2>Siguiente accion</h2><p><?php echo h($selectedOpportunity['next_action_date'] ?: 'Sin fecha'); ?></p></article>
-              <article class="crm-card"><h2>Bitacora ID</h2><p><?php if (!empty($selectedOpportunity['portal_username'])): ?><span class="crm-pill crm-pill--success">Activa</span><?php elseif ($selectedOpportunity['status'] === 'Proyecto entregado'): ?><span class="crm-pill crm-pill--warning">Pendiente</span><?php else: ?><span class="crm-pill crm-pill--neutral">No aplica</span><?php endif; ?></p></article>
+              <article class="crm-card"><h2>Bitacora ID</h2><p><?php if (!empty($selectedOpportunity['portal_username']) && (int) ($selectedOpportunity['portal_active'] ?? 0) === 1): ?><span class="crm-pill crm-pill--success">Activa</span><?php elseif (($selectedOpportunity['lifecycle_stage'] ?? '') === 'Cliente'): ?><span class="crm-pill crm-pill--warning">Pendiente de activar</span><?php else: ?><span class="crm-pill crm-pill--neutral">Cliente requerido</span><?php endif; ?></p></article>
             </div>
 
             <div class="crm-grid">
@@ -1513,7 +1618,16 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                     <input type="hidden" name="client_id" value="<?php echo (int) $selectedOpportunity['client_id']; ?>">
                     <input type="hidden" name="opportunity_id" value="<?php echo (int) $selectedOpportunity['id']; ?>">
                     <input type="hidden" name="return_to" value="opportunity">
-                    <button class="crm-button" type="submit">Convertir en cliente</button>
+                    <button class="crm-button" type="submit">Convertir y activar Bitacora</button>
+                  </form>
+                <?php endif; ?>
+                <?php if (($selectedOpportunity['lifecycle_stage'] ?? '') === 'Cliente' && (empty($selectedOpportunity['portal_username']) || (int) ($selectedOpportunity['portal_active'] ?? 0) !== 1)): ?>
+                  <form class="crm-inline-form crm-conversion-form" method="post">
+                    <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                    <input type="hidden" name="action" value="activate_portal_access">
+                    <input type="hidden" name="opportunity_id" value="<?php echo (int) $selectedOpportunity['id']; ?>">
+                    <input type="hidden" name="return_to" value="opportunity">
+                    <button class="crm-button" type="submit">Activar Bitacora ID</button>
                   </form>
                 <?php endif; ?>
               </article>
@@ -1732,10 +1846,20 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                             <input type="hidden" name="token" value="<?php echo h($token); ?>">
                             <input type="hidden" name="action" value="convert_client">
                             <input type="hidden" name="client_id" value="<?php echo (int) $client['id']; ?>">
-                            <button class="crm-button" type="submit">Convertir</button>
+                            <button class="crm-button" type="submit">Convertir y activar</button>
+                          </form>
+                        <?php elseif ((int) ($client['portal_access_count'] ?? 0) > 0): ?>
+                          <span class="crm-pill crm-pill--success">Bitacora activa</span>
+                        <?php elseif ((int) ($client['access_opportunity_id'] ?? 0) > 0): ?>
+                          <form class="crm-inline-form crm-conversion-form" method="post">
+                            <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                            <input type="hidden" name="action" value="activate_portal_access">
+                            <input type="hidden" name="opportunity_id" value="<?php echo (int) $client['access_opportunity_id']; ?>">
+                            <input type="hidden" name="return_to" value="clients">
+                            <button class="crm-button" type="submit">Activar Bitacora</button>
                           </form>
                         <?php else: ?>
-                          <span class="crm-pill crm-pill--neutral"><?php echo (int) ($client['delivered_projects'] ?? 0) > 0 ? 'Entregado' : ((int) ($client['started_projects'] ?? 0) > 0 ? 'En proyecto' : 'Cliente convertido'); ?></span>
+                          <span class="crm-pill crm-pill--neutral">Sin proyecto</span>
                         <?php endif; ?>
                       </td>
                     </tr>
@@ -1797,7 +1921,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <form method="post" class="crm-inline-form">
                   <input type="hidden" name="token" value="<?php echo h($token); ?>">
                   <input type="hidden" name="action" value="sync_portal_access">
-                  <button class="crm-button crm-button--ghost" type="submit">Activar <?php echo $missingPortalCount; ?> pendiente(s)</button>
+                  <button class="crm-button crm-button--ghost" type="submit">Activar todos (<?php echo $missingPortalCount; ?>)</button>
                 </form>
               <?php endif; ?>
               <a class="crm-button" href="<?php echo h(crm_portal_url()); ?>">Portal cliente</a>
@@ -2038,6 +2162,36 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
               </div>
             </article>
 
+            <?php if ($missingPortalOpportunities): ?>
+              <article class="crm-card">
+                <div class="crm-section-head"><div><h2>Accesos pendientes</h2><p>Clientes con proyecto registrado que aun no tienen usuario de Bitacora ID.</p></div><span class="crm-pill crm-pill--warning"><?php echo $missingPortalCount; ?> pendiente(s)</span></div>
+                <div class="crm-table-wrap">
+                  <table class="crm-table">
+                    <thead><tr><th>Cliente</th><th>Servicio</th><th>Contacto</th><th>Estatus</th><th>Accion</th></tr></thead>
+                    <tbody>
+                      <?php foreach ($missingPortalOpportunities as $pendingPortal): ?>
+                        <tr>
+                          <td><strong><?php echo h($pendingPortal['company_name']); ?></strong></td>
+                          <td><?php echo h($pendingPortal['service']); ?></td>
+                          <td><?php echo h($pendingPortal['contact_name']); ?><br><small><?php echo h($pendingPortal['contact_email'] ?: 'Sin correo; comparte el acceso manualmente'); ?></small></td>
+                          <td><span class="crm-pill crm-pill--warning"><?php echo h($pendingPortal['status']); ?></span></td>
+                          <td>
+                            <form method="post">
+                              <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                              <input type="hidden" name="action" value="activate_portal_access">
+                              <input type="hidden" name="opportunity_id" value="<?php echo (int) $pendingPortal['id']; ?>">
+                              <input type="hidden" name="return_to" value="bitacora">
+                              <button class="crm-button" type="submit">Activar acceso</button>
+                            </form>
+                          </td>
+                        </tr>
+                      <?php endforeach; ?>
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            <?php endif; ?>
+
             <article class="crm-card">
               <h2>Clientes con acceso</h2>
               <div class="crm-table-wrap">
@@ -2061,6 +2215,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                         </td>
                       </tr>
                     <?php endforeach; ?>
+                    <?php if (!$portalUsers): ?><tr><td colspan="6">No hay accesos activos. Activa uno desde la lista de pendientes.</td></tr><?php endif; ?>
                   </tbody>
                 </table>
               </div>
