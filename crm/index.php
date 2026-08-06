@@ -507,6 +507,7 @@ if (($_POST['action'] ?? '') === 'change_password') {
 if (($_POST['action'] ?? '') === 'update_settings') {
   crm_check_token();
   $quoteRequestAdminEmail = strtolower(trim((string) ($_POST['quote_request_admin_email'] ?? '')));
+  $quoteRequestSecondaryEmail = strtolower(trim((string) ($_POST['quote_request_secondary_email'] ?? '')));
 
   if (!filter_var($quoteRequestAdminEmail, FILTER_VALIDATE_EMAIL)) {
     $_SESSION['crm_flash'] = [
@@ -514,13 +515,20 @@ if (($_POST['action'] ?? '') === 'update_settings') {
       'title' => 'Correo no valido',
       'text' => 'Ingresa un correo valido para recibir solicitudes de cotizacion.',
     ];
+  } elseif ($quoteRequestSecondaryEmail !== '' && !filter_var($quoteRequestSecondaryEmail, FILTER_VALIDATE_EMAIL)) {
+    $_SESSION['crm_flash'] = [
+      'type' => 'error',
+      'title' => 'Correo secundario no valido',
+      'text' => 'Ingresa un correo secundario valido o deja el campo vacio.',
+    ];
   } else {
     try {
       crm_set_setting($pdo, 'quote_request_admin_email', $quoteRequestAdminEmail);
+      crm_set_setting($pdo, 'quote_request_secondary_email', $quoteRequestSecondaryEmail);
       $_SESSION['crm_flash'] = [
         'type' => 'success',
         'title' => 'Configuracion guardada',
-        'text' => 'Las solicitudes de cotizacion web llegaran a ' . $quoteRequestAdminEmail . '.',
+        'text' => 'Las solicitudes de cotizacion web llegaran a ' . $quoteRequestAdminEmail . ($quoteRequestSecondaryEmail !== '' ? ' con copia a ' . $quoteRequestSecondaryEmail : '') . '.',
       ];
     } catch (Throwable $error) {
       crm_log_event('admin_settings.update_failed', [
@@ -1128,6 +1136,7 @@ $flash = $_SESSION['crm_flash'] ?? null;
 unset($_SESSION['crm_flash']);
 $token = crm_token();
 $quoteRequestAdminEmail = crm_quote_request_admin_email($pdo, 'tecnologia@idindustrial.com.mx');
+$quoteRequestSecondaryEmail = crm_quote_request_secondary_email($pdo);
 $counts = [
   'leads' => (int) $pdo->query('SELECT COUNT(*) FROM opportunities')->fetchColumn(),
   'clients' => (int) $pdo->query("SELECT COUNT(*) FROM clients WHERE lifecycle_stage = 'Cliente'")->fetchColumn(),
@@ -1972,6 +1981,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <div>
                   <small>Destino actual</small>
                   <strong><?php echo h($quoteRequestAdminEmail); ?></strong>
+                  <?php if ($quoteRequestSecondaryEmail !== ''): ?><p>Copia activa: <?php echo h($quoteRequestSecondaryEmail); ?></p><?php endif; ?>
                   <p>Se usa para nuevas solicitudes de cotizacion.</p>
                 </div>
               </aside>
@@ -1979,7 +1989,8 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <input type="hidden" name="token" value="<?php echo h($token); ?>">
                 <input type="hidden" name="action" value="update_settings">
                 <label class="crm-field">Correo administrador<input type="email" name="quote_request_admin_email" value="<?php echo h($quoteRequestAdminEmail); ?>" placeholder="cotizaciones@idindustrial.com.mx" required></label>
-                <div class="crm-settings-actions"><small>Usa el correo cPanel que recibira las oportunidades web.</small><button class="crm-button" type="submit">Guardar configuracion</button></div>
+                <label class="crm-field">Correo copia opcional<input type="email" name="quote_request_secondary_email" value="<?php echo h($quoteRequestSecondaryEmail); ?>" placeholder="ventas@idindustrial.com.mx"></label>
+                <div class="crm-settings-actions"><small>El segundo correo recibe copia de las solicitudes web; dejalo vacio para desactivarlo.</small><button class="crm-button" type="submit">Guardar configuracion</button></div>
               </form>
             </div>
           </article>

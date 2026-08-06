@@ -18,12 +18,18 @@ $keywords = 'ID Industrial, infraestructura industrial Querétaro, cableado estr
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
 $canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/' : $requestPath);
 try {
-  $quoteRequestAdminEmail = crm_quote_request_admin_email(crm_db(), $contactEmail);
+  $crmPdoForQuoteEmail = crm_db();
+  $quoteRequestAdminEmail = crm_quote_request_admin_email($crmPdoForQuoteEmail, $contactEmail);
+  $quoteRequestSecondaryEmail = crm_quote_request_secondary_email($crmPdoForQuoteEmail);
 } catch (Throwable $error) {
   $crmConfig = crm_config();
   $quoteRequestAdminEmail = trim((string) ($crmConfig['quote_request_admin_email'] ?? $contactEmail));
+  $quoteRequestSecondaryEmail = trim((string) ($crmConfig['quote_request_secondary_email'] ?? ''));
   if (!filter_var($quoteRequestAdminEmail, FILTER_VALIDATE_EMAIL)) {
     $quoteRequestAdminEmail = $contactEmail;
+  }
+  if (!filter_var($quoteRequestSecondaryEmail, FILTER_VALIDATE_EMAIL)) {
+    $quoteRequestSecondaryEmail = '';
   }
 }
 $publicClients = [];
@@ -326,6 +332,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
       $subject = 'Nueva solicitud de cotizacion web - ' . $notificationService;
       $body = "Nueva solicitud de cotizacion web\n\nNombre: {$formData['name']}\nCorreo: {$formData['email']}\nTelefono: {$formData['phone']}\nServicio de interes: {$formData['service']}\n\nMensaje:\n{$formData['message']}\n\nAbrir en CRM: {$adminOpportunityUrl}";
       $emailSent = crm_send_email($quoteRequestAdminEmail, $subject, $body, idindustrial_quote_request_admin_email_html($formData, $adminOpportunityUrl), [
+        'cc' => $quoteRequestSecondaryEmail !== '' ? [$quoteRequestSecondaryEmail] : [],
         'reply_to' => $formData['email'],
       ]);
       $clientBody = "Hola {$formData['name']},\n\nRecibimos tu solicitud de cotizacion con estos datos:\n\nServicio de interes: {$formData['service']}\nTelefono: {$formData['phone']}\n\nMensaje:\n{$formData['message']}\n\nNuestro equipo te contactara para confirmar alcance, tiempos y siguientes pasos.\n\nID Industrial";

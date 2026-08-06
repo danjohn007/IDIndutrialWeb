@@ -101,6 +101,7 @@ function crm_config(): array
     'charset' => 'utf8mb4',
     'app_url' => 'https://idindustrial.com.mx/crm',
     'quote_request_admin_email' => 'tecnologia@idindustrial.com.mx',
+    'quote_request_secondary_email' => '',
     'smtp' => [
       'enabled' => false,
       'host' => 'mail.idindustrial.com.mx',
@@ -138,6 +139,7 @@ function crm_default_setting(string $key): string
   $config = crm_config();
   $defaults = [
     'quote_request_admin_email' => (string) ($config['quote_request_admin_email'] ?? 'tecnologia@idindustrial.com.mx'),
+    'quote_request_secondary_email' => (string) ($config['quote_request_secondary_email'] ?? ''),
   ];
   return $defaults[$key] ?? '';
 }
@@ -172,6 +174,12 @@ function crm_quote_request_admin_email(PDO $pdo, string $fallback = 'tecnologia@
     $email = $fallback;
   }
   return $email;
+}
+
+function crm_quote_request_secondary_email(PDO $pdo): string
+{
+  $email = trim(crm_setting($pdo, 'quote_request_secondary_email', ''));
+  return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '';
 }
 function crm_web_base_path(): string
 {
@@ -524,6 +532,11 @@ function crm_apply_data_migrations(PDO $pdo): void
       $email = 'tecnologia@idindustrial.com.mx';
     }
     crm_set_setting($pdo, 'quote_request_admin_email', $email);
+  });
+
+  $runMigration('2026_08_quote_request_secondary_email_setting', function () use ($pdo): void {
+    $email = trim(crm_default_setting('quote_request_secondary_email'));
+    crm_set_setting($pdo, 'quote_request_secondary_email', filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '');
   });
 }
 
@@ -2331,18 +2344,20 @@ function crm_smtp_mail(array $smtp, $to, string $subject, string $textBody, $htm
   $target = ($secure === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
   $socket = @stream_socket_client($target, $errno, $errstr, 20);
   if (!$socket) {
-    error_log('CRM SMTP connection failed: ' . $errstr);
+    error_log('CRM SMTP connection failed: ' . $errstr . ' (' . $errno . ')');
     return false;
   }
   stream_set_timeout($socket, 20);
   $ready = crm_smtp_read($socket);
   if ((int) substr($ready, 0, 3) !== 220) {
+    error_log('CRM SMTP server not ready: ' . trim($ready));
     fclose($socket);
     return false;
   }
 
   $domain = preg_replace('/^mail\./', '', $host) ?: 'localhost';
   if (!crm_smtp_command($socket, 'EHLO ' . $domain, [250])) {
+    error_log('CRM SMTP EHLO failed for domain ' . $domain);
     fclose($socket);
     return false;
   }
@@ -2366,6 +2381,7 @@ function crm_smtp_mail(array $smtp, $to, string $subject, string $textBody, $htm
   }
   $ok = $ok && crm_smtp_command($socket, 'DATA', [354]);
   if (!$ok) {
+    error_log('CRM SMTP envelope/auth/data command failed for from ' . crm_mask_identifier($fromEmail) . ' to ' . implode(', ', array_map('crm_mask_identifier', array_merge($toList, $ccList))));
     fclose($socket);
     return false;
   }
@@ -2387,7 +2403,11 @@ function crm_smtp_mail(array $smtp, $to, string $subject, string $textBody, $htm
   $message = implode("\r\n", $headers) . "\r\n\r\n" . $emailMessage['body'];
   $message = preg_replace('/^\./m', '..', $message);
   fwrite($socket, $message . "\r\n.\r\n");
-  $sent = in_array((int) substr(crm_smtp_read($socket), 0, 3), [250], true);
+  $finalResponse = crm_smtp_read($socket);
+  $sent = in_array((int) substr($finalResponse, 0, 3), [250], true);
+  if (!$sent) {
+    error_log('CRM SMTP final send failed: ' . trim($finalResponse));
+  }
   crm_smtp_command($socket, 'QUIT', [221, 250]);
   fclose($socket);
   return $sent;
