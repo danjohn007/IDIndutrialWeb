@@ -55,7 +55,7 @@ include __DIR__ . '/../includes/navbar.php';
         <p>Los datos podrán compartirse únicamente con personal interno, proveedores técnicos, aliados operativos o autoridades competentes cuando sea necesario para atender un proyecto, cumplir obligaciones legales o ejecutar servicios solicitados.</p>
 
         <h3>Derechos ARCO</h3>
-        <p>Puedes solicitar acceso, rectificación, cancelación u oposición al tratamiento de tus datos personales, así como revocar tu consentimiento, escribiendo a <a href="mailto:contacto@idindustrial.com.mx">contacto@idindustrial.com.mx</a>. La solicitud deberá incluir nombre, medio de contacto, derecho que deseas ejercer y datos que permitan localizar tu información.</p>
+        <p>Puedes solicitar acceso, rectificación, cancelación u oposición al tratamiento de tus datos personales, así como revocar tu consentimiento, escribiendo a <a href="mailto:tecnologia@idindustrial.com.mx">tecnologia@idindustrial.com.mx</a>. La solicitud deberá incluir nombre, medio de contacto, derecho que deseas ejercer y datos que permitan localizar tu información.</p>
 
         <h3>Cookies y analítica</h3>
         <p>El sitio puede utilizar cookies técnicas o herramientas de medición para mejorar la experiencia de navegación, entender el uso de las páginas y mantener seguridad operativa. Puedes limitar el uso de cookies desde la configuración de tu navegador.</p>
@@ -67,7 +67,7 @@ include __DIR__ . '/../includes/navbar.php';
       <aside class="detail-panel legal-aside reveal reveal--delay">
         <h3>Contacto de privacidad</h3>
         <ul>
-          <li>Correo: contacto@idindustrial.com.mx</li>
+          <li>Correo: tecnologia@idindustrial.com.mx</li>
           <li>Teléfono: +52 442 598 6318</li>
           <li>Atención: Querétaro y región Bajío</li>
         </ul>

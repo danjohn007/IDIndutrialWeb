@@ -4,7 +4,7 @@ $publicOrigin = 'https://idindustrial.com.mx';
 $assetUrlBase = 'https://idindustrial.com.mx/';
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
-$contactEmail = 'contacto@idindustrial.com.mx';
+$contactEmail = 'tecnologia@idindustrial.com.mx';
 $currentSection = 'inicio';
 require_once __DIR__ . '/crm/lib/database.php';
 if (crm_uses_legacy_php_url('index.php')) {
@@ -364,7 +364,7 @@ include __DIR__ . '/includes/navbar.php';
       <div class="container">
         <div class="section-head reveal">
           <p class="eyebrow">Clientes y referencias</p>
-          <h2 id="clients-title">Empresas que confian en soluciones tecnicas industriales.</h2>
+          <h2 id="clients-title">Empresas que confían en nuestras soluciones técnicas industriales</h2>
         </div>
         <div class="clients-strip__grid">
           <?php foreach ($publicClients as $client): ?>
