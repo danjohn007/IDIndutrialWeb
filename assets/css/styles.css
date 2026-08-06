@@ -3634,8 +3634,7 @@ body.has-quote-modal-open {
   transition: opacity 180ms ease, visibility 180ms ease;
 }
 
-.quote-modal.is-open,
-.quote-modal:target {
+.quote-modal.is-open {
   opacity: 1;
   pointer-events: auto;
   visibility: visible;

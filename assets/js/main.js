@@ -225,6 +225,7 @@ if (quoteModal) {
 
   function closeQuoteModal(event) {
     event?.preventDefault();
+    event?.stopPropagation();
     quoteModal.classList.remove('is-open');
     quoteModal.setAttribute('aria-hidden', 'true');
     document.body?.classList.remove('has-quote-modal-open');
@@ -240,6 +241,11 @@ if (quoteModal) {
   });
 
   quoteClosers.forEach((closer) => closer.addEventListener('click', closeQuoteModal));
+
+  document.addEventListener('click', (event) => {
+    const closer = event.target instanceof Element ? event.target.closest('[data-quote-close]') : null;
+    if (closer && quoteModal.contains(closer)) closeQuoteModal(event);
+  }, true);
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && quoteModal.classList.contains('is-open')) {

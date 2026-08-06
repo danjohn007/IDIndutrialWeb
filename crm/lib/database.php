@@ -1981,11 +1981,17 @@ function crm_unique_portal_username(PDO $pdo, array $opportunity): string
 
 function crm_enable_client_portal(PDO $pdo, int $opportunityId): array
 {
-  $stmt = $pdo->prepare('SELECT * FROM opportunities WHERE id = ? LIMIT 1');
+  $stmt = $pdo->prepare('SELECT o.*, c.lifecycle_stage FROM opportunities o LEFT JOIN clients c ON c.id = o.client_id WHERE o.id = ? LIMIT 1');
   $stmt->execute([$opportunityId]);
   $opportunity = $stmt->fetch();
   if (!$opportunity) {
     throw new RuntimeException('No se encontro la oportunidad para activar Bitacora ID.');
+  }
+  if ((string) ($opportunity['lifecycle_stage'] ?? '') !== 'Cliente') {
+    throw new RuntimeException('Bitacora ID solo puede activarse para clientes.');
+  }
+  if ((string) ($opportunity['status'] ?? '') !== 'Proyecto entregado') {
+    throw new RuntimeException('Bitacora ID solo puede activarse despues de entregar el proyecto.');
   }
 
   $existingStmt = $pdo->prepare('SELECT * FROM client_portal_users WHERE opportunity_id = ? LIMIT 1');
