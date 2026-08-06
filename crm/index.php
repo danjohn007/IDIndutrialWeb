@@ -1947,17 +1947,17 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             </div>
           </article>
         <?php elseif ($view === 'settings'): ?>
-          <div class="crm-head">
+          <div class="crm-head crm-settings-head">
             <div>
               <p class="eyebrow">Configuracion</p>
               <h1>Ajustes del CRM</h1>
-              <p>Define a que correo llegaran las solicitudes de cotizacion enviadas desde la pagina web.</p>
+              <p>Controla el correo que recibe las solicitudes enviadas desde la pagina web.</p>
             </div>
           </div>
 
-          <article class="crm-card crm-account-security">
-            <div class="crm-section-head">
-              <div><h2>Correo de cotizaciones web</h2><p>Este correo recibira los detalles de la solicitud y el enlace directo a la oportunidad en el CRM.</p></div>
+          <article class="crm-card crm-settings-card">
+            <div class="crm-section-head crm-settings-card__head">
+              <div><h2>Solicitudes web</h2><p>El administrador recibe los datos del cliente y el enlace directo a la oportunidad.</p></div>
               <span class="crm-pill crm-pill--success">Activo</span>
             </div>
             <?php if ($flash): ?>
@@ -1966,20 +1966,21 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <span><?php echo h($flash['text'] ?? ''); ?></span>
               </div>
             <?php endif; ?>
-            <div class="crm-profile-grid crm-profile-grid--security">
-              <aside class="crm-profile-summary crm-profile-summary--security">
+            <div class="crm-settings-card__body">
+              <aside class="crm-settings-current">
                 <span><?php echo crm_icon('reports'); ?></span>
-                <div><small>Destino actual</small><strong><?php echo h($quoteRequestAdminEmail); ?></strong><code>Base de datos: crm_settings</code></div>
+                <div>
+                  <small>Destino actual</small>
+                  <strong><?php echo h($quoteRequestAdminEmail); ?></strong>
+                  <p>Se usa para nuevas solicitudes de cotizacion.</p>
+                </div>
               </aside>
-              <div class="crm-password-panel">
-                <div class="crm-password-panel__head"><h3>Solicitudes desde la web</h3><p>Al guardar, las nuevas solicitudes usaran este destinatario administrativo. El cliente seguira recibiendo su copia de confirmacion.</p></div>
-                <form class="crm-form crm-password-form" method="post" autocomplete="on">
-                  <input type="hidden" name="token" value="<?php echo h($token); ?>">
-                  <input type="hidden" name="action" value="update_settings">
-                  <label class="crm-field">Correo administrador<input type="email" name="quote_request_admin_email" value="<?php echo h($quoteRequestAdminEmail); ?>" placeholder="cotizaciones@idindustrial.com.mx" required></label>
-                  <div class="crm-password-actions"><small>Usa el correo cPanel que recibira las oportunidades web.</small><button class="crm-button" type="submit">Guardar configuracion</button></div>
-                </form>
-              </div>
+              <form class="crm-form crm-settings-form" method="post" autocomplete="on">
+                <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                <input type="hidden" name="action" value="update_settings">
+                <label class="crm-field">Correo administrador<input type="email" name="quote_request_admin_email" value="<?php echo h($quoteRequestAdminEmail); ?>" placeholder="cotizaciones@idindustrial.com.mx" required></label>
+                <div class="crm-settings-actions"><small>Usa el correo cPanel que recibira las oportunidades web.</small><button class="crm-button" type="submit">Guardar configuracion</button></div>
+              </form>
             </div>
           </article>
         <?php else: ?>

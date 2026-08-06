@@ -50,7 +50,10 @@ function idindustrial_quote_request_rows(array $data): string
   ];
   $rows = '';
   foreach ($fields as $label => $value) {
-    $rows .= '<tr><td style="padding:12px 14px;border-bottom:1px solid #ece3d4;font-size:12px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#876500;width:180px;vertical-align:top;">' . crm_email_h($label) . '</td><td style="padding:12px 14px;border-bottom:1px solid #ece3d4;font-size:15px;line-height:1.55;color:#161a20;white-space:pre-wrap;word-break:break-word;">' . crm_email_h($value) . '</td></tr>';
+    if ($value === '') {
+      $value = 'Sin mensaje adicional';
+    }
+    $rows .= '<tr><td style="padding:0 0 10px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border:1px solid #e8dfcf;border-radius:10px;background:#fffdf8;border-collapse:separate;"><tr><td style="padding:13px 15px 4px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#876500;line-height:1.3;">' . crm_email_h($label) . '</td></tr><tr><td style="padding:0 15px 14px;font-size:16px;line-height:1.55;color:#161a20;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;">' . crm_email_h($value) . '</td></tr></table></td></tr>';
   }
   return $rows;
 }
@@ -59,15 +62,16 @@ function idindustrial_quote_request_admin_email_html(array $data, string $crmUrl
 {
   $safeCrmUrl = crm_email_h($crmUrl);
   $safeService = crm_email_h(trim((string) ($data['service'] ?? '')) ?: 'Solicitud web');
+  $safeName = crm_email_h(trim((string) ($data['name'] ?? '')) ?: 'Prospecto web');
   $rows = idindustrial_quote_request_rows($data);
-  return '<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Nueva solicitud de cotizacion</title></head><body style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#11151c;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;margin:0;padding:24px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;background:#ffffff;border:1px solid #ded6c8;border-radius:14px;overflow:hidden;"><tr><td style="background:#111412;padding:26px 28px;"><div style="font-size:13px;letter-spacing:4px;font-weight:800;color:#f3c433;text-transform:uppercase;">ID Industrial</div><div style="margin-top:8px;font-size:22px;line-height:1.2;font-weight:800;color:#ffffff;">Nueva solicitud de cotizacion</div></td></tr><tr><td style="padding:30px 28px;"><h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;color:#11151c;">' . $safeService . '</h1><p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#586170;">La solicitud ya fue registrada como oportunidad en el CRM. Revisa los datos y da seguimiento desde el panel administrativo.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;border:1px solid #e5dccb;border-radius:12px;overflow:hidden;">' . $rows . '</table><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" bgcolor="#d6a91f" style="border-radius:10px;"><a href="' . $safeCrmUrl . '" style="display:block;padding:16px 22px;font-size:16px;font-weight:800;color:#11151c;text-decoration:none;">Abrir oportunidad en CRM</a></td></tr></table><p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#6b7280;">Enlace directo: <a href="' . $safeCrmUrl . '" style="color:#9b7200;text-decoration:underline;word-break:break-all;">' . $safeCrmUrl . '</a></p></td></tr><tr><td style="padding:20px 28px;background:#f7f4ee;border-top:1px solid #e5dccb;"><p style="margin:0;font-size:12px;line-height:1.6;color:#69727f;">ID Industrial - Solicitudes web</p></td></tr></table></td></tr></table></body></html>';
+  return '<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Nueva solicitud de cotizacion</title><style>@media only screen and (max-width:520px){.email-shell{padding:12px 8px!important}.email-card{border-radius:0!important}.email-pad{padding:22px 18px!important}.email-title{font-size:24px!important}.email-button{display:block!important;width:100%!important;box-sizing:border-box!important}.email-link{font-size:12px!important}}</style></head><body style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#11151c;-webkit-text-size-adjust:100%;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-shell" style="background:#f4f1eb;margin:0;padding:24px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-card" style="width:100%;max-width:640px;background:#ffffff;border:1px solid #ded6c8;border-radius:14px;overflow:hidden;border-collapse:separate;"><tr><td style="background:#101312;padding:24px 26px;"><div style="font-size:12px;letter-spacing:4px;font-weight:800;color:#f3c433;text-transform:uppercase;line-height:1.4;">ID Industrial</div><div style="margin-top:8px;font-size:22px;line-height:1.2;font-weight:800;color:#ffffff;">Nueva solicitud web</div></td></tr><tr><td class="email-pad" style="padding:28px 26px;"><div style="display:inline-block;margin:0 0 14px;padding:6px 10px;border-radius:999px;background:#fff3bf;color:#876500;font-size:11px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;">Oportunidad registrada</div><h1 class="email-title" style="margin:0 0 10px;font-size:28px;line-height:1.15;color:#11151c;">' . $safeService . '</h1><p style="margin:0 0 6px;font-size:16px;line-height:1.55;color:#303842;"><strong>' . $safeName . '</strong> envio una solicitud desde la pagina web.</p><p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#586170;">Revisa los datos y continua el seguimiento desde el CRM.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;margin:0 0 20px;">' . $rows . '</table><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" bgcolor="#d6a91f" style="border-radius:10px;"><a class="email-button" href="' . $safeCrmUrl . '" style="display:block;padding:15px 20px;font-size:16px;font-weight:800;color:#11151c;text-decoration:none;line-height:1.2;">Abrir oportunidad en CRM</a></td></tr></table><p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:#6b7280;">Enlace directo: <a class="email-link" href="' . $safeCrmUrl . '" style="color:#876500;text-decoration:underline;overflow-wrap:anywhere;word-break:break-all;">' . $safeCrmUrl . '</a></p></td></tr><tr><td style="padding:18px 26px;background:#f7f4ee;border-top:1px solid #e5dccb;"><p style="margin:0;font-size:12px;line-height:1.6;color:#69727f;">ID Industrial - Solicitudes web</p></td></tr></table></td></tr></table></body></html>';
 }
 
 function idindustrial_quote_request_client_email_html(array $data): string
 {
   $safeName = crm_email_h(trim((string) ($data['name'] ?? '')) ?: 'cliente');
   $rows = idindustrial_quote_request_rows($data);
-  return '<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Solicitud recibida</title></head><body style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#11151c;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;margin:0;padding:24px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;background:#ffffff;border:1px solid #ded6c8;border-radius:14px;overflow:hidden;"><tr><td style="background:#111412;padding:26px 28px;"><div style="font-size:13px;letter-spacing:4px;font-weight:800;color:#f3c433;text-transform:uppercase;">ID Industrial</div><div style="margin-top:8px;font-size:22px;line-height:1.2;font-weight:800;color:#ffffff;">Solicitud recibida</div></td></tr><tr><td style="padding:30px 28px;"><h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;color:#11151c;">Gracias, ' . $safeName . '</h1><p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#586170;">Recibimos tu solicitud de cotizacion. Nuestro equipo revisara los detalles y te contactara para confirmar alcance, tiempos y siguientes pasos.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 22px;border:1px solid #e5dccb;border-radius:12px;overflow:hidden;">' . $rows . '</table><p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280;">Si necesitas agregar informacion, responde este correo o contactanos por WhatsApp.</p></td></tr><tr><td style="padding:20px 28px;background:#f7f4ee;border-top:1px solid #e5dccb;"><p style="margin:0;font-size:12px;line-height:1.6;color:#69727f;">ID Industrial - Ingenieria industrial en Queretaro y Bajio</p></td></tr></table></td></tr></table></body></html>';
+  return '<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Solicitud recibida</title><style>@media only screen and (max-width:520px){.email-shell{padding:12px 8px!important}.email-card{border-radius:0!important}.email-pad{padding:22px 18px!important}.email-title{font-size:24px!important}.email-step{display:block!important;width:100%!important;box-sizing:border-box!important;margin-bottom:8px!important}}</style></head><body style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#11151c;-webkit-text-size-adjust:100%;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-shell" style="background:#f4f1eb;margin:0;padding:24px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="email-card" style="width:100%;max-width:640px;background:#ffffff;border:1px solid #ded6c8;border-radius:14px;overflow:hidden;border-collapse:separate;"><tr><td style="background:#101312;padding:24px 26px;"><div style="font-size:12px;letter-spacing:4px;font-weight:800;color:#f3c433;text-transform:uppercase;line-height:1.4;">ID Industrial</div><div style="margin-top:8px;font-size:22px;line-height:1.2;font-weight:800;color:#ffffff;">Solicitud recibida</div></td></tr><tr><td class="email-pad" style="padding:28px 26px;"><div style="display:inline-block;margin:0 0 14px;padding:6px 10px;border-radius:999px;background:#e9f7f0;color:#176044;font-size:11px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;">Confirmacion</div><h1 class="email-title" style="margin:0 0 10px;font-size:28px;line-height:1.15;color:#11151c;">Gracias, ' . $safeName . '</h1><p style="margin:0 0 20px;font-size:15px;line-height:1.65;color:#586170;">Recibimos tu solicitud de cotizacion. Nuestro equipo revisara la informacion y te contactara para confirmar alcance, tiempos y siguientes pasos.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;margin:0 0 18px;">' . $rows . '</table><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 18px;"><tr><td class="email-step" width="33.33%" style="padding:10px;border:1px solid #e8dfcf;background:#fffdf8;font-size:13px;line-height:1.45;color:#303842;"><strong style="display:block;color:#876500;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;margin-bottom:4px;">1. Revision</strong>Validamos los detalles enviados.</td><td class="email-step" width="33.33%" style="padding:10px;border:1px solid #e8dfcf;background:#fffdf8;font-size:13px;line-height:1.45;color:#303842;"><strong style="display:block;color:#876500;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;margin-bottom:4px;">2. Contacto</strong>Confirmamos alcance y prioridad.</td><td class="email-step" width="33.33%" style="padding:10px;border:1px solid #e8dfcf;background:#fffdf8;font-size:13px;line-height:1.45;color:#303842;"><strong style="display:block;color:#876500;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;margin-bottom:4px;">3. Propuesta</strong>Preparamos la ruta tecnica.</td></tr></table><p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280;">Si necesitas agregar informacion, responde este correo o contactanos por WhatsApp.</p></td></tr><tr><td style="padding:18px 26px;background:#f7f4ee;border-top:1px solid #e5dccb;"><p style="margin:0;font-size:12px;line-height:1.6;color:#69727f;">ID Industrial - Ingenieria industrial en Queretaro y Bajio</p></td></tr></table></td></tr></table></body></html>';
 }
 
 $homeCarouselItems = [
@@ -538,58 +542,6 @@ include __DIR__ . '/includes/navbar.php';
     </div>
   </section>
 
-  <section id="contacto" class="contact section-light section-pad">
-    <div class="container contact__grid">
-      <div class="contact__copy reveal">
-        <p class="eyebrow">Contacto</p>
-        <h2>Cuéntanos qué sistema necesitas mejorar o instalar.</h2>
-        <p>Respondemos con una ruta de atención clara: diagnóstico, alcance técnico, tiempos y próximos pasos.</p>
-        <div class="contact-proof">
-          <div>
-            <strong>QRO</strong>
-            <span>Cobertura en polos industriales</span>
-          </div>
-          <div>
-            <strong>MPC</strong>
-            <span>Mantenimiento preventivo y correctivo</span>
-          </div>
-        </div>
-        <div class="contact-methods">
-          <a href="tel:+524425986318" aria-label="Llamar a ID Industrial">
-            <span class="contact-methods__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M6.62 10.78a15.3 15.3 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1.02-.24 11.4 11.4 0 0 0 3.56.56 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .56 3.56 1 1 0 0 1-.24 1.02l-2.2 2.2Z"/></svg>
-            </span>
-            <span class="contact-methods__label">Teléfono</span>
-            <strong><?php echo htmlspecialchars($phone); ?></strong>
-          </a>
-          <a href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20solicitar%20una%20evaluaci%C3%B3n%20t%C3%A9cnica" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
-            <span class="contact-methods__icon contact-methods__icon--whatsapp" aria-hidden="true">
-              <svg viewBox="0 0 32 32"><path d="M16.04 3.2A12.72 12.72 0 0 0 5.2 22.6L4 29l6.56-1.72A12.72 12.72 0 1 0 16.04 3.2Zm0 22.84a10.1 10.1 0 0 1-5.14-1.4l-.36-.22-3.9 1.02 1.04-3.78-.24-.4A10.08 10.08 0 1 1 16.04 26.04Zm5.52-7.54c-.3-.16-1.8-.9-2.08-1-.28-.1-.48-.16-.68.16-.2.3-.78 1-.96 1.2-.18.2-.36.22-.66.08-.3-.16-1.28-.48-2.44-1.52-.9-.8-1.5-1.78-1.68-2.08-.18-.3-.02-.46.14-.62.14-.14.3-.36.46-.54.16-.18.2-.3.3-.5.1-.2.06-.38-.02-.54-.08-.16-.68-1.64-.94-2.24-.24-.58-.5-.5-.68-.5h-.58c-.2 0-.52.08-.8.38-.28.3-1.06 1.04-1.06 2.54s1.1 2.94 1.24 3.14c.16.2 2.16 3.3 5.24 4.62.74.32 1.3.5 1.74.64.74.24 1.4.2 1.94.12.6-.1 1.8-.74 2.06-1.46.26-.72.26-1.34.18-1.46-.08-.14-.28-.22-.58-.38Z"/></svg>
-            </span>
-            <span class="contact-methods__label">WhatsApp</span>
-            <strong>Atención directa</strong>
-          </a>
-          <a href="mailto:<?php echo htmlspecialchars($contactEmail); ?>" aria-label="Enviar correo a ID Industrial">
-            <span class="contact-methods__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 3.2V17h16V8.2l-7.42 5.16a1 1 0 0 1-1.16 0L4 8.2Zm1.1-1.2 6.9 4.8L18.9 7H5.1Z"/></svg>
-            </span>
-            <span class="contact-methods__label">Correo</span>
-            <strong><?php echo htmlspecialchars($contactEmail); ?></strong>
-          </a>
-        </div>
-      </div>
-
-      <div class="next-steps reveal" aria-label="Que pasa despues">
-        <span>Que pasa despues</span>
-        <div class="next-steps__grid">
-          <strong>Diagnostico</strong>
-          <strong>Llamada</strong>
-          <strong>Visita tecnica</strong>
-          <strong>Propuesta</strong>
-        </div>
-      </div>
-    </div>
-  </section>
 </main>
 
 <button class="quote-fab" type="button" data-quote-open aria-controls="cotizacion">
