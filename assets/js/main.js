@@ -196,6 +196,21 @@ if (quoteModal) {
   const quoteFirstField = quoteModal.querySelector('input:not([type="hidden"]):not([tabindex="-1"]), select, textarea');
   let quoteLastFocus = null;
 
+  function quoteUrlRequestsModal() {
+    const params = new URLSearchParams(window.location.search);
+    return params.has('servicio') || window.location.hash === '#cotizacion';
+  }
+
+  function cleanQuoteUrl() {
+    const url = new URL(window.location.href);
+    const hadService = url.searchParams.has('servicio');
+    const hadQuoteHash = url.hash === '#cotizacion';
+    if (!hadService && !hadQuoteHash) return;
+    url.searchParams.delete('servicio');
+    if (hadQuoteHash) url.hash = '';
+    history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  }
+
   function openQuoteModal(service = '') {
     quoteLastFocus = document.activeElement;
     if (service && quoteServiceField) {
@@ -208,14 +223,13 @@ if (quoteModal) {
     window.requestAnimationFrame(() => quoteFirstField?.focus());
   }
 
-  function closeQuoteModal() {
+  function closeQuoteModal(event) {
+    event?.preventDefault();
     quoteModal.classList.remove('is-open');
     quoteModal.setAttribute('aria-hidden', 'true');
     document.body?.classList.remove('has-quote-modal-open');
-    if (window.location.hash === '#cotizacion') {
-      history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-    }
-    if (quoteLastFocus instanceof HTMLElement) quoteLastFocus.focus();
+    cleanQuoteUrl();
+    if (quoteLastFocus instanceof HTMLElement && !quoteModal.contains(quoteLastFocus)) quoteLastFocus.focus();
   }
 
   quoteOpeners.forEach((opener) => {
@@ -229,11 +243,11 @@ if (quoteModal) {
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && quoteModal.classList.contains('is-open')) {
-      closeQuoteModal();
+      closeQuoteModal(event);
     }
   });
 
-  if (quoteModal.classList.contains('is-open') || window.location.hash === '#cotizacion') {
+  if (quoteModal.classList.contains('is-open') || quoteUrlRequestsModal()) {
     openQuoteModal();
   }
 }

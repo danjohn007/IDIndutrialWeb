@@ -33,7 +33,7 @@ $moreServiceItems = [
 ];
 
 $secondaryNavItems = [
-  ['label' => 'Recomendaciones', 'href' => $assetBase . '#recomendaciones-tecnicas'],
+  ['label' => 'Bitácora ID', 'href' => $assetBase . '#bitacora-id'],
 ];
 ?>
 

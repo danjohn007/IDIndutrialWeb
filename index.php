@@ -213,6 +213,18 @@ $processSteps = [
   ['title' => 'Documentación, capacitación y soporte', 'copy' => 'Entregamos memoria técnica, recomendaciones de operación y ruta de mantenimiento.'],
 ];
 
+$bitacoraItems = [
+  ['title' => 'Solicitudes y reportes', 'copy' => 'Tus equipos pueden levantar reportes técnicos con contexto, ubicación y prioridad desde el portal.'],
+  ['title' => 'Seguimiento visible', 'copy' => 'Cada solicitud conserva estatus, respuesta del equipo, fecha objetivo y responsable de atención.'],
+  ['title' => 'Historial del proyecto', 'copy' => 'La bitácora concentra evidencias, cotizaciones, mantenimiento y acuerdos posteriores a la entrega.'],
+];
+
+$bitacoraStatuses = [
+  ['label' => 'Recibida', 'meta' => 'Solicitud registrada'],
+  ['label' => 'En revisión', 'meta' => 'Alcance y prioridad'],
+  ['label' => 'Programada', 'meta' => 'Atención coordinada'],
+  ['label' => 'Resuelta', 'meta' => 'Cierre documentado'],
+];
 $recommendations = [
   [
     'tag' => 'Red industrial',
@@ -238,6 +250,7 @@ $serviceOptions = [
   'CCTV industrial',
   'Fibra óptica',
   'Control de Accesos',
+  'Soporte técnico / Bitácora ID',
 ];
 
 $serviceParamMap = [
@@ -489,6 +502,48 @@ include __DIR__ . '/includes/navbar.php';
     </div>
   </section>
 
+  <section id="bitacora-id" class="bitacora-id section-dark section-pad" aria-labelledby="bitacora-title">
+    <div class="container bitacora-id__grid">
+      <div class="bitacora-id__content reveal">
+        <p class="eyebrow">Soporte posterior a entrega</p>
+        <h2 id="bitacora-title">Cada proyecto puede continuar con soporte técnico mediante Bitácora ID.</h2>
+        <p>Al cierre o entrega de un proyecto, podemos habilitar un acceso de soporte para que tu equipo reporte necesidades técnicas, consulte avances y conserve el historial operativo en un solo lugar.</p>
+        <div class="bitacora-id__items">
+          <?php foreach ($bitacoraItems as $item): ?>
+            <article class="bitacora-id__item">
+              <span aria-hidden="true"></span>
+              <div>
+                <h3><?php echo htmlspecialchars($item['title']); ?></h3>
+                <p><?php echo htmlspecialchars($item['copy']); ?></p>
+              </div>
+            </article>
+          <?php endforeach; ?>
+        </div>
+        <a class="button button--primary" href="#cotizacion" data-quote-open data-quote-service="Soporte técnico / Bitácora ID" aria-controls="cotizacion">Solicitar acceso al soporte</a>
+      </div>
+      <aside class="bitacora-id__panel reveal reveal--delay" aria-label="Flujo de seguimiento en Bitácora ID">
+        <div class="bitacora-id__panel-head">
+          <span>Bitácora ID</span>
+          <strong>Seguimiento técnico</strong>
+        </div>
+        <div class="bitacora-id__status-list">
+          <?php foreach ($bitacoraStatuses as $index => $status): ?>
+            <div class="bitacora-id__status <?php echo $index === 3 ? 'is-complete' : ''; ?>">
+              <span><?php echo str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT); ?></span>
+              <div>
+                <strong><?php echo htmlspecialchars($status['label']); ?></strong>
+                <small><?php echo htmlspecialchars($status['meta']); ?></small>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        </div>
+        <div class="bitacora-id__note">
+          <span>Portal de cliente</span>
+          <p>Reportes, evidencias, cotizaciones y mantenimientos posteriores quedan documentados para consulta.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
   <section class="lamp-section" aria-labelledby="lamp-title">
     <div class="lamp-scene reveal">
       <div class="lamp-beam lamp-beam--left" aria-hidden="true"></div>
@@ -550,7 +605,8 @@ include __DIR__ . '/includes/navbar.php';
   <span>Cotizar</span>
 </button>
 
-<div id="cotizacion" class="quote-modal <?php echo $formStatus ? 'is-open' : ''; ?>" role="dialog" aria-modal="true" aria-labelledby="quote-modal-title" aria-hidden="<?php echo $formStatus ? 'false' : 'true'; ?>" data-quote-modal>
+<?php $quoteModalStartsOpen = (bool) $formStatus || $formData['service'] !== ''; ?>
+<div id="cotizacion" class="quote-modal <?php echo $quoteModalStartsOpen ? 'is-open' : ''; ?>" role="dialog" aria-modal="true" aria-labelledby="quote-modal-title" aria-hidden="<?php echo $quoteModalStartsOpen ? 'false' : 'true'; ?>" data-quote-modal>
   <div class="quote-modal__overlay" data-quote-close></div>
   <div class="quote-modal__panel" role="document">
     <button class="quote-modal__close" type="button" aria-label="Cerrar solicitud" data-quote-close>

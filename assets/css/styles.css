@@ -3374,6 +3374,214 @@ p {
   background: rgba(193, 53, 132, 0.12);
 }
 
+/* Bitacora ID */
+.bitacora-id {
+  position: relative;
+  overflow: hidden;
+  background: #080a0c;
+}
+
+.bitacora-id::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg, rgba(214, 169, 31, 0.14), transparent 34%),
+    radial-gradient(circle at 82% 20%, rgba(91, 125, 112, 0.22), transparent 34%);
+  pointer-events: none;
+}
+
+.bitacora-id__grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.72fr);
+  gap: 42px;
+  align-items: center;
+}
+
+.bitacora-id__content > p {
+  max-width: 690px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.bitacora-id__items {
+  display: grid;
+  gap: 14px;
+  margin: 28px 0 30px;
+  max-width: 760px;
+}
+
+.bitacora-id__item {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.bitacora-id__item > span {
+  width: 14px;
+  height: 14px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #ffd42a;
+  box-shadow: 0 0 0 6px rgba(255, 212, 42, 0.12);
+}
+
+.bitacora-id__item h3 {
+  margin: 0 0 6px;
+  font-size: clamp(1rem, 1.4vw, 1.18rem);
+  color: #fff;
+}
+
+.bitacora-id__item p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.bitacora-id__panel {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.bitacora-id__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.bitacora-id__panel-head span {
+  color: #ffd42a;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.bitacora-id__panel-head strong {
+  color: #fff;
+  text-align: right;
+}
+
+.bitacora-id__status-list {
+  display: grid;
+  padding: 18px;
+}
+
+.bitacora-id__status {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  min-height: 72px;
+}
+
+.bitacora-id__status:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: 44px;
+  bottom: 8px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.bitacora-id__status > span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffd42a;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.bitacora-id__status.is-complete > span {
+  background: #ffd42a;
+  color: #11151c;
+}
+
+.bitacora-id__status strong,
+.bitacora-id__status small {
+  display: block;
+}
+
+.bitacora-id__status strong {
+  margin-top: 1px;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.bitacora-id__status small {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.45;
+}
+
+.bitacora-id__note {
+  margin: 0 18px 18px;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(255, 212, 42, 0.11);
+  border: 1px solid rgba(255, 212, 42, 0.22);
+}
+
+.bitacora-id__note span {
+  display: block;
+  margin-bottom: 6px;
+  color: #ffd42a;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.bitacora-id__note p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+@media (max-width: 980px) {
+  .bitacora-id__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bitacora-id__panel {
+    max-width: 640px;
+  }
+}
+
+@media (max-width: 640px) {
+  .bitacora-id__grid {
+    gap: 28px;
+  }
+
+  .bitacora-id__items {
+    margin: 22px 0 24px;
+  }
+
+  .bitacora-id__panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bitacora-id__panel-head strong {
+    text-align: left;
+  }
+
+  .bitacora-id__status-list {
+    padding: 16px;
+  }
+}
 /* Modal de cotizacion */
 body.has-quote-modal-open {
   overflow: hidden;
