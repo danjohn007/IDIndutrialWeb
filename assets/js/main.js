@@ -193,7 +193,7 @@ if (quoteModal) {
   const quoteOpeners = document.querySelectorAll('[data-quote-open]');
   const quoteClosers = quoteModal.querySelectorAll('[data-quote-close]');
   const quoteServiceField = quoteModal.querySelector('[data-quote-service-field]');
-  const quoteFirstField = quoteModal.querySelector('input:not([type="hidden"]), select, textarea, button');
+  const quoteFirstField = quoteModal.querySelector('input:not([type="hidden"]):not([tabindex="-1"]), select, textarea');
   let quoteLastFocus = null;
 
   function openQuoteModal(service = '') {
