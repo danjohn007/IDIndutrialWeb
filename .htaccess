@@ -50,6 +50,7 @@ DirectoryIndex index.php index.html
   RewriteRule ^crm/notificaciones/?$ crm/index.php?view=bitacora&notifications=1 [QSA,L]
   RewriteRule ^crm/bitacora/?$ crm/index.php?view=bitacora [QSA,L]
   RewriteRule ^crm/perfil/?$ crm/index.php?view=profile [QSA,L]
+  RewriteRule ^crm/configuracion/?$ crm/index.php?view=settings [QSA,L]
   RewriteRule ^crm/?$ crm/index.php?view=dashboard [QSA,L]
 
   # Preserve service preselection on the public quote form.

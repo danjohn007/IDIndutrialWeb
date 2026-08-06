@@ -27,6 +27,7 @@ function crm_config_source(): string
   return 'defaults';
 }
 
+
 function crm_mask_identifier(string $identifier): string
 {
   $identifier = strtolower(trim($identifier));
@@ -131,6 +132,47 @@ function crm_config(): array
   return $config;
 }
 
+
+function crm_default_setting(string $key): string
+{
+  $config = crm_config();
+  $defaults = [
+    'quote_request_admin_email' => (string) ($config['quote_request_admin_email'] ?? 'tecnologia@idindustrial.com.mx'),
+  ];
+  return $defaults[$key] ?? '';
+}
+
+function crm_setting(PDO $pdo, string $key, ?string $default = null): string
+{
+  $fallback = $default ?? crm_default_setting($key);
+  if (!crm_table_exists($pdo, 'crm_settings')) {
+    return $fallback;
+  }
+
+  $stmt = $pdo->prepare('SELECT setting_value FROM crm_settings WHERE setting_key = ? LIMIT 1');
+  $stmt->execute([$key]);
+  $value = $stmt->fetchColumn();
+  return $value === false ? $fallback : (string) $value;
+}
+
+function crm_set_setting(PDO $pdo, string $key, string $value): void
+{
+  if (crm_driver($pdo) === 'mysql') {
+    $stmt = $pdo->prepare('INSERT INTO crm_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP');
+  } else {
+    $stmt = $pdo->prepare('INSERT INTO crm_settings (setting_key, setting_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = CURRENT_TIMESTAMP');
+  }
+  $stmt->execute([$key, $value]);
+}
+
+function crm_quote_request_admin_email(PDO $pdo, string $fallback = 'tecnologia@idindustrial.com.mx'): string
+{
+  $email = trim(crm_setting($pdo, 'quote_request_admin_email', $fallback));
+  if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $email = $fallback;
+  }
+  return $email;
+}
 function crm_web_base_path(): string
 {
   $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -187,6 +229,7 @@ function crm_admin_url(string $view = 'dashboard', int $id = 0, array $query = [
     'bitacora' => 'bitacora',
     'notifications' => 'notificaciones',
     'profile' => 'perfil',
+    'settings' => 'configuracion',
     'logout' => 'salir',
     'notification_poll' => 'notificaciones/estado',
   ];
@@ -449,25 +492,39 @@ function crm_apply_data_migrations(PDO $pdo): void
     ? 'CREATE TABLE IF NOT EXISTS app_migrations (migration_key VARCHAR(190) NOT NULL PRIMARY KEY, applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     : 'CREATE TABLE IF NOT EXISTS app_migrations (migration_key TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
 
-  $migrationKey = '2026_08_existing_contacts_are_clients';
-  $stmt = $pdo->prepare('SELECT COUNT(*) FROM app_migrations WHERE migration_key = ?');
-  $stmt->execute([$migrationKey]);
-  if ((int) $stmt->fetchColumn() > 0) {
-    return;
-  }
+  $hasMigration = $pdo->prepare('SELECT COUNT(*) FROM app_migrations WHERE migration_key = ?');
+  $recordMigration = $pdo->prepare('INSERT INTO app_migrations (migration_key) VALUES (?)');
 
-  $pdo->beginTransaction();
-  try {
-    $pdo->exec("UPDATE clients SET lifecycle_stage = 'Cliente', segment = CASE WHEN segment = 'Prospecto' THEN 'Industrial' ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP)");
-    $insert = $pdo->prepare('INSERT INTO app_migrations (migration_key) VALUES (?)');
-    $insert->execute([$migrationKey]);
-    $pdo->commit();
-  } catch (Throwable $error) {
-    if ($pdo->inTransaction()) {
-      $pdo->rollBack();
+  $runMigration = function (string $migrationKey, callable $callback) use ($pdo, $hasMigration, $recordMigration): void {
+    $hasMigration->execute([$migrationKey]);
+    if ((int) $hasMigration->fetchColumn() > 0) {
+      return;
     }
-    throw $error;
-  }
+
+    $pdo->beginTransaction();
+    try {
+      $callback();
+      $recordMigration->execute([$migrationKey]);
+      $pdo->commit();
+    } catch (Throwable $error) {
+      if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+      }
+      throw $error;
+    }
+  };
+
+  $runMigration('2026_08_existing_contacts_are_clients', function () use ($pdo): void {
+    $pdo->exec("UPDATE clients SET lifecycle_stage = 'Cliente', segment = CASE WHEN segment = 'Prospecto' THEN 'Industrial' ELSE segment END, converted_at = COALESCE(converted_at, CURRENT_TIMESTAMP)");
+  });
+
+  $runMigration('2026_08_quote_request_admin_email_setting', function () use ($pdo): void {
+    $email = trim(crm_default_setting('quote_request_admin_email'));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+      $email = 'tecnologia@idindustrial.com.mx';
+    }
+    crm_set_setting($pdo, 'quote_request_admin_email', $email);
+  });
 }
 
 function crm_normalize_notification_urls(PDO $pdo): void
@@ -489,7 +546,6 @@ function crm_normalize_notification_urls(PDO $pdo): void
     }
   }
 }
-
 function crm_sync_portal_client_links(PDO $pdo): void
 {
   if (!crm_column_exists($pdo, 'client_portal_users', 'client_id')) {
@@ -1435,6 +1491,12 @@ function crm_migrate_sqlite(PDO $pdo): void
       FOREIGN KEY (client_request_id) REFERENCES client_requests(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS crm_settings (
+      setting_key TEXT PRIMARY KEY,
+      setting_value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS app_sessions (
       session_id TEXT PRIMARY KEY,
       payload BLOB NOT NULL,
@@ -1669,6 +1731,13 @@ function crm_migrate_mysql(PDO $pdo): void
       CONSTRAINT fk_notifications_portal FOREIGN KEY (portal_user_id) REFERENCES client_portal_users(id) ON DELETE CASCADE,
       CONSTRAINT fk_notifications_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE,
       CONSTRAINT fk_notifications_request FOREIGN KEY (client_request_id) REFERENCES client_requests(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS crm_settings (
+      setting_key VARCHAR(120) NOT NULL,
+      setting_value TEXT NOT NULL,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (setting_key)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
     CREATE TABLE IF NOT EXISTS app_sessions (

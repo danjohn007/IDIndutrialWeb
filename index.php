@@ -17,10 +17,14 @@ $description = 'Ingeniería industrial en Querétaro para cableado estructurado,
 $keywords = 'ID Industrial, infraestructura industrial Querétaro, cableado estructurado Querétaro, CCTV industrial, control de accesos Querétaro, HVAC industrial';
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
 $canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/' : $requestPath);
-$crmConfig = crm_config();
-$quoteRequestAdminEmail = trim((string) ($crmConfig['quote_request_admin_email'] ?? $contactEmail));
-if (!filter_var($quoteRequestAdminEmail, FILTER_VALIDATE_EMAIL)) {
-  $quoteRequestAdminEmail = $contactEmail;
+try {
+  $quoteRequestAdminEmail = crm_quote_request_admin_email(crm_db(), $contactEmail);
+} catch (Throwable $error) {
+  $crmConfig = crm_config();
+  $quoteRequestAdminEmail = trim((string) ($crmConfig['quote_request_admin_email'] ?? $contactEmail));
+  if (!filter_var($quoteRequestAdminEmail, FILTER_VALIDATE_EMAIL)) {
+    $quoteRequestAdminEmail = $contactEmail;
+  }
 }
 $publicClients = [];
 try {
@@ -601,9 +605,9 @@ include __DIR__ . '/includes/navbar.php';
     </button>
     <form id="quote-request-form" class="contact-form" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" data-contact-form novalidate>
       <div class="form-head">
-        <span>Solicitud técnica</span>
-        <h3 id="quote-modal-title">Agenda una evaluación</h3>
-        <p>Déjanos los datos clave y te contactamos para aterrizar alcance, prioridad y visita.</p>
+        <span>Solicitud tecnica</span>
+        <h3 id="quote-modal-title">Solicitud de cotizacion</h3>
+        <p>Comparte tus datos y te contactamos.</p>
       </div>
       <?php if ($formStatus): ?>
         <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="status"><?php echo htmlspecialchars($formStatus['text']); ?></p>
@@ -642,10 +646,10 @@ include __DIR__ . '/includes/navbar.php';
       </label>
       <label for="contact-message">
         <span class="field-pill">Mensaje *</span>
-        <textarea id="contact-message" name="message" rows="5" placeholder="Cuéntanos ubicación, tipo de instalación y prioridad del proyecto." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['message']) ? 'contact-message-error' : ''; ?>"><?php echo htmlspecialchars($formData['message']); ?></textarea>
+        <textarea id="contact-message" name="message" rows="3" placeholder="Ubicacion, tipo de instalacion y prioridad." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['message']) ? 'contact-message-error' : ''; ?>"><?php echo htmlspecialchars($formData['message']); ?></textarea>
         <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
       </label>
-      <p class="form-privacy">Al enviar esta solicitud, reconoces haber leído el <a href="aviso-de-privacidad/">Aviso de Privacidad</a> y autorizas el tratamiento de tus datos para atender tu cotización.</p>
+      <p class="form-privacy">Al enviar aceptas el <a href="aviso-de-privacidad/">Aviso de Privacidad</a>.</p>
       <button class="button button--primary" type="submit">Enviar solicitud</button>
     </form>
   </div>

@@ -504,6 +504,42 @@ if (($_POST['action'] ?? '') === 'change_password') {
   exit;
 }
 
+if (($_POST['action'] ?? '') === 'update_settings') {
+  crm_check_token();
+  $quoteRequestAdminEmail = strtolower(trim((string) ($_POST['quote_request_admin_email'] ?? '')));
+
+  if (!filter_var($quoteRequestAdminEmail, FILTER_VALIDATE_EMAIL)) {
+    $_SESSION['crm_flash'] = [
+      'type' => 'error',
+      'title' => 'Correo no valido',
+      'text' => 'Ingresa un correo valido para recibir solicitudes de cotizacion.',
+    ];
+  } else {
+    try {
+      crm_set_setting($pdo, 'quote_request_admin_email', $quoteRequestAdminEmail);
+      $_SESSION['crm_flash'] = [
+        'type' => 'success',
+        'title' => 'Configuracion guardada',
+        'text' => 'Las solicitudes de cotizacion web llegaran a ' . $quoteRequestAdminEmail . '.',
+      ];
+    } catch (Throwable $error) {
+      crm_log_event('admin_settings.update_failed', [
+        'area' => 'admin',
+        'error_class' => get_class($error),
+        'error_message' => substr($error->getMessage(), 0, 500),
+      ]);
+      $_SESSION['crm_flash'] = [
+        'type' => 'error',
+        'title' => 'No se pudo guardar',
+        'text' => 'La configuracion no se pudo actualizar en la base de datos.',
+      ];
+    }
+  }
+
+  header('Location: ' . crm_admin_url('settings'));
+  exit;
+}
+
 if (($_POST['action'] ?? '') === 'create_opportunity') {
   crm_check_token();
   $clientId = crm_find_or_create_prospect_client($pdo, [
@@ -1091,6 +1127,7 @@ $view = $_GET['view'] ?? 'dashboard';
 $flash = $_SESSION['crm_flash'] ?? null;
 unset($_SESSION['crm_flash']);
 $token = crm_token();
+$quoteRequestAdminEmail = crm_quote_request_admin_email($pdo, 'tecnologia@idindustrial.com.mx');
 $counts = [
   'leads' => (int) $pdo->query('SELECT COUNT(*) FROM opportunities')->fetchColumn(),
   'clients' => (int) $pdo->query("SELECT COUNT(*) FROM clients WHERE lifecycle_stage = 'Cliente'")->fetchColumn(),
@@ -1382,6 +1419,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
         <a class="<?php echo $view === 'bitacora' && !isset($_GET['notifications']) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('bitacora')); ?>">Bitacora ID</a>
         <a class="<?php echo $view === 'bitacora' && isset($_GET['notifications']) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('notifications', 0, [], 'reportes-recibidos')); ?>">Notificaciones<em data-notification-count <?php echo $adminUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $adminUnreadNotifications; ?></em></a>
         <a class="<?php echo $view === 'profile' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('profile')); ?>">Perfil</a>
+        <a class="<?php echo $view === 'settings' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('settings')); ?>">Configuracion</a>
         <a href="<?php echo h(crm_public_url()); ?>">Vista publica</a>
       </nav>
       <div class="crm-sidebar__footer">
@@ -1408,7 +1446,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
       </header>
 
       <section class="crm-content">
-        <?php if ($flash && $view !== 'profile'): ?>
+        <?php if ($flash && !in_array($view, ['profile', 'settings'], true)): ?>
           <div class="crm-flash crm-flash--<?php echo h($flash['type'] ?? 'info'); ?>">
             <div>
               <strong><?php echo h($flash['title'] ?? 'Aviso'); ?></strong>
@@ -1904,6 +1942,42 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                     <label class="crm-field">Confirmar password<span class="crm-password-field"><input id="profile-confirm-password" type="password" name="confirm_password" autocomplete="new-password" minlength="10" required data-password-confirm><button class="crm-password-toggle" type="button" aria-label="Mostrar confirmacion de password" aria-controls="profile-confirm-password" data-password-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg></button></span></label>
                   </div>
                   <div class="crm-password-actions"><small>Minimo 10 caracteres.</small><button class="crm-button" type="submit">Actualizar password</button></div>
+                </form>
+              </div>
+            </div>
+          </article>
+        <?php elseif ($view === 'settings'): ?>
+          <div class="crm-head">
+            <div>
+              <p class="eyebrow">Configuracion</p>
+              <h1>Ajustes del CRM</h1>
+              <p>Define a que correo llegaran las solicitudes de cotizacion enviadas desde la pagina web.</p>
+            </div>
+          </div>
+
+          <article class="crm-card crm-account-security">
+            <div class="crm-section-head">
+              <div><h2>Correo de cotizaciones web</h2><p>Este correo recibira los detalles de la solicitud y el enlace directo a la oportunidad en el CRM.</p></div>
+              <span class="crm-pill crm-pill--success">Activo</span>
+            </div>
+            <?php if ($flash): ?>
+              <div class="crm-account-feedback crm-account-feedback--<?php echo h($flash['type'] ?? 'info'); ?>" role="status">
+                <strong><?php echo h($flash['title'] ?? 'Aviso'); ?></strong>
+                <span><?php echo h($flash['text'] ?? ''); ?></span>
+              </div>
+            <?php endif; ?>
+            <div class="crm-profile-grid crm-profile-grid--security">
+              <aside class="crm-profile-summary crm-profile-summary--security">
+                <span><?php echo crm_icon('reports'); ?></span>
+                <div><small>Destino actual</small><strong><?php echo h($quoteRequestAdminEmail); ?></strong><code>Base de datos: crm_settings</code></div>
+              </aside>
+              <div class="crm-password-panel">
+                <div class="crm-password-panel__head"><h3>Solicitudes desde la web</h3><p>Al guardar, las nuevas solicitudes usaran este destinatario administrativo. El cliente seguira recibiendo su copia de confirmacion.</p></div>
+                <form class="crm-form crm-password-form" method="post" autocomplete="on">
+                  <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                  <input type="hidden" name="action" value="update_settings">
+                  <label class="crm-field">Correo administrador<input type="email" name="quote_request_admin_email" value="<?php echo h($quoteRequestAdminEmail); ?>" placeholder="cotizaciones@idindustrial.com.mx" required></label>
+                  <div class="crm-password-actions"><small>Usa el correo cPanel que recibira las oportunidades web.</small><button class="crm-button" type="submit">Guardar configuracion</button></div>
                 </form>
               </div>
             </div>
