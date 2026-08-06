@@ -124,8 +124,8 @@ $serviceOverview = [
     'href' => '#contacto',
     'image' => 'assets/img/optimized/service-card-deteccion-incendios.jpg',
     'alt' => 'Panel de detección de incendios industrial',
-    'width' => 1920,
-    'height' => 500,
+    'width' => 1280,
+    'height' => 960,
     'badge' => 'Seguridad',
     'linkText' => 'Consultar detección de incendios',
   ],
@@ -137,8 +137,8 @@ $serviceOverview = [
     'href' => 'instalacion-aire-acondicionado-industrial-queretaro/',
     'image' => 'assets/img/optimized/service-card-hvac-industrial.jpg',
     'alt' => 'Sistemas HVAC industriales',
-    'width' => 1920,
-    'height' => 500,
+    'width' => 1254,
+    'height' => 1254,
     'badge' => 'Climatización',
     'linkText' => 'Consultar sistemas HVAC industriales',
   ],
@@ -150,8 +150,8 @@ $serviceOverview = [
     'href' => 'instalacion-camaras-seguridad-industrial-queretaro/',
     'image' => 'assets/img/optimized/service-card-cctv-industrial.jpg',
     'alt' => 'Sistema de CCTV industrial en Querétaro',
-    'width' => 1920,
-    'height' => 800,
+    'width' => 1280,
+    'height' => 960,
     'badge' => 'Videovigilancia',
     'linkText' => 'Ver más',
   ],
@@ -163,8 +163,8 @@ $serviceOverview = [
     'href' => 'industriales/cableado-estructurado-queretaro/',
     'image' => 'assets/img/optimized/service-card-cableado-estructurado.jpg',
     'alt' => 'Cableado estructurado industrial en Querétaro',
-    'width' => 1920,
-    'height' => 800,
+    'width' => 1254,
+    'height' => 1254,
     'badge' => 'Infraestructura',
     'linkText' => 'Conocer soluciones de cableado estructurado',
   ],
@@ -176,8 +176,8 @@ $serviceOverview = [
     'href' => '#contacto',
     'image' => 'assets/img/optimized/service-card-fibra-optica.jpg',
     'alt' => 'Instalación de fibra óptica en Querétaro',
-    'width' => 1920,
-    'height' => 500,
+    'width' => 1254,
+    'height' => 1254,
     'badge' => 'Conectividad',
     'linkText' => 'Explorar soluciones de fibra óptica',
   ],
@@ -189,8 +189,8 @@ $serviceOverview = [
     'href' => 'control-de-acceso-de-personal-queretaro/',
     'image' => 'assets/img/optimized/service-card-control-accesos.jpg',
     'alt' => 'Control de accesos biométrico industrial',
-    'width' => 1920,
-    'height' => 800,
+    'width' => 1254,
+    'height' => 1254,
     'badge' => 'Trazabilidad',
     'linkText' => 'Conocer control de acceso para empresas',
   ],
@@ -438,8 +438,9 @@ include __DIR__ . '/includes/navbar.php';
 
       <div class="services-overview__grid">
         <?php foreach ($serviceOverview as $item): ?>
+          <?php $serviceImageVersion = @filemtime(__DIR__ . '/' . $item['image']) ?: 1; ?>
           <article id="<?php echo htmlspecialchars($item['id']); ?>" class="service-card service-card--wide reveal">
-            <img src="<?php echo htmlspecialchars($item['image']); ?>" srcset="<?php echo htmlspecialchars(idindustrial_mobile_image($item['image'])); ?> 960w, <?php echo htmlspecialchars($item['image']); ?> 1920w" sizes="(max-width: 640px) calc(100vw - 28px), (max-width: 1120px) 33vw, 390px" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
+            <img src="<?php echo htmlspecialchars($item['image']); ?>?v=<?php echo $serviceImageVersion; ?>" srcset="<?php echo htmlspecialchars(idindustrial_mobile_image($item['image'])); ?>?v=<?php echo $serviceImageVersion; ?> 640w, <?php echo htmlspecialchars($item['image']); ?>?v=<?php echo $serviceImageVersion; ?> <?php echo (int) $item['width']; ?>w" sizes="(max-width: 640px) calc(100vw - 28px), (max-width: 1120px) 33vw, 390px" alt="<?php echo htmlspecialchars($item['alt']); ?>" width="<?php echo (int) $item['width']; ?>" height="<?php echo (int) $item['height']; ?>" loading="lazy" decoding="async">
             <em><?php echo htmlspecialchars($item['badge']); ?></em>
             <span><?php echo htmlspecialchars($item['title']); ?></span>
             <p><?php echo htmlspecialchars($item['copy']); ?></p>
