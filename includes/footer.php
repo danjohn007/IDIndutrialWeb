@@ -68,7 +68,7 @@
   <a class="social-dock__link" href="tel:+524425986318" aria-label="Llamar a ID Industrial">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 10.78a15.3 15.3 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1.02-.24 11.4 11.4 0 0 0 3.56.56 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .56 3.56 1 1 0 0 1-.24 1.02l-2.2 2.2Z"/></svg>
   </a>
-  <a class="social-dock__link" href="mailto:tecnologia@idindustrial.com.mx" aria-label="Enviar correo a ID Industrial">
+  <a class="social-dock__link" href="mailto:tecnologia@idindustrial.com.mx?subject=Solicitud%20de%20informaci%C3%B3n%20-%20ID%20Industrial" data-mail-link data-webmail-href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=tecnologia@idindustrial.com.mx&amp;su=Solicitud%20de%20informaci%C3%B3n%20-%20ID%20Industrial" aria-label="Enviar correo a ID Industrial">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 3.2V17h16V8.2l-7.42 5.16a1 1 0 0 1-1.16 0L4 8.2Zm1.1-1.2 6.9 4.8L18.9 7H5.1Z"/></svg>
   </a>
   <a class="social-dock__link social-dock__link--facebook" href="https://www.facebook.com/share/1PZdBWCVkd/" target="_blank" rel="noopener noreferrer" aria-label="Facebook de ID Industrial">

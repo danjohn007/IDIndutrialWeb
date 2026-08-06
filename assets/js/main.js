@@ -237,3 +237,14 @@ if (quoteModal) {
     openQuoteModal();
   }
 }
+const mailLinks = document.querySelectorAll('[data-mail-link]');
+const likelyTouchDevice = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+
+mailLinks.forEach((link) => {
+  const webmailHref = link.dataset.webmailHref;
+  if (!likelyTouchDevice && webmailHref) {
+    link.href = webmailHref;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+  }
+});
