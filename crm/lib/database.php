@@ -99,6 +99,7 @@ function crm_config(): array
     'sqlite_path' => '',
     'charset' => 'utf8mb4',
     'app_url' => 'https://idindustrial.com.mx/crm',
+    'quote_request_admin_email' => 'tecnologia@idindustrial.com.mx',
     'smtp' => [
       'enabled' => false,
       'host' => 'mail.idindustrial.com.mx',
@@ -2064,6 +2065,30 @@ function crm_email_message(string $textBody, $htmlBody = null): array
   ];
 }
 
+function crm_normalize_email_list($emails): array
+{
+  $rawEmails = is_array($emails) ? $emails : preg_split('/[;,]/', (string) $emails);
+  $normalized = [];
+  foreach ($rawEmails ?: [] as $email) {
+    $email = trim((string) $email);
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+      continue;
+    }
+    $normalized[strtolower($email)] = $email;
+  }
+  return array_values($normalized);
+}
+
+function crm_email_header_address(string $email, string $name = ''): string
+{
+  $email = trim(str_replace(["\r", "\n"], '', $email));
+  $name = trim(str_replace(["\r", "\n"], '', $name));
+  if ($name === '') {
+    return '<' . $email . '>';
+  }
+  return '"' . addcslashes($name, '"\\') . '" <' . $email . '>';
+}
+
 function crm_portal_credentials_email_html(string $name, string $project, string $portalUrl, string $username, string $password): string
 {
   $safeName = crm_email_h($name);
@@ -2161,12 +2186,21 @@ function crm_portal_credentials_email_html(string $name, string $project, string
 </html>';
 }
 
-function crm_send_email(string $to, string $subject, string $textBody, $htmlBody = null): bool
+function crm_send_email(string $to, string $subject, string $textBody, $htmlBody = null, array $options = []): bool
 {
   $config = crm_config();
   $smtp = is_array($config['smtp'] ?? null) ? $config['smtp'] : [];
+  $toList = crm_normalize_email_list($to);
+  $ccList = crm_normalize_email_list($options['cc'] ?? []);
+  $replyToList = crm_normalize_email_list($options['reply_to'] ?? []);
+  if (!$toList) {
+    return false;
+  }
   if (!empty($smtp['enabled'])) {
-    return crm_smtp_mail($smtp, $to, $subject, $textBody, $htmlBody);
+    return crm_smtp_mail($smtp, $toList, $subject, $textBody, $htmlBody, [
+      'cc' => $ccList,
+      'reply_to' => $replyToList,
+    ]);
   }
 
   $fromEmail = (string) ($smtp['from_email'] ?? 'no-reply@idindustrial.com.mx');
@@ -2176,8 +2210,14 @@ function crm_send_email(string $to, string $subject, string $textBody, $htmlBody
     'MIME-Version: 1.0',
     'From: ' . $fromName . ' <' . $fromEmail . '>',
   ], $emailMessage['headers']);
+  if ($ccList) {
+    $headers[] = 'Cc: ' . implode(', ', array_map('crm_email_header_address', $ccList));
+  }
+  if ($replyToList) {
+    $headers[] = 'Reply-To: ' . implode(', ', array_map('crm_email_header_address', $replyToList));
+  }
 
-  return @mail($to, $subject, $emailMessage['body'], implode("\r\n", $headers));
+  return @mail(implode(', ', $toList), $subject, $emailMessage['body'], implode("\r\n", $headers));
 }
 function crm_smtp_read($socket): string
 {
@@ -2203,7 +2243,7 @@ function crm_smtp_command($socket, string $command, array $codes): bool
   return in_array($code, $codes, true);
 }
 
-function crm_smtp_mail(array $smtp, string $to, string $subject, string $textBody, $htmlBody = null): bool
+function crm_smtp_mail(array $smtp, $to, string $subject, string $textBody, $htmlBody = null, array $options = []): bool
 {
   $host = (string) ($smtp['host'] ?? '');
   $port = (int) ($smtp['port'] ?? 465);
@@ -2212,7 +2252,10 @@ function crm_smtp_mail(array $smtp, string $to, string $subject, string $textBod
   $password = (string) ($smtp['password'] ?? '');
   $fromEmail = (string) ($smtp['from_email'] ?? $username);
   $fromName = (string) ($smtp['from_name'] ?? 'ID Industrial');
-  if ($host === '' || $username === '' || $password === '' || $fromEmail === '') {
+  $toList = crm_normalize_email_list($to);
+  $ccList = crm_normalize_email_list($options['cc'] ?? []);
+  $replyToList = crm_normalize_email_list($options['reply_to'] ?? []);
+  if ($host === '' || $username === '' || $password === '' || $fromEmail === '' || !$toList) {
     return false;
   }
 
@@ -2248,9 +2291,11 @@ function crm_smtp_mail(array $smtp, string $to, string $subject, string $textBod
   $ok = crm_smtp_command($socket, 'AUTH LOGIN', [334])
     && crm_smtp_command($socket, base64_encode($username), [334])
     && crm_smtp_command($socket, base64_encode($password), [235])
-    && crm_smtp_command($socket, 'MAIL FROM:<' . $fromEmail . '>', [250])
-    && crm_smtp_command($socket, 'RCPT TO:<' . $to . '>', [250, 251])
-    && crm_smtp_command($socket, 'DATA', [354]);
+    && crm_smtp_command($socket, 'MAIL FROM:<' . $fromEmail . '>', [250]);
+  foreach (array_merge($toList, $ccList) as $recipientEmail) {
+    $ok = $ok && crm_smtp_command($socket, 'RCPT TO:<' . $recipientEmail . '>', [250, 251]);
+  }
+  $ok = $ok && crm_smtp_command($socket, 'DATA', [354]);
   if (!$ok) {
     fclose($socket);
     return false;
@@ -2260,10 +2305,16 @@ function crm_smtp_mail(array $smtp, string $to, string $subject, string $textBod
   $headers = array_merge([
     'Date: ' . date('r'),
     'From: ' . $fromName . ' <' . $fromEmail . '>',
-    'To: <' . $to . '>',
+    'To: ' . implode(', ', array_map('crm_email_header_address', $toList)),
     'Subject: ' . $subject,
     'MIME-Version: 1.0',
   ], $emailMessage['headers']);
+  if ($ccList) {
+    $headers[] = 'Cc: ' . implode(', ', array_map('crm_email_header_address', $ccList));
+  }
+  if ($replyToList) {
+    $headers[] = 'Reply-To: ' . implode(', ', array_map('crm_email_header_address', $replyToList));
+  }
   $message = implode("\r\n", $headers) . "\r\n\r\n" . $emailMessage['body'];
   $message = preg_replace('/^\./m', '..', $message);
   fwrite($socket, $message . "\r\n.\r\n");

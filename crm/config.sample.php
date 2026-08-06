@@ -8,6 +8,7 @@ return [
   'sqlite_path' => '',
   'charset' => 'utf8mb4',
   'app_url' => 'https://idindustrial.com.mx/crm',
+  'quote_request_admin_email' => 'tecnologia@idindustrial.com.mx',
   'smtp' => [
     'enabled' => false,
     'host' => 'mail.idindustrial.com.mx',

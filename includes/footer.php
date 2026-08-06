@@ -74,6 +74,9 @@
   <a class="social-dock__link social-dock__link--facebook" href="https://www.facebook.com/share/1PZdBWCVkd/" target="_blank" rel="noopener noreferrer" aria-label="Facebook de ID Industrial">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#1877f2"/><path fill="#fff" d="M13.55 20v-7h2.35l.35-2.72h-2.7V8.54c0-.79.22-1.33 1.35-1.33h1.44V4.78c-.25-.03-1.1-.1-2.1-.1-2.08 0-3.5 1.27-3.5 3.6v2H8.4V13h2.34v7h2.81Z"/></svg>
   </a>
+  <a class="social-dock__link social-dock__link--instagram" href="https://www.instagram.com/idindustrialmx?igsh=dzBkOTF0b3ZvY2Zw" target="_blank" rel="noopener noreferrer" aria-label="Instagram de ID Industrial">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="instagram-dock" x1="2" y1="22" x2="22" y2="2" gradientUnits="userSpaceOnUse"><stop stop-color="#ffdc80"/><stop offset=".32" stop-color="#fcaf45"/><stop offset=".58" stop-color="#f77737"/><stop offset=".78" stop-color="#c13584"/><stop offset="1" stop-color="#833ab4"/></linearGradient></defs><rect x="1" y="1" width="22" height="22" rx="6" fill="url(#instagram-dock)"/><path fill="#fff" d="M12 6.45A5.55 5.55 0 1 0 12 17.55 5.55 5.55 0 0 0 12 6.45Zm0 8.96A3.41 3.41 0 1 1 12 8.59a3.41 3.41 0 0 1 0 6.82Zm7.2-9.2a1.3 1.3 0 1 1-2.6 0 1.3 1.3 0 0 1 2.6 0Z"/></svg>
+  </a>
 </aside>
 
 <script src="<?php echo htmlspecialchars($scriptHref); ?>" defer></script>

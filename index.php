@@ -17,6 +17,11 @@ $description = 'Ingeniería industrial en Querétaro para cableado estructurado,
 $keywords = 'ID Industrial, infraestructura industrial Querétaro, cableado estructurado Querétaro, CCTV industrial, control de accesos Querétaro, HVAC industrial';
 $requestPath = strtok($_SERVER['REQUEST_URI'] ?? '/', '?') ?: '/';
 $canonicalUrl = rtrim($publicOrigin, '/') . ($requestPath === '/' ? '/' : $requestPath);
+$crmConfig = crm_config();
+$quoteRequestAdminEmail = trim((string) ($crmConfig['quote_request_admin_email'] ?? $contactEmail));
+if (!filter_var($quoteRequestAdminEmail, FILTER_VALIDATE_EMAIL)) {
+  $quoteRequestAdminEmail = $contactEmail;
+}
 $publicClients = [];
 try {
   $publicClients = crm_public_clients();
@@ -28,6 +33,37 @@ function idindustrial_mobile_image($image)
 {
   $candidate = str_replace('assets/img/optimized/', 'assets/img/optimized/mobile/', $image);
   return is_file(__DIR__ . '/' . $candidate) ? $candidate : $image;
+}
+
+function idindustrial_quote_request_rows(array $data): string
+{
+  $fields = [
+    'Nombre y empresa' => trim((string) ($data['name'] ?? '')),
+    'Correo' => trim((string) ($data['email'] ?? '')),
+    'Telefono' => trim((string) ($data['phone'] ?? '')) ?: 'Sin telefono',
+    'Servicio de interes' => trim((string) ($data['service'] ?? '')) ?: 'Por definir',
+    'Mensaje' => trim((string) ($data['message'] ?? '')),
+  ];
+  $rows = '';
+  foreach ($fields as $label => $value) {
+    $rows .= '<tr><td style="padding:12px 14px;border-bottom:1px solid #ece3d4;font-size:12px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:#876500;width:180px;vertical-align:top;">' . crm_email_h($label) . '</td><td style="padding:12px 14px;border-bottom:1px solid #ece3d4;font-size:15px;line-height:1.55;color:#161a20;white-space:pre-wrap;word-break:break-word;">' . crm_email_h($value) . '</td></tr>';
+  }
+  return $rows;
+}
+
+function idindustrial_quote_request_admin_email_html(array $data, string $crmUrl): string
+{
+  $safeCrmUrl = crm_email_h($crmUrl);
+  $safeService = crm_email_h(trim((string) ($data['service'] ?? '')) ?: 'Solicitud web');
+  $rows = idindustrial_quote_request_rows($data);
+  return '<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Nueva solicitud de cotizacion</title></head><body style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#11151c;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;margin:0;padding:24px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;background:#ffffff;border:1px solid #ded6c8;border-radius:14px;overflow:hidden;"><tr><td style="background:#111412;padding:26px 28px;"><div style="font-size:13px;letter-spacing:4px;font-weight:800;color:#f3c433;text-transform:uppercase;">ID Industrial</div><div style="margin-top:8px;font-size:22px;line-height:1.2;font-weight:800;color:#ffffff;">Nueva solicitud de cotizacion</div></td></tr><tr><td style="padding:30px 28px;"><h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;color:#11151c;">' . $safeService . '</h1><p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#586170;">La solicitud ya fue registrada como oportunidad en el CRM. Revisa los datos y da seguimiento desde el panel administrativo.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;border:1px solid #e5dccb;border-radius:12px;overflow:hidden;">' . $rows . '</table><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" bgcolor="#d6a91f" style="border-radius:10px;"><a href="' . $safeCrmUrl . '" style="display:block;padding:16px 22px;font-size:16px;font-weight:800;color:#11151c;text-decoration:none;">Abrir oportunidad en CRM</a></td></tr></table><p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#6b7280;">Enlace directo: <a href="' . $safeCrmUrl . '" style="color:#9b7200;text-decoration:underline;word-break:break-all;">' . $safeCrmUrl . '</a></p></td></tr><tr><td style="padding:20px 28px;background:#f7f4ee;border-top:1px solid #e5dccb;"><p style="margin:0;font-size:12px;line-height:1.6;color:#69727f;">ID Industrial - Solicitudes web</p></td></tr></table></td></tr></table></body></html>';
+}
+
+function idindustrial_quote_request_client_email_html(array $data): string
+{
+  $safeName = crm_email_h(trim((string) ($data['name'] ?? '')) ?: 'cliente');
+  $rows = idindustrial_quote_request_rows($data);
+  return '<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Solicitud recibida</title></head><body style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#11151c;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;margin:0;padding:24px 12px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;background:#ffffff;border:1px solid #ded6c8;border-radius:14px;overflow:hidden;"><tr><td style="background:#111412;padding:26px 28px;"><div style="font-size:13px;letter-spacing:4px;font-weight:800;color:#f3c433;text-transform:uppercase;">ID Industrial</div><div style="margin-top:8px;font-size:22px;line-height:1.2;font-weight:800;color:#ffffff;">Solicitud recibida</div></td></tr><tr><td style="padding:30px 28px;"><h1 style="margin:0 0 12px;font-size:28px;line-height:1.15;color:#11151c;">Gracias, ' . $safeName . '</h1><p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#586170;">Recibimos tu solicitud de cotizacion. Nuestro equipo revisara los detalles y te contactara para confirmar alcance, tiempos y siguientes pasos.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 22px;border:1px solid #e5dccb;border-radius:12px;overflow:hidden;">' . $rows . '</table><p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280;">Si necesitas agregar informacion, responde este correo o contactanos por WhatsApp.</p></td></tr><tr><td style="padding:20px 28px;background:#f7f4ee;border-top:1px solid #e5dccb;"><p style="margin:0;font-size:12px;line-height:1.6;color:#69727f;">ID Industrial - Ingenieria industrial en Queretaro y Bajio</p></td></tr></table></td></tr></table></body></html>';
 }
 
 $homeCarouselItems = [
@@ -264,9 +300,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
       }
 
-      $subject = 'Nueva solicitud desde idindustrial.com.mx';
-      $body = "Nombre: {$formData['name']}\nCorreo: {$formData['email']}\nTelefono: {$formData['phone']}\nServicio de interes: {$formData['service']}\n\nMensaje:\n{$formData['message']}";
-      $emailSent = crm_send_email($contactEmail, $subject, $body);
+      $adminOpportunityUrl = $opportunityId ? crm_app_url('oportunidades/' . $opportunityId) : crm_app_url('oportunidades');
+      $notificationService = $formData['service'] !== '' ? $formData['service'] : 'servicio por definir';
+      $subject = 'Nueva solicitud de cotizacion web - ' . $notificationService;
+      $body = "Nueva solicitud de cotizacion web\n\nNombre: {$formData['name']}\nCorreo: {$formData['email']}\nTelefono: {$formData['phone']}\nServicio de interes: {$formData['service']}\n\nMensaje:\n{$formData['message']}\n\nAbrir en CRM: {$adminOpportunityUrl}";
+      $emailSent = crm_send_email($quoteRequestAdminEmail, $subject, $body, idindustrial_quote_request_admin_email_html($formData, $adminOpportunityUrl), [
+        'reply_to' => $formData['email'],
+      ]);
+      $clientBody = "Hola {$formData['name']},\n\nRecibimos tu solicitud de cotizacion con estos datos:\n\nServicio de interes: {$formData['service']}\nTelefono: {$formData['phone']}\n\nMensaje:\n{$formData['message']}\n\nNuestro equipo te contactara para confirmar alcance, tiempos y siguientes pasos.\n\nID Industrial";
+      $clientEmailSent = crm_send_email($formData['email'], 'Recibimos tu solicitud - ID Industrial', $clientBody, idindustrial_quote_request_client_email_html($formData));
+      if (!$clientEmailSent) {
+        error_log('CRM web lead client copy failed for opportunity ' . (int) $opportunityId);
+      }
 
       if ($opportunityId) {
         $formStatus = ['type' => 'ok', 'text' => 'Listo. Registramos tu solicitud y te contactaremos para preparar la cotizacion.'];
@@ -326,7 +371,7 @@ include __DIR__ . '/includes/navbar.php';
         <h1 id="hero-title"><span>Infraestructura e ingeniería</span><span>industrial en Querétaro</span></h1>
         <p class="hero__lead">Diseñamos e implementamos soluciones de cableado estructurado, fibra óptica, CCTV, control de accesos, detección de incendios y sistemas HVAC para plantas, naves industriales y edificios corporativos.</p>
         <div class="hero__actions">
-          <a class="button button--primary" href="#cotizacion">Solicitar evaluación técnica</a>
+          <a class="button button--primary" href="#cotizacion" data-quote-open aria-controls="cotizacion">Solicitar evaluación técnica</a>
           <a class="button button--ghost" href="#servicios">Conocer servicios</a>
         </div>
       </div>
@@ -391,7 +436,7 @@ include __DIR__ . '/includes/navbar.php';
             <span><?php echo htmlspecialchars($item['title']); ?></span>
             <p><?php echo htmlspecialchars($item['copy']); ?></p>
             <small><?php echo htmlspecialchars($item['application']); ?></small>
-            <a class="service-card__more" href="#cotizacion" aria-label="Cotizar <?php echo htmlspecialchars($item['title']); ?>">Cotizar este servicio</a>
+            <a class="service-card__more" href="#cotizacion" aria-label="Cotizar <?php echo htmlspecialchars($item['title']); ?>" data-quote-open data-quote-service="<?php echo htmlspecialchars($item['title']); ?>" aria-controls="cotizacion">Cotizar este servicio</a>
           </article>
         <?php endforeach; ?>
       </div>
@@ -448,7 +493,7 @@ include __DIR__ . '/includes/navbar.php';
         <p class="eyebrow">Capacidad destacada</p>
         <h2 id="lamp-title">Sistemas industriales que trabajan como una sola operación.</h2>
         <p>Redes, fibra, HVAC, detección, CCTV y accesos con una arquitectura pensada para continuidad, trazabilidad y crecimiento.</p>
-        <a class="button button--primary" href="#cotizacion">Evaluar proyecto</a>
+        <a class="button button--primary" href="#cotizacion" data-quote-open aria-controls="cotizacion">Evaluar proyecto</a>
       </div>
     </div>
   </section>
@@ -539,57 +584,71 @@ include __DIR__ . '/includes/navbar.php';
           <strong>Propuesta</strong>
         </div>
       </div>
-      <form id="cotizacion" class="contact-form reveal reveal--delay" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" data-contact-form novalidate>
-        <div class="form-head">
-          <span>Solicitud técnica</span>
-          <h3>Agenda una evaluación</h3>
-          <p>Déjanos los datos clave y te contactamos para aterrizar alcance, prioridad y visita.</p>
-        </div>
-        <?php if ($formStatus): ?>
-          <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="status"><?php echo htmlspecialchars($formStatus['text']); ?></p>
-          <?php if ($formStatus['type'] === 'error'): ?><a class="form-fallback" href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20solicitar%20una%20evaluacion%20tecnica" target="_blank" rel="noopener noreferrer">Continuar por WhatsApp</a><?php endif; ?>
-        <?php endif; ?>
-        <div class="form-row">
-          <label for="contact-name">
-            <span class="field-pill">Nombre y empresa *</span>
-            <input id="contact-name" type="text" name="name" autocomplete="name" placeholder="Nombre y empresa" value="<?php echo htmlspecialchars($formData['name']); ?>" required aria-invalid="<?php echo isset($formErrors['name']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['name']) ? 'contact-name-error' : ''; ?>">
-            <?php if (isset($formErrors['name'])): ?><span class="field-error" id="contact-name-error"><?php echo htmlspecialchars($formErrors['name']); ?></span><?php endif; ?>
-          </label>
-          <label for="contact-email">
-            <span class="field-pill">Correo *</span>
-            <input id="contact-email" type="email" name="email" autocomplete="email" placeholder="correo@empresa.com" value="<?php echo htmlspecialchars($formData['email']); ?>" required aria-invalid="<?php echo isset($formErrors['email']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['email']) ? 'contact-email-error' : ''; ?>">
-            <?php if (isset($formErrors['email'])): ?><span class="field-error" id="contact-email-error"><?php echo htmlspecialchars($formErrors['email']); ?></span><?php endif; ?>
-          </label>
-        </div>
-        <div class="form-row">
-          <label for="contact-phone">
-            <span class="field-pill">Teléfono</span>
-            <input id="contact-phone" type="tel" name="phone" autocomplete="tel" placeholder="+52 442 000 0000" value="<?php echo htmlspecialchars($formData['phone']); ?>">
-          </label>
-          <label for="contact-service">
-            <span class="field-pill">Servicio de interés</span>
-            <select id="contact-service" name="service">
-              <option value="">Seleccionar</option>
-              <?php foreach ($serviceOptions as $option): ?>
-                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['service'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
-              <?php endforeach; ?>
-            </select>
-          </label>
-        </div>
-        <label class="honeypot" for="company-site">
-          Sitio
-          <input id="company-site" type="text" name="company_site" tabindex="-1" autocomplete="off">
-        </label>
-        <label for="contact-message">
-          <span class="field-pill">Mensaje *</span>
-          <textarea id="contact-message" name="message" rows="5" placeholder="Cuéntanos ubicación, tipo de instalación y prioridad del proyecto." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['message']) ? 'contact-message-error' : ''; ?>"><?php echo htmlspecialchars($formData['message']); ?></textarea>
-          <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
-        </label>
-        <p class="form-privacy">Al enviar esta solicitud, reconoces haber leído el <a href="aviso-de-privacidad/">Aviso de Privacidad</a> y autorizas el tratamiento de tus datos para atender tu cotización.</p>
-        <button class="button button--primary" type="submit">Enviar solicitud</button>
-      </form>
     </div>
   </section>
 </main>
+
+<button class="quote-fab" type="button" data-quote-open aria-controls="cotizacion">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9.4L5 20v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v8h3v1.4L8.6 14H20V6H4Zm3 2h10v2H7V8Zm0 3h7v2H7v-2Z"/></svg>
+  <span>Cotizar</span>
+</button>
+
+<div id="cotizacion" class="quote-modal <?php echo $formStatus ? 'is-open' : ''; ?>" role="dialog" aria-modal="true" aria-labelledby="quote-modal-title" aria-hidden="<?php echo $formStatus ? 'false' : 'true'; ?>" data-quote-modal>
+  <div class="quote-modal__overlay" data-quote-close></div>
+  <div class="quote-modal__panel" role="document">
+    <button class="quote-modal__close" type="button" aria-label="Cerrar solicitud" data-quote-close>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm12.6 1.4L6.4 19 5 17.6 17.6 5 19 6.4Z"/></svg>
+    </button>
+    <form id="quote-request-form" class="contact-form" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" data-contact-form novalidate>
+      <div class="form-head">
+        <span>Solicitud técnica</span>
+        <h3 id="quote-modal-title">Agenda una evaluación</h3>
+        <p>Déjanos los datos clave y te contactamos para aterrizar alcance, prioridad y visita.</p>
+      </div>
+      <?php if ($formStatus): ?>
+        <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="status"><?php echo htmlspecialchars($formStatus['text']); ?></p>
+        <?php if ($formStatus['type'] === 'error'): ?><a class="form-fallback" href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20solicitar%20una%20evaluacion%20tecnica" target="_blank" rel="noopener noreferrer">Continuar por WhatsApp</a><?php endif; ?>
+      <?php endif; ?>
+      <div class="form-row">
+        <label for="contact-name">
+          <span class="field-pill">Nombre y empresa *</span>
+          <input id="contact-name" type="text" name="name" autocomplete="name" placeholder="Nombre y empresa" value="<?php echo htmlspecialchars($formData['name']); ?>" required aria-invalid="<?php echo isset($formErrors['name']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['name']) ? 'contact-name-error' : ''; ?>">
+          <?php if (isset($formErrors['name'])): ?><span class="field-error" id="contact-name-error"><?php echo htmlspecialchars($formErrors['name']); ?></span><?php endif; ?>
+        </label>
+        <label for="contact-email">
+          <span class="field-pill">Correo *</span>
+          <input id="contact-email" type="email" name="email" autocomplete="email" placeholder="correo@empresa.com" value="<?php echo htmlspecialchars($formData['email']); ?>" required aria-invalid="<?php echo isset($formErrors['email']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['email']) ? 'contact-email-error' : ''; ?>">
+          <?php if (isset($formErrors['email'])): ?><span class="field-error" id="contact-email-error"><?php echo htmlspecialchars($formErrors['email']); ?></span><?php endif; ?>
+        </label>
+      </div>
+      <div class="form-row">
+        <label for="contact-phone">
+          <span class="field-pill">Teléfono</span>
+          <input id="contact-phone" type="tel" name="phone" autocomplete="tel" placeholder="+52 442 000 0000" value="<?php echo htmlspecialchars($formData['phone']); ?>">
+        </label>
+        <label for="contact-service">
+          <span class="field-pill">Servicio de interés</span>
+          <select id="contact-service" name="service" data-quote-service-field>
+            <option value="">Seleccionar</option>
+            <?php foreach ($serviceOptions as $option): ?>
+              <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['service'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+      </div>
+      <label class="honeypot" for="company-site">
+        Sitio
+        <input id="company-site" type="text" name="company_site" tabindex="-1" autocomplete="off">
+      </label>
+      <label for="contact-message">
+        <span class="field-pill">Mensaje *</span>
+        <textarea id="contact-message" name="message" rows="5" placeholder="Cuéntanos ubicación, tipo de instalación y prioridad del proyecto." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['message']) ? 'contact-message-error' : ''; ?>"><?php echo htmlspecialchars($formData['message']); ?></textarea>
+        <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
+      </label>
+      <p class="form-privacy">Al enviar esta solicitud, reconoces haber leído el <a href="aviso-de-privacidad/">Aviso de Privacidad</a> y autorizas el tratamiento de tus datos para atender tu cotización.</p>
+      <button class="button button--primary" type="submit">Enviar solicitud</button>
+    </form>
+  </div>
+</div>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>

@@ -186,3 +186,54 @@ document.querySelectorAll('[data-contact-form]').forEach((form) => {
     button.textContent = 'Enviando solicitud...';
   });
 });
+
+const quoteModal = document.querySelector('[data-quote-modal]');
+
+if (quoteModal) {
+  const quoteOpeners = document.querySelectorAll('[data-quote-open]');
+  const quoteClosers = quoteModal.querySelectorAll('[data-quote-close]');
+  const quoteServiceField = quoteModal.querySelector('[data-quote-service-field]');
+  const quoteFirstField = quoteModal.querySelector('input:not([type="hidden"]), select, textarea, button');
+  let quoteLastFocus = null;
+
+  function openQuoteModal(service = '') {
+    quoteLastFocus = document.activeElement;
+    if (service && quoteServiceField) {
+      const matchingOption = Array.from(quoteServiceField.options).find((option) => option.value === service);
+      if (matchingOption) quoteServiceField.value = service;
+    }
+    quoteModal.classList.add('is-open');
+    quoteModal.setAttribute('aria-hidden', 'false');
+    document.body?.classList.add('has-quote-modal-open');
+    window.requestAnimationFrame(() => quoteFirstField?.focus());
+  }
+
+  function closeQuoteModal() {
+    quoteModal.classList.remove('is-open');
+    quoteModal.setAttribute('aria-hidden', 'true');
+    document.body?.classList.remove('has-quote-modal-open');
+    if (window.location.hash === '#cotizacion') {
+      history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
+    if (quoteLastFocus instanceof HTMLElement) quoteLastFocus.focus();
+  }
+
+  quoteOpeners.forEach((opener) => {
+    opener.addEventListener('click', (event) => {
+      event.preventDefault();
+      openQuoteModal(opener.dataset.quoteService || '');
+    });
+  });
+
+  quoteClosers.forEach((closer) => closer.addEventListener('click', closeQuoteModal));
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && quoteModal.classList.contains('is-open')) {
+      closeQuoteModal();
+    }
+  });
+
+  if (quoteModal.classList.contains('is-open') || window.location.hash === '#cotizacion') {
+    openQuoteModal();
+  }
+}
