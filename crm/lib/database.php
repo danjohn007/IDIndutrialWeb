@@ -736,6 +736,37 @@ function crm_enqueue_quote_push_notifications(
   return $enqueued;
 }
 
+function crm_dispatch_quote_push_notifications(PDO $pdo, int $opportunityId): array
+{
+  if ($opportunityId < 1) {
+    return ['ok' => true, 'procesadas' => 0, 'enviadas' => 0];
+  }
+
+  if (!function_exists('idindPushEnviarFilas')) {
+    $pushLibraries = [
+      dirname(__DIR__, 2) . '/IoT/api/lib/push_notificaciones.php',
+      dirname(__DIR__, 2) . '/IoT/backend-cpanel/api/lib/push_notificaciones.php',
+    ];
+    foreach ($pushLibraries as $pushLibrary) {
+      if (is_file($pushLibrary)) {
+        require_once $pushLibrary;
+        break;
+      }
+    }
+  }
+
+  if (!function_exists('idindPushTomarPendientes') || !function_exists('idindPushEnviarFilas')) {
+    throw new RuntimeException('No se encontro el emisor de notificaciones push de IoT');
+  }
+
+  $dedupeKey = hash('sha256', 'COTIZACION:' . $opportunityId);
+  $pendientes = idindPushTomarPendientes($pdo, 50, $dedupeKey);
+  $config = crm_config();
+  $iotConfig = is_array($config['iot'] ?? null) ? $config['iot'] : [];
+
+  return idindPushEnviarFilas($pdo, $pendientes, $iotConfig, 3, 8);
+}
+
 function crm_notification_scope(string $recipientType, ?int $portalUserId = null): array
 {
   $where = ['n.recipient_type = ?'];

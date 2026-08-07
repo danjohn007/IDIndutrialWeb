@@ -181,10 +181,12 @@ document.querySelectorAll('[data-contact-form]').forEach((form) => {
   form.addEventListener('submit', () => {
     if (!form.checkValidity()) return;
     const button = form.querySelector('[type="submit"]');
-    if (!button) return;
+    if (!(button instanceof HTMLButtonElement)) return;
+    const buttonLabel = button.querySelector('span');
     button.disabled = true;
-    button.dataset.originalText = button.textContent;
-    button.textContent = 'Enviando solicitud...';
+    button.classList.add('is-submitting');
+    button.setAttribute('aria-busy', 'true');
+    if (buttonLabel) buttonLabel.textContent = 'Enviando solicitud...';
   });
 });
 
@@ -203,6 +205,7 @@ if (quotePhoneField instanceof HTMLInputElement) {
 const quoteFilesField = document.querySelector('[data-quote-files]');
 const quoteFilesSummary = document.querySelector('[data-file-summary]');
 if (quoteFilesField instanceof HTMLInputElement) {
+  const quoteFileField = quoteFilesField.closest('.file-field');
   const validateQuoteFiles = () => {
     const files = Array.from(quoteFilesField.files || []);
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
@@ -213,17 +216,27 @@ if (quoteFilesField instanceof HTMLInputElement) {
     else if (files.some((file) => file.size > 8 * 1024 * 1024)) message = 'Cada archivo debe pesar como máximo 8 MB.';
     else if (totalSize > 20 * 1024 * 1024) message = 'El total de los archivos no puede superar 20 MB.';
     else if (files.some((file) => file.type && !allowedTypes.includes(file.type))) message = 'Solo se permiten archivos PDF, JPG, PNG o WEBP.';
+
     quoteFilesField.setCustomValidity(message);
+    quoteFilesField.setAttribute('aria-invalid', message ? 'true' : 'false');
+    quoteFileField?.classList.toggle('has-files', files.length > 0 && !message);
 
     if (quoteFilesSummary) {
+      const sizeLabel = totalSize > 0 ? ' · ' + (totalSize / 1024 / 1024).toFixed(1) + ' MB' : '';
       quoteFilesSummary.textContent = files.length
-        ? files.length + ' archivo' + (files.length === 1 ? '' : 's') + ': ' + files.map((file) => file.name).join(', ')
-        : 'Ningún archivo seleccionado.';
+        ? files.length + ' archivo' + (files.length === 1 ? '' : 's') + sizeLabel + ': ' + files.map((file) => file.name).join(', ')
+        : 'Aún no has seleccionado archivos.';
     }
   };
+
+  ['dragenter', 'dragover'].forEach((eventName) => {
+    quoteFilesField.addEventListener(eventName, () => quoteFileField?.classList.add('is-dragging'));
+  });
+  ['dragleave', 'drop'].forEach((eventName) => {
+    quoteFilesField.addEventListener(eventName, () => quoteFileField?.classList.remove('is-dragging'));
+  });
   quoteFilesField.addEventListener('change', validateQuoteFiles);
 }
-
 const quoteModal = document.querySelector('[data-quote-modal]');
 
 if (quoteModal) {

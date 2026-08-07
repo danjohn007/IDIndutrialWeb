@@ -380,15 +380,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
           error_log('CRM web lead notification failed: ' . $error->getMessage());
         }
         try {
-          crm_enqueue_quote_push_notifications(
+          $queuedPushNotifications = crm_enqueue_quote_push_notifications(
             crm_db(),
             $opportunityId,
             $formData['company'],
             $notificationService,
             $adminOpportunityUrl
           );
+          if ($queuedPushNotifications > 0) {
+            $pushResult = crm_dispatch_quote_push_notifications(crm_db(), $opportunityId);
+            if (
+              !($pushResult['ok'] ?? false)
+              || (int) ($pushResult['enviadas'] ?? 0) < $queuedPushNotifications
+            ) {
+              error_log(
+                'CRM quote push immediate dispatch incomplete: '
+                . json_encode($pushResult, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+              );
+            }
+          }
         } catch (Throwable $error) {
-          error_log('CRM quote push enqueue failed: ' . $error->getMessage());
+          error_log('CRM quote push immediate dispatch failed: ' . $error->getMessage());
         }
       }
 
@@ -676,121 +688,148 @@ include __DIR__ . '/includes/navbar.php';
 </button>
 
 <?php $quoteModalStartsOpen = (bool) $formStatus || $formData['service'] !== ''; ?>
-<div id="cotizacion" class="quote-modal <?php echo $quoteModalStartsOpen ? 'is-open' : ''; ?>" role="dialog" aria-modal="true" aria-labelledby="quote-modal-title" aria-hidden="<?php echo $quoteModalStartsOpen ? 'false' : 'true'; ?>" data-quote-modal>
+<div id="cotizacion" class="quote-modal <?php echo $quoteModalStartsOpen ? 'is-open' : ''; ?>" role="dialog" aria-modal="true" aria-labelledby="quote-modal-title" aria-describedby="quote-modal-description" aria-hidden="<?php echo $quoteModalStartsOpen ? 'false' : 'true'; ?>" data-quote-modal>
   <div class="quote-modal__overlay" data-quote-close></div>
   <div class="quote-modal__panel" role="document">
-    <button class="quote-modal__close" type="button" aria-label="Cerrar solicitud" data-quote-close>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm12.6 1.4L6.4 19 5 17.6 17.6 5 19 6.4Z"/></svg>
-    </button>
-    <div class="quote-modal__head">
+    <header class="quote-modal__head">
       <span class="quote-modal__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9.4L5 20v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v8h3v1.4L8.6 14H20V6H4Zm3 2h10v2H7V8Zm0 3h7v2H7v-2Z"/></svg>
       </span>
       <div class="quote-modal__head-copy">
         <span class="quote-modal__eyebrow">Solicitud técnica</span>
         <h3 id="quote-modal-title">Cotiza tu servicio</h3>
-        <p>Comparte tus datos y nuestro equipo te contacta para definir alcance, tiempos y siguientes pasos.</p>
+        <p id="quote-modal-description">Cuéntanos lo esencial del proyecto. Nuestro equipo revisará la información antes de contactarte.</p>
       </div>
-      <span class="quote-modal__badge">Seguimiento visible</span>
-    </div>
-    <div class="quote-modal__body">
-    <form id="quote-request-form" class="contact-form" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" enctype="multipart/form-data" data-contact-form>
-      <?php if ($formStatus): ?>
-        <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="<?php echo $formStatus['type'] === 'error' ? 'alert' : 'status'; ?>"><?php echo htmlspecialchars($formStatus['text']); ?></p>
-        <?php if ($formStatus['type'] === 'error'): ?><a class="form-fallback" href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20solicitar%20una%20evaluacion%20tecnica" target="_blank" rel="noopener noreferrer">Continuar por WhatsApp</a><?php endif; ?>
-      <?php endif; ?>
-
-      <div class="form-row">
-        <label for="contact-name">
-          <span class="field-pill">Nombre *</span>
-          <input id="contact-name" type="text" name="name" autocomplete="name" maxlength="160" placeholder="Nombre completo" value="<?php echo htmlspecialchars($formData['name']); ?>" required aria-invalid="<?php echo isset($formErrors['name']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['name'])): ?> aria-describedby="contact-name-error"<?php endif; ?>>
-          <?php if (isset($formErrors['name'])): ?><span class="field-error" id="contact-name-error" role="alert"><?php echo htmlspecialchars($formErrors['name']); ?></span><?php endif; ?>
-        </label>
-        <label for="contact-company">
-          <span class="field-pill">Empresa *</span>
-          <input id="contact-company" type="text" name="company" autocomplete="organization" maxlength="190" placeholder="Nombre de la empresa" value="<?php echo htmlspecialchars($formData['company']); ?>" required aria-invalid="<?php echo isset($formErrors['company']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['company'])): ?> aria-describedby="contact-company-error"<?php endif; ?>>
-          <?php if (isset($formErrors['company'])): ?><span class="field-error" id="contact-company-error" role="alert"><?php echo htmlspecialchars($formErrors['company']); ?></span><?php endif; ?>
-        </label>
+      <div class="quote-modal__assurances" aria-label="Beneficios de la solicitud">
+        <span><i aria-hidden="true"></i> Seguimiento visible</span>
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Zm0 2.2L18 6.5V11c0 3.8-2.4 7.5-6 8.8C8.4 18.5 6 14.8 6 11V6.5l6-2.3Zm-1 10.6-3-3 1.4-1.4 1.6 1.6 3.6-3.6 1.4 1.4-5 5Z"/></svg> Datos protegidos</span>
       </div>
-
-      <div class="form-row">
-        <label for="contact-email">
-          <span class="field-pill">Correo *</span>
-          <input id="contact-email" type="email" name="email" autocomplete="email" maxlength="190" placeholder="correo@empresa.com" value="<?php echo htmlspecialchars($formData['email']); ?>" required aria-invalid="<?php echo isset($formErrors['email']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['email'])): ?> aria-describedby="contact-email-error"<?php endif; ?>>
-          <?php if (isset($formErrors['email'])): ?><span class="field-error" id="contact-email-error" role="alert"><?php echo htmlspecialchars($formErrors['email']); ?></span><?php endif; ?>
-        </label>
-        <label for="contact-phone">
-          <span class="field-pill">Teléfono WhatsApp *</span>
-          <input id="contact-phone" type="tel" name="phone" autocomplete="tel-national" inputmode="numeric" minlength="10" maxlength="10" pattern="[0-9]{10}" placeholder="4420000000" value="<?php echo htmlspecialchars($formData['phone']); ?>" required data-quote-phone aria-invalid="<?php echo isset($formErrors['phone']) ? 'true' : 'false'; ?>" aria-describedby="contact-phone-help<?php echo isset($formErrors['phone']) ? ' contact-phone-error' : ''; ?>">
-          <span class="field-help" id="contact-phone-help">10 dígitos, sin espacios ni +52.</span>
-          <?php if (isset($formErrors['phone'])): ?><span class="field-error" id="contact-phone-error" role="alert"><?php echo htmlspecialchars($formErrors['phone']); ?></span><?php endif; ?>
-        </label>
-      </div>
-
-      <div class="form-row">
-        <label for="contact-request-type">
-          <span class="field-pill">Tipo de solicitud *</span>
-          <select id="contact-request-type" name="request_type" required aria-invalid="<?php echo isset($formErrors['request_type']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['request_type'])): ?> aria-describedby="contact-request-type-error"<?php endif; ?>>
-            <option value="">Seleccionar</option>
-            <?php foreach ($requestTypeOptions as $option): ?>
-              <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['request_type'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
-            <?php endforeach; ?>
-          </select>
-          <?php if (isset($formErrors['request_type'])): ?><span class="field-error" id="contact-request-type-error" role="alert"><?php echo htmlspecialchars($formErrors['request_type']); ?></span><?php endif; ?>
-        </label>
-        <label for="contact-service">
-          <span class="field-pill">Servicio de interés *</span>
-          <select id="contact-service" name="service" data-quote-service-field required aria-invalid="<?php echo isset($formErrors['service']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['service'])): ?> aria-describedby="contact-service-error"<?php endif; ?>>
-            <option value="">Seleccionar</option>
-            <?php foreach ($serviceOptions as $option): ?>
-              <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['service'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
-            <?php endforeach; ?>
-          </select>
-          <?php if (isset($formErrors['service'])): ?><span class="field-error" id="contact-service-error" role="alert"><?php echo htmlspecialchars($formErrors['service']); ?></span><?php endif; ?>
-        </label>
-      </div>
-
-      <div class="form-row">
-        <label for="contact-city">
-          <span class="field-pill">Locación (ciudad) *</span>
-          <input id="contact-city" type="text" name="city" autocomplete="address-level2" maxlength="160" placeholder="Ej. Querétaro, Qro." value="<?php echo htmlspecialchars($formData['city']); ?>" required aria-invalid="<?php echo isset($formErrors['city']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['city'])): ?> aria-describedby="contact-city-error"<?php endif; ?>>
-          <?php if (isset($formErrors['city'])): ?><span class="field-error" id="contact-city-error" role="alert"><?php echo htmlspecialchars($formErrors['city']); ?></span><?php endif; ?>
-        </label>
-        <label for="contact-execution-date">
-          <span class="field-pill">Fecha deseada de ejecución *</span>
-          <input id="contact-execution-date" type="date" name="desired_execution_date" min="<?php echo htmlspecialchars($quoteMinDate->format('Y-m-d')); ?>" max="<?php echo htmlspecialchars($quoteMaxDate->format('Y-m-d')); ?>" value="<?php echo htmlspecialchars($formData['desired_execution_date']); ?>" required aria-invalid="<?php echo isset($formErrors['desired_execution_date']) ? 'true' : 'false'; ?>" aria-describedby="contact-date-help<?php echo isset($formErrors['desired_execution_date']) ? ' contact-date-error' : ''; ?>">
-          <span class="field-help" id="contact-date-help">Disponible desde hoy y hasta 6 meses.</span>
-          <?php if (isset($formErrors['desired_execution_date'])): ?><span class="field-error" id="contact-date-error" role="alert"><?php echo htmlspecialchars($formErrors['desired_execution_date']); ?></span><?php endif; ?>
-        </label>
-      </div>
-
-      <label class="file-field" for="contact-project-files">
-        <span class="field-pill">Imágenes, requerimientos o planos *</span>
-        <input id="contact-project-files" type="file" name="project_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" multiple required data-quote-files aria-invalid="<?php echo isset($formErrors['project_files']) ? 'true' : 'false'; ?>" aria-describedby="contact-files-help contact-files-summary<?php echo isset($formErrors['project_files']) ? ' contact-files-error' : ''; ?>">
-        <span class="field-help" id="contact-files-help">PDF, JPG, PNG o WEBP. Máximo 5 archivos, 8 MB por archivo y 20 MB en total.</span>
-        <span class="file-selection" id="contact-files-summary" data-file-summary aria-live="polite">Ningún archivo seleccionado.</span>
-        <?php if (isset($formErrors['project_files'])): ?><span class="field-error" id="contact-files-error" role="alert"><?php echo htmlspecialchars($formErrors['project_files']); ?></span><?php endif; ?>
-      </label>
-
-      <label class="honeypot" for="company-site">
-        Sitio
-        <input id="company-site" type="text" name="company_site" tabindex="-1" autocomplete="off">
-      </label>
-
-      <label for="contact-message">
-        <span class="field-pill">Requerimientos del proyecto *</span>
-        <textarea id="contact-message" name="message" rows="4" maxlength="4000" placeholder="Describe alcance, tipo de instalación, prioridad y cualquier detalle técnico relevante." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['message'])): ?> aria-describedby="contact-message-error"<?php endif; ?>><?php echo htmlspecialchars($formData['message']); ?></textarea>
-        <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error" role="alert"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
-      </label>
-
-      <p class="form-privacy">Todos los campos son obligatorios. Al enviar aceptas el <a href="aviso-de-privacidad/">Aviso de Privacidad</a>.</p>
-      <button class="button button--primary" type="submit">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2Z"/></svg>
-        Enviar solicitud
+      <button class="quote-modal__close" type="button" aria-label="Cerrar solicitud" data-quote-close>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm12.6 1.4L6.4 19 5 17.6 17.6 5 19 6.4Z"/></svg>
       </button>
-    </form>
+    </header>
+
+    <div class="quote-modal__body">
+      <form id="quote-request-form" class="contact-form quote-form" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" enctype="multipart/form-data" data-contact-form>
+        <?php if ($formStatus): ?>
+          <div class="quote-form__status">
+            <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="<?php echo $formStatus['type'] === 'error' ? 'alert' : 'status'; ?>"><?php echo htmlspecialchars($formStatus['text']); ?></p>
+            <?php if ($formStatus['type'] === 'error'): ?><a class="form-fallback" href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20solicitar%20una%20evaluacion%20tecnica" target="_blank" rel="noopener noreferrer">Continuar por WhatsApp</a><?php endif; ?>
+          </div>
+        <?php endif; ?>
+
+        <fieldset class="quote-form__section">
+          <legend>
+            <span class="quote-form__step">01</span>
+            <span>Datos de contacto <small>Para identificarte y darte seguimiento.</small></span>
+          </legend>
+          <div class="quote-form__grid">
+            <label class="quote-field" for="contact-name">
+              <span class="quote-field__label">Nombre completo <b aria-hidden="true">*</b></span>
+              <input id="contact-name" type="text" name="name" autocomplete="name" maxlength="160" placeholder="Ej. Andrea Martínez" value="<?php echo htmlspecialchars($formData['name']); ?>" required aria-invalid="<?php echo isset($formErrors['name']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['name'])): ?> aria-describedby="contact-name-error"<?php endif; ?>>
+              <?php if (isset($formErrors['name'])): ?><span class="field-error" id="contact-name-error" role="alert"><?php echo htmlspecialchars($formErrors['name']); ?></span><?php endif; ?>
+            </label>
+            <label class="quote-field" for="contact-company">
+              <span class="quote-field__label">Empresa <b aria-hidden="true">*</b></span>
+              <input id="contact-company" type="text" name="company" autocomplete="organization" maxlength="190" placeholder="Nombre de la empresa" value="<?php echo htmlspecialchars($formData['company']); ?>" required aria-invalid="<?php echo isset($formErrors['company']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['company'])): ?> aria-describedby="contact-company-error"<?php endif; ?>>
+              <?php if (isset($formErrors['company'])): ?><span class="field-error" id="contact-company-error" role="alert"><?php echo htmlspecialchars($formErrors['company']); ?></span><?php endif; ?>
+            </label>
+            <label class="quote-field" for="contact-email">
+              <span class="quote-field__label">Correo corporativo <b aria-hidden="true">*</b></span>
+              <input id="contact-email" type="email" name="email" autocomplete="email" maxlength="190" placeholder="correo@empresa.com" value="<?php echo htmlspecialchars($formData['email']); ?>" required aria-invalid="<?php echo isset($formErrors['email']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['email'])): ?> aria-describedby="contact-email-error"<?php endif; ?>>
+              <?php if (isset($formErrors['email'])): ?><span class="field-error" id="contact-email-error" role="alert"><?php echo htmlspecialchars($formErrors['email']); ?></span><?php endif; ?>
+            </label>
+            <label class="quote-field" for="contact-phone">
+              <span class="quote-field__label">Teléfono WhatsApp <b aria-hidden="true">*</b></span>
+              <input id="contact-phone" type="tel" name="phone" autocomplete="tel-national" inputmode="numeric" minlength="10" maxlength="10" pattern="[0-9]{10}" placeholder="4420000000" value="<?php echo htmlspecialchars($formData['phone']); ?>" required data-quote-phone aria-invalid="<?php echo isset($formErrors['phone']) ? 'true' : 'false'; ?>" aria-describedby="contact-phone-help<?php echo isset($formErrors['phone']) ? ' contact-phone-error' : ''; ?>">
+              <span class="field-help" id="contact-phone-help">10 dígitos, sin espacios ni +52.</span>
+              <?php if (isset($formErrors['phone'])): ?><span class="field-error" id="contact-phone-error" role="alert"><?php echo htmlspecialchars($formErrors['phone']); ?></span><?php endif; ?>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="quote-form__section">
+          <legend>
+            <span class="quote-form__step">02</span>
+            <span>Información del proyecto <small>Ayúdanos a preparar el alcance inicial.</small></span>
+          </legend>
+          <div class="quote-form__grid">
+            <label class="quote-field" for="contact-request-type">
+              <span class="quote-field__label">Tipo de solicitud <b aria-hidden="true">*</b></span>
+              <select id="contact-request-type" name="request_type" required aria-invalid="<?php echo isset($formErrors['request_type']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['request_type'])): ?> aria-describedby="contact-request-type-error"<?php endif; ?>>
+                <option value="">Seleccionar una opción</option>
+                <?php foreach ($requestTypeOptions as $option): ?>
+                  <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['request_type'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
+                <?php endforeach; ?>
+              </select>
+              <?php if (isset($formErrors['request_type'])): ?><span class="field-error" id="contact-request-type-error" role="alert"><?php echo htmlspecialchars($formErrors['request_type']); ?></span><?php endif; ?>
+            </label>
+            <label class="quote-field" for="contact-service">
+              <span class="quote-field__label">Servicio de interés <b aria-hidden="true">*</b></span>
+              <select id="contact-service" name="service" data-quote-service-field required aria-invalid="<?php echo isset($formErrors['service']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['service'])): ?> aria-describedby="contact-service-error"<?php endif; ?>>
+                <option value="">Seleccionar un servicio</option>
+                <?php foreach ($serviceOptions as $option): ?>
+                  <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['service'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
+                <?php endforeach; ?>
+              </select>
+              <?php if (isset($formErrors['service'])): ?><span class="field-error" id="contact-service-error" role="alert"><?php echo htmlspecialchars($formErrors['service']); ?></span><?php endif; ?>
+            </label>
+            <label class="quote-field" for="contact-city">
+              <span class="quote-field__label">Locación del proyecto <b aria-hidden="true">*</b></span>
+              <input id="contact-city" type="text" name="city" autocomplete="address-level2" maxlength="160" placeholder="Ej. Querétaro, Qro." value="<?php echo htmlspecialchars($formData['city']); ?>" required aria-invalid="<?php echo isset($formErrors['city']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['city'])): ?> aria-describedby="contact-city-error"<?php endif; ?>>
+              <?php if (isset($formErrors['city'])): ?><span class="field-error" id="contact-city-error" role="alert"><?php echo htmlspecialchars($formErrors['city']); ?></span><?php endif; ?>
+            </label>
+            <label class="quote-field" for="contact-execution-date">
+              <span class="quote-field__label">Fecha deseada de ejecución <b aria-hidden="true">*</b></span>
+              <input id="contact-execution-date" type="date" name="desired_execution_date" min="<?php echo htmlspecialchars($quoteMinDate->format('Y-m-d')); ?>" max="<?php echo htmlspecialchars($quoteMaxDate->format('Y-m-d')); ?>" value="<?php echo htmlspecialchars($formData['desired_execution_date']); ?>" required aria-invalid="<?php echo isset($formErrors['desired_execution_date']) ? 'true' : 'false'; ?>" aria-describedby="contact-date-help<?php echo isset($formErrors['desired_execution_date']) ? ' contact-date-error' : ''; ?>">
+              <span class="field-help" id="contact-date-help">Disponible desde hoy y hasta 6 meses.</span>
+              <?php if (isset($formErrors['desired_execution_date'])): ?><span class="field-error" id="contact-date-error" role="alert"><?php echo htmlspecialchars($formErrors['desired_execution_date']); ?></span><?php endif; ?>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="quote-form__section quote-form__section--documents">
+          <legend>
+            <span class="quote-form__step">03</span>
+            <span>Documentación y requerimientos <small>Comparte contexto técnico para una revisión más precisa.</small></span>
+          </legend>
+          <label class="file-field" for="contact-project-files">
+            <input class="file-field__input" id="contact-project-files" type="file" name="project_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" multiple required data-quote-files aria-invalid="<?php echo isset($formErrors['project_files']) ? 'true' : 'false'; ?>" aria-describedby="contact-files-help contact-files-summary<?php echo isset($formErrors['project_files']) ? ' contact-files-error' : ''; ?>">
+            <span class="file-field__visual">
+              <span class="file-field__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M11 16V8.8L8.4 11.4 7 10l5-5 5 5-1.4 1.4L13 8.8V16h-2Zm-5 4a4 4 0 0 1-4-4c0-1.8 1.2-3.4 2.9-3.8A7 7 0 0 1 18.7 10 5 5 0 0 1 19 20H6Zm0-2h13a3 3 0 1 0-1.8-5.4l-.7.5-.7-.5A5 5 0 0 0 7 15v1H6a2 2 0 1 0 0 4v-2Z"/></svg>
+              </span>
+              <span class="file-field__copy">
+                <strong>Arrastra archivos aquí o selecciónalos</strong>
+                <small id="contact-files-help">PDF, JPG, PNG o WEBP · Hasta 5 archivos · 8 MB por archivo</small>
+              </span>
+              <span class="file-field__action">Elegir archivos</span>
+            </span>
+            <span class="file-selection" id="contact-files-summary" data-file-summary aria-live="polite">Aún no has seleccionado archivos.</span>
+            <?php if (isset($formErrors['project_files'])): ?><span class="field-error" id="contact-files-error" role="alert"><?php echo htmlspecialchars($formErrors['project_files']); ?></span><?php endif; ?>
+          </label>
+
+          <label class="quote-field quote-field--wide" for="contact-message">
+            <span class="quote-field__label">Requerimientos del proyecto <b aria-hidden="true">*</b></span>
+            <textarea id="contact-message" name="message" rows="5" maxlength="4000" placeholder="Describe el alcance, tipo de instalación, prioridad y cualquier detalle técnico relevante." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['message'])): ?> aria-describedby="contact-message-error"<?php endif; ?>><?php echo htmlspecialchars($formData['message']); ?></textarea>
+            <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error" role="alert"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
+          </label>
+        </fieldset>
+
+        <label class="honeypot" for="company-site">
+          Sitio
+          <input id="company-site" type="text" name="company_site" tabindex="-1" autocomplete="off">
+        </label>
+
+        <footer class="quote-form__footer">
+          <p><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Zm0 2.2L18 6.5V11c0 3.8-2.4 7.5-6 8.8C8.4 18.5 6 14.8 6 11V6.5l6-2.3Z"/></svg><span>Todos los campos son obligatorios. Al enviar aceptas el <a href="aviso-de-privacidad/">Aviso de Privacidad</a>.</span></p>
+          <button class="button button--primary" type="submit">
+            <span>Enviar solicitud</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2Z"/></svg>
+          </button>
+        </footer>
+      </form>
     </div>
   </div>
 </div>
-
 <?php include __DIR__ . '/includes/footer.php'; ?>

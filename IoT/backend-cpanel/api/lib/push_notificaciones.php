@@ -40,9 +40,17 @@ function idindPushActualizarCola(
     ]);
 }
 
-function idindPushTomarPendientes(PDO $pdo, int $maximo = 20): array
+function idindPushTomarPendientes(
+    PDO $pdo,
+    int $maximo = 20,
+    ?string $dedupeKey = null
+): array
 {
     $limite = max(1, min(50, $maximo));
+    $dedupeKey = trim((string) $dedupeKey);
+    $filtroDedupe = $dedupeKey !== ''
+        ? ' AND np.dedupe_key = :dedupe_key'
+        : '';
     $pdo->beginTransaction();
     $stmt = $pdo->prepare(
         "SELECT
@@ -55,11 +63,15 @@ function idindPushTomarPendientes(PDO $pdo, int $maximo = 20): array
            AND np.disponible_en <= UTC_TIMESTAMP()
            AND np.intentos < :max_intentos
            AND mp.activo = 1
+           {$filtroDedupe}
          ORDER BY np.id ASC
          LIMIT {$limite}
          FOR UPDATE"
     );
     $stmt->bindValue(':max_intentos', IDIND_PUSH_MAX_ATTEMPTS_HELPER, PDO::PARAM_INT);
+    if ($dedupeKey !== '') {
+        $stmt->bindValue(':dedupe_key', $dedupeKey, PDO::PARAM_STR);
+    }
     $stmt->execute();
     $pendientes = $stmt->fetchAll();
 
