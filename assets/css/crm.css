@@ -5715,3 +5715,62 @@ button {
     width: 100%;
   }
 }
+
+/* Modulo IoT en CRM */
+.crm-nav__iot {
+  position: relative;
+}
+
+.crm-nav__iot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: var(--crm-gold-strong);
+  box-shadow: 0 0 0 4px rgba(241, 196, 56, 0.14);
+}
+
+.crm-iot-card {
+  margin-top: 22px;
+  border-color: rgba(241, 196, 56, 0.34);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(241, 196, 56, 0.14), transparent 38%),
+    var(--crm-surface);
+}
+
+.crm-iot-card .crm-card-headline {
+  align-items: center;
+}
+
+.crm-iot-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+}
+
+.crm-iot-card .crm-kpi__icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+}
+
+.crm-iot-card p {
+  margin: 0;
+}
+
+.crm-iot-card .crm-button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .crm-iot-card .crm-card-headline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .crm-iot-card .crm-button {
+    width: 100%;
+  }
+}
