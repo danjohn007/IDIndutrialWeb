@@ -669,7 +669,7 @@ include __DIR__ . '/includes/navbar.php';
       </label>
       <label for="contact-message">
         <span class="field-pill">Mensaje *</span>
-        <textarea id="contact-message" name="message" rows="3" placeholder="Ubicacion, tipo de instalacion y prioridad." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['message']) ? 'contact-message-error' : ''; ?>"><?php echo htmlspecialchars($formData['message']); ?></textarea>
+        <textarea id="contact-message" name="message" rows="3" placeholder="Ubicación, tipo de instalación y prioridad." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['message']) ? 'contact-message-error' : ''; ?>"><?php echo htmlspecialchars($formData['message']); ?></textarea>
         <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
       </label>
       <p class="form-privacy">Al enviar aceptas el <a href="aviso-de-privacidad/">Aviso de Privacidad</a>.</p>
