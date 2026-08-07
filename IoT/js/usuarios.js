@@ -134,13 +134,13 @@ async function loadSession() {
     elements.name.textContent = state.currentUser.nombre;
     elements.role.textContent = state.currentUser.rol;
     return true;
-  } catch { window.location.replace('./login.html'); return false; }
+  } catch { window.location.replace('../crm/'); return false; }
 }
 
 async function logout() {
   elements.logout.disabled = true;
   try { await requestJson(LOGOUT_URL, { method: 'POST', csrf: true, body: '{}' }); }
-  finally { window.location.replace('./login.html'); }
+  finally { window.location.replace('../crm/'); }
 }
 
 elements.newButton.addEventListener('click', openCreate);

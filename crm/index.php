@@ -243,6 +243,7 @@ function crm_check_token(): void
 }
 
 if (isset($_GET['logout'])) {
+  crm_expire_iot_session_cookie();
   session_destroy();
   header('Location: ' . crm_admin_url());
   exit;
@@ -1432,7 +1433,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
         <a class="<?php echo $view === 'bitacora' && isset($_GET['notifications']) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('notifications', 0, [], 'reportes-recibidos')); ?>">Notificaciones<em data-notification-count <?php echo $adminUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $adminUnreadNotifications; ?></em></a>
         <a class="<?php echo $view === 'profile' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('profile')); ?>">Perfil</a>
         <a class="<?php echo $view === 'settings' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('settings')); ?>">Configuracion</a>
-        <a class="crm-nav__iot" href="<?php echo h(rtrim(crm_public_url('iot'), '/') . '/'); ?>">Monitoreo IoT</a>
+        <a class="crm-nav__iot" href="<?php echo h(crm_build_path(crm_web_base_path(), 'iot')); ?>">Monitoreo IoT</a>
         <a href="<?php echo h(crm_public_url()); ?>">Vista publica</a>
       </nav>
       <div class="crm-sidebar__footer">
@@ -1557,7 +1558,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <h2><span class="crm-kpi__icon"><?php echo crm_icon('iot'); ?></span> Modulo IoT</h2>
                 <p>Monitoreo industrial: sensores, alarmas, dispositivos Shelly, rutinas y reportes en tiempo real.</p>
               </div>
-              <a class="crm-button" href="<?php echo h(rtrim(crm_public_url('iot'), '/') . '/'); ?>">Abrir panel IoT</a>
+              <a class="crm-button" href="<?php echo h(crm_build_path(crm_web_base_path(), 'iot')); ?>">Abrir panel IoT</a>
             </div>
           </article>
           <div class="crm-kpis crm-kpis--secondary crm-dashboard-alerts">

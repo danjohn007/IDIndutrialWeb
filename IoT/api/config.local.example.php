@@ -7,6 +7,8 @@ return [
     'db_pass' => 'xetZ8tIikUpx',
     'api_token' => 'WJuIUBSvjb46uUL4IBg4DulwZvbZ74Nn',
     'setup_token' => 'CAMBIA_ESTE_TOKEN_DE_INSTALACION_DE_32_CARACTERES',
+    // Opcional: correo del usuario IoT que recibira el acceso desde el CRM.
+    'crm_sso_iot_email' => '',
     // Se completan al habilitar el control remoto mediante Shelly Cloud.
     'shelly_cloud_server' => '',
     'shelly_cloud_auth_key' => '',

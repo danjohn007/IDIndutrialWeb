@@ -1146,6 +1146,18 @@ function crm_validate_math_challenge(string $key, string $answer): bool
   return (int) trim($answer) === (int) ($challenge['answer'] ?? -1);
 }
 
+function crm_expire_iot_session_cookie(): void
+{
+  $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+  setcookie('IDINDSESSID', '', [
+    'expires' => time() - 42000,
+    'path' => '/',
+    'domain' => '',
+    'secure' => $secure,
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
+}
 function crm_enforce_session_timeout(string $sessionKey, string $tokenKey, string $redirect): void
 {
   if (empty($_SESSION[$sessionKey])) {
@@ -1156,6 +1168,9 @@ function crm_enforce_session_timeout(string $sessionKey, string $tokenKey, strin
   $activityKey = $sessionKey . '_last_activity';
   $lastActivity = (int) ($_SESSION[$activityKey] ?? time());
   if ((time() - $lastActivity) > $timeout) {
+    if ($sessionKey === 'crm_user') {
+      crm_expire_iot_session_cookie();
+    }
     unset($_SESSION[$sessionKey], $_SESSION[$tokenKey], $_SESSION[$activityKey]);
     session_regenerate_id(true);
     header('Location: ' . $redirect);

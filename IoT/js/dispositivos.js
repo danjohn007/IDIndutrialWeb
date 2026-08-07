@@ -348,7 +348,7 @@ async function loadSession() {
     elements.role.textContent = state.currentUser.rol;
     return true;
   } catch {
-    window.location.replace('./login.html');
+    window.location.replace('../crm/');
     return false;
   }
 }
@@ -358,7 +358,7 @@ async function logout() {
   try {
     await requestJson(LOGOUT_URL, { method: 'POST', csrf: true, body: '{}' });
   } finally {
-    window.location.replace('./login.html');
+    window.location.replace('../crm/');
   }
 }
 

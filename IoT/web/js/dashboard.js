@@ -1970,7 +1970,7 @@ function refreshAll() {
 }
 
 function redirectToLogin() {
-  window.location.replace('./login.html');
+  window.location.replace('../crm/');
 }
 
 async function loadSession() {

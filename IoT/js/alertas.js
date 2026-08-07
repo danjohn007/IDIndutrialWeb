@@ -177,7 +177,7 @@ async function loadAlerts() {
       cache: 'no-store'
     });
     if (response.status === 401) {
-      window.location.replace('./login.html');
+      window.location.replace('../crm/');
       return;
     }
     const result = await response.json().catch(() => ({}));
@@ -212,7 +212,7 @@ async function loadSession() {
       cache: 'no-store'
     });
     if (!response.ok) {
-      window.location.replace('./login.html');
+      window.location.replace('../crm/');
       return false;
     }
     const result = await response.json();
@@ -221,7 +221,7 @@ async function loadSession() {
     csrfToken = result.data.csrf_token;
     return true;
   } catch (error) {
-    window.location.replace('./login.html');
+    window.location.replace('../crm/');
     return false;
   }
 }
@@ -277,7 +277,7 @@ elements.logout.addEventListener('click', async () => {
       cache: 'no-store'
     });
   } finally {
-    window.location.replace('./login.html');
+    window.location.replace('../crm/');
   }
 });
 

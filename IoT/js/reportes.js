@@ -77,12 +77,12 @@ reportElements.logout.addEventListener('click', async () => {
   try {
     await fetch(REPORT_LOGOUT_URL, { method: 'POST', headers: { Accept: 'application/json', 'X-CSRF-TOKEN': reportCsrfToken }, credentials: 'same-origin' });
   } finally {
-    window.location.replace('./login.html');
+    window.location.replace('../crm/');
   }
 });
 
 (async () => {
-  if (!await loadReportSession()) return window.location.replace('./login.html');
+  if (!await loadReportSession()) return window.location.replace('../crm/');
   reportElements.to.value = reportLocalInput(new Date());
   reportElements.from.value = reportLocalInput(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
   await loadReportDevices();

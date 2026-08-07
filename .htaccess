@@ -52,12 +52,14 @@ DirectoryIndex index.php index.html
   RewriteRule ^crm/bitacora/?$ crm/index.php?view=bitacora [QSA,L]
   RewriteRule ^crm/perfil/?$ crm/index.php?view=profile [QSA,L]
   RewriteRule ^crm/configuracion/?$ crm/index.php?view=settings [QSA,L]
+  RewriteRule ^crm/iot/?$ crm/iot-sso.php [QSA,L]
   RewriteRule ^crm/?$ crm/index.php?view=dashboard [QSA,L]
 
   # Modulo IoT: panel web en /iot/ y API en /iot/api/
   # Keep the trailing slash so relative CSS, JS, image and API URLs resolve
   # below /iot/ instead of from the public deployment directory.
   RewriteRule ^iot$ iot/ [R=301,L,NE]
+  RewriteRule ^iot/login\.html$ crm/ [R=302,L,NE]
   RewriteRule ^iot/api/(.+)$ IoT/api/$1 [QSA,L]
   RewriteRule ^iot/?$ IoT/web/index.html [L]
   RewriteRule ^iot/(.+)$ IoT/web/$1 [L]

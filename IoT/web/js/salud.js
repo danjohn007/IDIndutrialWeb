@@ -151,7 +151,7 @@ async function loadHealth() {
   healthElements.status.textContent = 'Actualizando diagnostico...';
   try {
     const response = await fetch(HEALTH_URL, { headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store' });
-    if (response.status === 401) return window.location.replace('./login.html');
+    if (response.status === 401) return window.location.replace('../crm/');
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result?.ok === false) throw new Error(result?.error || `HTTP ${response.status}`);
     renderHealth(result.data ?? {});
@@ -183,13 +183,13 @@ healthElements.logout.addEventListener('click', async () => {
   try {
     await fetch(HEALTH_LOGOUT_URL, { method: 'POST', headers: { Accept: 'application/json', 'X-CSRF-TOKEN': healthCsrfToken }, credentials: 'same-origin' });
   } finally {
-    window.location.replace('./login.html');
+    window.location.replace('../crm/');
   }
 });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadHealth(); });
 
 (async () => {
-  if (!await loadHealthSession()) return window.location.replace('./login.html');
+  if (!await loadHealthSession()) return window.location.replace('../crm/');
   loadHealth();
   setInterval(loadHealth, 10000);
 })();
