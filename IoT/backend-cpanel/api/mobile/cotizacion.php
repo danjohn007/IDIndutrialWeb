@@ -29,7 +29,7 @@ $stmt = $pdo->prepare(
         updated_at
      FROM opportunities
      WHERE id = :id
-       AND source = 'Sitio web'
+       AND source IN ('Formulario web', 'Sitio web')
      LIMIT 1"
 );
 $stmt->execute(['id' => $opportunityId]);

@@ -14,7 +14,7 @@ $porPagina = $porPagina === false ? 20 : max(10, min(50, $porPagina));
 $stmtTotal = $pdo->prepare(
     "SELECT COUNT(*)
      FROM opportunities
-     WHERE source = 'Sitio web'"
+     WHERE source IN ('Formulario web', 'Sitio web')"
 );
 $stmtTotal->execute();
 $total = (int) $stmtTotal->fetchColumn();
@@ -38,7 +38,7 @@ $stmt = $pdo->prepare(
         COUNT(oa.id) AS attachments_count
      FROM opportunities o
      LEFT JOIN opportunity_attachments oa ON oa.opportunity_id = o.id
-     WHERE o.source = 'Sitio web'
+     WHERE o.source IN ('Formulario web', 'Sitio web')
      GROUP BY
         o.id, o.company_name, o.contact_name, o.service, o.request_type,
         o.project_location, o.desired_execution_date, o.status, o.priority,
