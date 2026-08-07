@@ -54,9 +54,9 @@ DirectoryIndex index.php index.html
   RewriteRule ^crm/configuracion/?$ crm/index.php?view=settings [QSA,L]
   RewriteRule ^crm/?$ crm/index.php?view=dashboard [QSA,L]
   # Modulo IoT: panel web en /iot/ y API en /iot/api/
-  RewriteRule ^iot/api/(.+)$ api/$1 [QSA,L]
-  RewriteRule ^iot/?$ web/index.html [L]
-  RewriteRule ^iot/(.+)$ web/$1 [L]
+  RewriteRule ^iot/api/(.+)$ IoT/api/$1 [QSA,L]
+  RewriteRule ^iot/?$ IoT/web/index.html [L]
+  RewriteRule ^iot/(.+)$ IoT/web/$1 [L]
 
   # Preserve service preselection on the public quote form.
   RewriteCond %{QUERY_STRING} (^|&)servicio= [NC]
