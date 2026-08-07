@@ -58,28 +58,31 @@ foreach ($routes as $pattern => [$script, $routeQuery]) {
   }
 }
 
+
 // Modulo IoT: panel web en /iot/ y API en /iot/api/.
-if ( === 'iot' ||  === 'iot/') {
-   =  . '/IoT/web/index.html';
-  if (is_file()) {
+if ($relativePath === 'iot' || $relativePath === 'iot/') {
+  $iotIndex = $documentRoot . '/IoT/web/index.html';
+  if (is_file($iotIndex)) {
     header('Content-Type: text/html; charset=UTF-8');
-    readfile();
+    readfile($iotIndex);
     exit;
   }
 }
-if (preg_match('#^iot/api/(.+)\$#', , )) {
-   = 'IoT/api/' . [1];
-   = realpath( . '/' . );
-  if ( && str_starts_with(,  . DIRECTORY_SEPARATOR . 'IoT' . DIRECTORY_SEPARATOR . 'api')) {
-    ('IoT/api/' . [1]);
+if (preg_match('#^iot/api/(.+)$#', $relativePath, $match)) {
+  $iotApiScript = 'IoT/api/' . $match[1];
+  $iotApiFile = realpath($documentRoot . '/' . $iotApiScript);
+  $iotApiBase = $documentRoot . DIRECTORY_SEPARATOR . 'IoT' . DIRECTORY_SEPARATOR . 'api';
+  if ($iotApiFile && str_starts_with($iotApiFile, $iotApiBase) && is_file($iotApiFile)) {
+    $dispatch('IoT/api/' . $match[1]);
   }
 }
-if (preg_match('#^iot/(.+)\$#', , )) {
-   = 'IoT/web/' . [1];
-   = realpath( . '/' . );
-  if ( && str_starts_with(,  . DIRECTORY_SEPARATOR . 'IoT' . DIRECTORY_SEPARATOR . 'web') && is_file()) {
-     = strtolower(pathinfo(, PATHINFO_EXTENSION));
-     = [
+if (preg_match('#^iot/(.+)$#', $relativePath, $match)) {
+  $iotWebPath = 'IoT/web/' . $match[1];
+  $iotWebFile = realpath($documentRoot . '/' . $iotWebPath);
+  $iotWebBase = $documentRoot . DIRECTORY_SEPARATOR . 'IoT' . DIRECTORY_SEPARATOR . 'web';
+  if ($iotWebFile && str_starts_with($iotWebFile, $iotWebBase) && is_file($iotWebFile)) {
+    $iotExt = strtolower(pathinfo($iotWebFile, PATHINFO_EXTENSION));
+    $iotMimes = [
       'css' => 'text/css; charset=UTF-8',
       'js' => 'application/javascript; charset=UTF-8',
       'html' => 'text/html; charset=UTF-8',
@@ -89,10 +92,10 @@ if (preg_match('#^iot/(.+)\$#', , )) {
       'jpeg' => 'image/jpeg',
       'webp' => 'image/webp',
     ];
-    if (isset([])) {
-      header('Content-Type: ' . []);
+    if (isset($iotMimes[$iotExt])) {
+      header('Content-Type: ' . $iotMimes[$iotExt]);
     }
-    readfile();
+    readfile($iotWebFile);
     exit;
   }
 }
