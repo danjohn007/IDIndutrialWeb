@@ -3631,7 +3631,7 @@ body.has-quote-modal-open {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
-  transition: opacity 180ms ease, visibility 180ms ease;
+  transition: opacity 220ms ease, visibility 220ms ease;
 }
 
 .quote-modal.is-open {
@@ -3643,45 +3643,145 @@ body.has-quote-modal-open {
 .quote-modal__overlay {
   position: absolute;
   inset: 0;
-  background: rgba(5, 6, 7, 0.78);
-  backdrop-filter: blur(14px);
+  background: rgba(5, 6, 7, 0.72);
+  backdrop-filter: blur(16px);
 }
 
 .quote-modal__panel {
   position: relative;
-  width: min(720px, 100%);
-  max-height: calc(100svh - 32px);
+  width: min(760px, 100%);
+  max-height: min(780px, calc(100svh - 32px));
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  border-radius: 10px;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.46);
+  border-radius: 24px;
+  background: #f7f6f1;
+  box-shadow: 0 42px 110px rgba(0, 0, 0, 0.5);
+  transform: translateY(24px) scale(0.97);
+  opacity: 0;
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease;
+}
+
+.quote-modal.is-open .quote-modal__panel {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.quote-modal__head {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid rgba(17, 19, 22, 0.1);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(243, 198, 35, 0.2), transparent 34%),
+    linear-gradient(180deg, #fbfaf6, #f3f1e9);
+  padding: 20px 64px 20px 24px;
+}
+
+.quote-modal__icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--yellow-strong), var(--yellow));
+  color: #111316;
+  box-shadow: 0 12px 26px rgba(243, 198, 35, 0.3);
+}
+
+.quote-modal__icon svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.quote-modal__head-copy {
+  min-width: 0;
+}
+
+.quote-modal__eyebrow {
+  display: block;
+  color: #8a6900;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.quote-modal__head h3 {
+  margin: 3px 0 2px;
+  color: #111316;
+  font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+  line-height: 1.05;
+  font-weight: 900;
+}
+
+.quote-modal__head p {
+  max-width: 460px;
+  margin: 0;
+  color: #5a5f66;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.quote-modal__badge {
+  width: fit-content;
+  justify-self: end;
+  border: 1px solid rgba(17, 19, 22, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #176238;
+  padding: 6px 10px;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.quote-modal__badge::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #2fa362;
+  vertical-align: 1px;
+}
+
+.quote-modal__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(18px, 2.6vw, 26px);
+}
+
+.quote-modal__body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.quote-modal__body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(17, 19, 22, 0.22);
+}
+
+.quote-modal__body::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .quote-modal .contact-form {
   gap: 12px;
-  border-radius: 10px;
-  padding: clamp(18px, 2.6vw, 26px);
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(250, 249, 244, 0.94));
+  padding: 20px;
+  box-shadow: 0 16px 40px rgba(17, 19, 22, 0.08);
 }
 
-.quote-modal .form-head {
-  padding-right: 54px;
-  padding-bottom: 10px;
-}
-
-.quote-modal .form-head span {
-  font-size: 0.66rem;
-  letter-spacing: 0.12em;
-}
-
-.quote-modal .form-head h3 {
-  margin: 4px 0 2px;
-  font-size: clamp(1.45rem, 2.4vw, 1.95rem);
-  line-height: 1;
-}
-
-.quote-modal .form-head p {
-  max-width: 520px;
-  font-size: 0.88rem;
-  line-height: 1.35;
+.quote-modal .contact-form::before {
+  display: none;
 }
 
 .quote-modal .form-row {
@@ -3726,38 +3826,48 @@ body.has-quote-modal-open {
 }
 
 .quote-modal .contact-form .button {
-  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 50px;
   margin-top: 0;
   font-size: 0.94rem;
 }
 
+.quote-modal .contact-form .button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 .quote-modal__close {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 16px;
+  right: 16px;
   z-index: 2;
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   place-items: center;
-  border: 1px solid rgba(17, 19, 22, 0.12);
+  border: 1px solid rgba(17, 19, 22, 0.1);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 255, 255, 0.88);
   color: #111316;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(17, 19, 22, 0.1);
+  box-shadow: 0 8px 20px rgba(17, 19, 22, 0.1);
   transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease;
 }
 
 .quote-modal__close svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   fill: currentColor;
 }
 
 .quote-modal__close:hover,
 .quote-modal__close:focus-visible {
-  transform: translateY(-1px);
+  transform: translateY(-1px) rotate(90deg);
   border-color: rgba(243, 198, 35, 0.6);
   background: #fff;
   outline: 0;
@@ -3783,22 +3893,46 @@ body.has-quote-modal-open {
   }
 
   .quote-modal__panel {
+    width: 100%;
     max-height: calc(100svh - 24px);
-    overflow: auto;
-    border-radius: 10px;
+    border-radius: 20px;
+  }
+
+  .quote-modal__head {
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    padding: 18px 48px 18px 18px;
+  }
+
+  .quote-modal__icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
+  .quote-modal__badge {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: -4px;
+  }
+
+  .quote-modal__close {
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .quote-modal__body {
+    padding: 16px;
   }
 
   .quote-modal .contact-form {
-    border-radius: 10px;
-    padding: 18px;
+    padding: 16px;
   }
 
   .quote-modal .form-row {
     grid-template-columns: 1fr;
-  }
-
-  .quote-modal .form-head {
-    padding-right: 48px;
   }
 
   .quote-modal .contact-form textarea {

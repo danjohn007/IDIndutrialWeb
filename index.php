@@ -619,12 +619,19 @@ include __DIR__ . '/includes/navbar.php';
     <button class="quote-modal__close" type="button" aria-label="Cerrar solicitud" data-quote-close>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm12.6 1.4L6.4 19 5 17.6 17.6 5 19 6.4Z"/></svg>
     </button>
-    <form id="quote-request-form" class="contact-form" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" data-contact-form novalidate>
-      <div class="form-head">
-        <span>Solicitud tecnica</span>
-        <h3 id="quote-modal-title">Solicitud de cotizacion</h3>
-        <p>Comparte tus datos y te contactamos.</p>
+    <div class="quote-modal__head">
+      <span class="quote-modal__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9.4L5 20v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v8h3v1.4L8.6 14H20V6H4Zm3 2h10v2H7V8Zm0 3h7v2H7v-2Z"/></svg>
+      </span>
+      <div class="quote-modal__head-copy">
+        <span class="quote-modal__eyebrow">Solicitud técnica</span>
+        <h3 id="quote-modal-title">Cotiza tu servicio</h3>
+        <p>Comparte tus datos y nuestro equipo te contacta para definir alcance, tiempos y siguientes pasos.</p>
       </div>
+      <span class="quote-modal__badge">Seguimiento visible</span>
+    </div>
+    <div class="quote-modal__body">
+    <form id="quote-request-form" class="contact-form" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" data-contact-form novalidate>
       <?php if ($formStatus): ?>
         <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="status"><?php echo htmlspecialchars($formStatus['text']); ?></p>
         <?php if ($formStatus['type'] === 'error'): ?><a class="form-fallback" href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20solicitar%20una%20evaluacion%20tecnica" target="_blank" rel="noopener noreferrer">Continuar por WhatsApp</a><?php endif; ?>
@@ -666,8 +673,12 @@ include __DIR__ . '/includes/navbar.php';
         <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
       </label>
       <p class="form-privacy">Al enviar aceptas el <a href="aviso-de-privacidad/">Aviso de Privacidad</a>.</p>
-      <button class="button button--primary" type="submit">Enviar solicitud</button>
+      <button class="button button--primary" type="submit">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2Z"/></svg>
+        Enviar solicitud
+      </button>
     </form>
+    </div>
   </div>
 </div>
 
