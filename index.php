@@ -718,11 +718,16 @@ include __DIR__ . '/includes/navbar.php';
           </div>
         <?php endif; ?>
 
-        <fieldset class="quote-form__section">
-          <legend>
-            <span class="quote-form__step">01</span>
-            <span>Datos de contacto <small>Para identificarte y darte seguimiento.</small></span>
-          </legend>
+        <section class="quote-form__section" aria-labelledby="quote-step-contact-title">
+          <header class="quote-form__section-head">
+            <span class="quote-form__step" aria-hidden="true">01</span>
+            <span class="quote-form__section-copy">
+              <span class="quote-form__section-kicker">Paso 1 de 3</span>
+              <strong id="quote-step-contact-title">Datos de contacto</strong>
+              <small>Para identificarte y darte seguimiento.</small>
+            </span>
+          </header>
+          <div class="quote-form__section-body">
           <div class="quote-form__grid">
             <label class="quote-field" for="contact-name">
               <span class="quote-field__label">Nombre completo <b aria-hidden="true">*</b></span>
@@ -746,13 +751,19 @@ include __DIR__ . '/includes/navbar.php';
               <?php if (isset($formErrors['phone'])): ?><span class="field-error" id="contact-phone-error" role="alert"><?php echo htmlspecialchars($formErrors['phone']); ?></span><?php endif; ?>
             </label>
           </div>
-        </fieldset>
+          </div>
+        </section>
 
-        <fieldset class="quote-form__section">
-          <legend>
-            <span class="quote-form__step">02</span>
-            <span>Información del proyecto <small>Ayúdanos a preparar el alcance inicial.</small></span>
-          </legend>
+        <section class="quote-form__section" aria-labelledby="quote-step-project-title">
+          <header class="quote-form__section-head">
+            <span class="quote-form__step" aria-hidden="true">02</span>
+            <span class="quote-form__section-copy">
+              <span class="quote-form__section-kicker">Paso 2 de 3</span>
+              <strong id="quote-step-project-title">Información del proyecto</strong>
+              <small>Ayúdanos a preparar el alcance inicial.</small>
+            </span>
+          </header>
+          <div class="quote-form__section-body">
           <div class="quote-form__grid">
             <label class="quote-field" for="contact-request-type">
               <span class="quote-field__label">Tipo de solicitud <b aria-hidden="true">*</b></span>
@@ -786,13 +797,19 @@ include __DIR__ . '/includes/navbar.php';
               <?php if (isset($formErrors['desired_execution_date'])): ?><span class="field-error" id="contact-date-error" role="alert"><?php echo htmlspecialchars($formErrors['desired_execution_date']); ?></span><?php endif; ?>
             </label>
           </div>
-        </fieldset>
+          </div>
+        </section>
 
-        <fieldset class="quote-form__section quote-form__section--documents">
-          <legend>
-            <span class="quote-form__step">03</span>
-            <span>Documentación y requerimientos <small>Comparte contexto técnico para una revisión más precisa.</small></span>
-          </legend>
+        <section class="quote-form__section quote-form__section--documents" aria-labelledby="quote-step-documents-title">
+          <header class="quote-form__section-head">
+            <span class="quote-form__step" aria-hidden="true">03</span>
+            <span class="quote-form__section-copy">
+              <span class="quote-form__section-kicker">Paso 3 de 3</span>
+              <strong id="quote-step-documents-title">Documentación y requerimientos</strong>
+              <small>Comparte contexto técnico para una revisión más precisa.</small>
+            </span>
+          </header>
+          <div class="quote-form__section-body">
           <label class="file-field" for="contact-project-files">
             <input class="file-field__input" id="contact-project-files" type="file" name="project_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" multiple required data-quote-files aria-invalid="<?php echo isset($formErrors['project_files']) ? 'true' : 'false'; ?>" aria-describedby="contact-files-help contact-files-summary<?php echo isset($formErrors['project_files']) ? ' contact-files-error' : ''; ?>">
             <span class="file-field__visual">
@@ -814,7 +831,8 @@ include __DIR__ . '/includes/navbar.php';
             <textarea id="contact-message" name="message" rows="5" maxlength="4000" placeholder="Describe el alcance, tipo de instalación, prioridad y cualquier detalle técnico relevante." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['message'])): ?> aria-describedby="contact-message-error"<?php endif; ?>><?php echo htmlspecialchars($formData['message']); ?></textarea>
             <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error" role="alert"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
           </label>
-        </fieldset>
+          </div>
+        </section>
 
         <label class="honeypot" for="company-site">
           Sitio

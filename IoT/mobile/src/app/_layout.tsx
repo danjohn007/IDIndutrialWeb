@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/context/auth-context';
@@ -12,7 +12,7 @@ import { colors } from '@/theme/colors';
 
 type NotificationDestination =
   | { type: 'ALERT'; id: string }
-  | { type: 'QUOTE'; url: string };
+  | { type: 'QUOTE'; id: string };
 
 function notificationDestination(
   response: Notifications.NotificationResponse | null,
@@ -21,15 +21,22 @@ function notificationDestination(
   if (!data) return null;
 
   if (String(data.tipo ?? '').toUpperCase() === 'COTIZACION') {
+    const quoteCandidates = [data.opportunityId, data.opportunity_id, data.cotizacionId];
+    for (const candidate of quoteCandidates) {
+      if (
+        (typeof candidate === 'number' || typeof candidate === 'string')
+        && /^\d+$/.test(String(candidate))
+        && Number(candidate) > 0
+      ) {
+        return { type: 'QUOTE', id: String(candidate) };
+      }
+    }
+
     const quoteUrl = [data.url, data.crmUrl, data.targetUrl].find(
       (value): value is string => typeof value === 'string',
     );
-    if (
-      quoteUrl
-      && /^https:\/\/(?:www\.)?idindustrial\.com\.mx\/(?:[^?#]+\/)?crm\/oportunidades\/\d+(?:[/?#]|$)/i.test(quoteUrl)
-    ) {
-      return { type: 'QUOTE', url: quoteUrl };
-    }
+    const quoteMatch = quoteUrl?.match(/\/crm\/oportunidades\/(\d+)(?:[/?#]|$)/i);
+    if (quoteMatch) return { type: 'QUOTE', id: quoteMatch[1] };
   }
 
   const candidates = [data.alertaId, data.alerta_id, data.alertId];
@@ -98,8 +105,9 @@ function NotificationNavigationObserver() {
           params: { id: destination.id },
         });
       } else {
-        void Linking.openURL(destination.url).catch((error: unknown) => {
-          console.warn('No fue posible abrir la oportunidad del CRM', error);
+        router.push({
+          pathname: '/cotizaciones/[id]',
+          params: { id: destination.id },
         });
       }
       setPending(null);
@@ -133,6 +141,8 @@ export default function RootLayout() {
           <Stack.Screen name="login" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="alerta/[id]" />
+          <Stack.Screen name="cotizaciones/index" />
+          <Stack.Screen name="cotizaciones/[id]" />
           <Stack.Screen name="shelly/[id]" />
           <Stack.Screen name="shelly/formulario" />
           <Stack.Screen name="rutina/formulario" />

@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -108,7 +109,8 @@ function DeviceCard({ device }: { device: MobileDevice }) {
 }
 
 export default function MonitorScreen() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const router = useRouter();
   const [data, setData] = useState<MobileSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -193,6 +195,26 @@ export default function MonitorScreen() {
         </View>
         <StatusBadge state={state} />
       </View>
+
+      {user?.rol === 'ADMIN' ? (
+        <Pressable
+          accessibilityHint="Abre las solicitudes recibidas desde el sitio web"
+          accessibilityLabel="Ver cotizaciones"
+          accessibilityRole="button"
+          onPress={() => router.push('/cotizaciones')}
+          style={({ pressed }) => [styles.quotesEntry, pressed && styles.quotesEntryPressed]}
+        >
+          <View style={styles.quotesIcon}>
+            <Ionicons color={colors.warning} name="document-text-outline" size={24} />
+          </View>
+          <View style={styles.quotesCopy}>
+            <Text style={styles.quotesEyebrow}>CRM MOVIL</Text>
+            <Text style={styles.quotesTitle}>Cotizaciones</Text>
+            <Text style={styles.quotesDescription}>Consulta solicitudes y abre su detalle sin salir de la app.</Text>
+          </View>
+          <Ionicons color={colors.muted} name="chevron-forward" size={21} />
+        </Pressable>
+      ) : null}
 
       {loading ? (
         <ActivityIndicator color={colors.warning} size="large" />
@@ -290,6 +312,49 @@ export default function MonitorScreen() {
 }
 
 const styles = StyleSheet.create({
+  quotesEntry: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 88,
+    padding: spacing.md,
+  },
+  quotesEntryPressed: {
+    backgroundColor: colors.surfaceRaised,
+    opacity: 0.86,
+  },
+  quotesIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.md,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  quotesCopy: {
+    flex: 1,
+  },
+  quotesEyebrow: {
+    color: colors.warning,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  quotesTitle: {
+    color: colors.textStrong,
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: spacing.xs,
+  },
+  quotesDescription: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: spacing.xs,
+  },
   headerLogo: {
     height: 34,
     width: 112,

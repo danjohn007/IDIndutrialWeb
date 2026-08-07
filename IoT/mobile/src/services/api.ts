@@ -11,6 +11,8 @@ import type {
   MobileLiveHistory,
   MobilePushRegistration,
   MobilePushStatus,
+  MobileQuoteDetail,
+  MobileQuotesPage,
   MobileSummary,
   MobileShellyCommand,
   MobileShellyActuator,
@@ -284,6 +286,19 @@ export function silenceMobileAlarm(
       alerta_id: Number(alertId),
     },
   });
+}
+
+export function getMobileQuotes(token: string, page = 1): Promise<MobileQuotesPage> {
+  const query = new URLSearchParams({ pagina: String(page), por_pagina: '20' });
+  return request<MobileQuotesPage>(`mobile/cotizaciones.php?${query.toString()}`, { token });
+}
+
+export function getMobileQuoteDetail(
+  token: string,
+  opportunityId: string | number,
+): Promise<MobileQuoteDetail> {
+  const query = new URLSearchParams({ id: String(opportunityId) });
+  return request<MobileQuoteDetail>(`mobile/cotizacion.php?${query.toString()}`, { token });
 }
 
 export function registerMobilePush(

@@ -413,6 +413,47 @@ export type MobilePushStatus = {
   }>;
 };
 
+export type MobileQuoteRequest = {
+  id: number | string;
+  company_name: string;
+  contact_name: string;
+  service: string;
+  request_type: string | null;
+  project_location: string | null;
+  desired_execution_date: string | null;
+  status: string;
+  priority: string;
+  created_at: string;
+  updated_at: string;
+  attachments_count: number | string;
+};
+
+export type MobileQuotesPage = {
+  solicitudes: MobileQuoteRequest[];
+  paginacion: {
+    pagina: number;
+    por_pagina: number;
+    total: number;
+    paginas: number;
+  };
+};
+
+export type MobileQuoteDetail = {
+  solicitud: Omit<MobileQuoteRequest, 'attachments_count'> & {
+    contact_email: string | null;
+    contact_phone: string | null;
+    notes: string | null;
+  };
+  adjuntos: Array<{
+    id: number | string;
+    original_name: string;
+    mime: string;
+    size: number | string;
+    created_at: string;
+  }>;
+  crm_url: string;
+};
+
 export type ApiEnvelope<T> = {
   ok: boolean;
   data: T;
