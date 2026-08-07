@@ -91,7 +91,7 @@ DirectoryIndex index.php index.html
   </FilesMatch>
 </IfModule>
 
-<FilesMatch "(^error_log$|^config(?:\.sample)?\.php$|^DEPLOY_PUBLIC_HTML\.md$|\.(?:sqlite|db|sql|log|bak|ini)$)">
+<FilesMatch "(^error_log$|^config(?:\.(?:sample|example))?\.php$|^DEPLOY_PUBLIC_HTML\.md$|\.(?:sqlite|db|sql|log|bak|ini)$)">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>

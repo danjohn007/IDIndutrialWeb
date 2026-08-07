@@ -55,7 +55,6 @@ public_html/ID-Industrial/
     |   `-- crear_admin_inicial.php
     |-- atender_alerta.php
     |-- config.php
-    |-- config.local.php
     |-- exportar_csv.php
     |-- guardar_lectura.php
     |-- ultima_lectura.php
@@ -65,29 +64,13 @@ public_html/ID-Industrial/
 ```
 
 Activa **Show Hidden Files** para comprobar que `.htaccess` fue subido.
-`config.local.example.php` es una plantilla local; no es necesario mantenerla
-en producción.
+La API no necesita un archivo privado dentro de `api/`; carga `crm/config.php`.
 
-## 4. Configuración privada
+## 4. Configuración privada compartida
 
-Crea `public_html/ID-Industrial/api/config.local.php`:
+Copia `crm/config.example.php` como `public_html/IoT/crm/config.php` y reemplaza los marcadores. Este es el único archivo privado: CRM toma de él MySQL y SMTP; la API toma MySQL y la sección `iot`.
 
-```php
-<?php
-
-return [
-    'db_host' => 'localhost',
-    'db_name' => 'idactivo_idindustrial',
-    'db_user' => 'idactivo_idindustrial_admin',
-    'db_pass' => 'PASSWORD_REAL_DEL_USUARIO_MYSQL',
-    'api_token' => 'TOKEN_ALEATORIO_DE_32_CARACTERES_O_MAS',
-    'setup_token' => 'OTRO_TOKEN_ALEATORIO_DE_32_CARACTERES_O_MAS',
-];
-```
-
-Usa permisos `0600` o `0640` para `config.local.php`. No publiques este archivo
-ni su contenido.
-
+Usa permisos `0600` o `0640`. `crm/config.php` está excluido de Git y su acceso web está bloqueado por `.htaccess`. El archivo anterior `IoT/api/config.local.php` ya no se utiliza.
 ## 5. Crear administrador inicial
 
 Abre:
@@ -97,8 +80,7 @@ https://idactivos.digital/ID-Industrial/login.html
 ```
 
 Selecciona **Crear administrador inicial**. Usa el correo que ya existe en
-`clientes`, un password de al menos 12 caracteres y el mismo `setup_token` de
-`config.local.php`. Esta operacion se desactiva al existir el primer usuario.
+`clientes`, un password de al menos 12 caracteres y el mismo `setup_token` de la seccion `iot` en `crm/config.php`. Esta operacion se desactiva al existir el primer usuario.
 
 ## 6. Firmware
 
@@ -138,6 +120,6 @@ La URL final del panel es:
 https://idactivos.digital/ID-Industrial/
 ```
 
-La URL directa de `config.local.php` debe devolver `403 Forbidden`. Una visita
+La URL directa de `crm/config.php` debe devolver `403 Forbidden`. Una visita
 normal a `guardar_lectura.php` debe devolver `405 Metodo no permitido`, porque
 ese endpoint solo acepta `POST`.

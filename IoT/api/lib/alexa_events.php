@@ -179,7 +179,7 @@ function idindAlexaEventGuardarGrant(
 ): void {
     if (!idindAlexaEventConfigurado($config)) {
         throw new IdindAlexaEventException(
-            'Configura alexa_event_client_id y alexa_event_client_secret en config.local.php'
+            'Configura alexa_event_client_id y alexa_event_client_secret en crm/config.php (seccion iot)'
         );
     }
     if (!idindAlexaEventMigracionLista($pdo)) {

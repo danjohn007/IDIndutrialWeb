@@ -1,0 +1,51 @@
+<?php
+declare(strict_types=1);
+
+// Copia este archivo como crm/config.php y reemplaza los marcadores.
+// crm/config.php esta excluido de Git y es la unica fuente de secretos.
+return [
+  'driver' => 'mysql',
+  'host' => 'localhost',
+  'database' => 'TU_BASE_DE_DATOS_UNIFICADA',
+  'username' => 'TU_USUARIO_MYSQL',
+  'password' => 'TU_PASSWORD_MYSQL',
+  'charset' => 'utf8mb4',
+  'app_url' => 'https://idindustrial.com.mx/IoT/crm',
+  'quote_request_admin_email' => 'tecnologia@idindustrial.com.mx',
+  'quote_request_secondary_email' => '',
+  'smtp' => [
+    'enabled' => false,
+    'host' => 'mail.idindustrial.com.mx',
+    'port' => 465,
+    'secure' => 'ssl',
+    'username' => '',
+    'password' => '',
+    'from_email' => 'no-reply@idindustrial.com.mx',
+    'from_name' => 'ID Industrial',
+  ],
+  'iot' => [
+    'api_token' => 'GENERA_UN_TOKEN_ALEATORIO_DE_32_CARACTERES_O_MAS',
+    'setup_token' => 'GENERA_OTRO_TOKEN_ALEATORIO_DE_32_CARACTERES_O_MAS',
+    'crm_sso_iot_email' => 'CORREO_DEL_ADMIN_IOT',
+    'expo_access_token' => '',
+    'shelly_cloud_server' => '',
+    'shelly_cloud_auth_key' => '',
+    'shelly_webhook_token' => 'GENERA_UN_TOKEN_ALEATORIO_DE_32_CARACTERES_O_MAS',
+    'alexa_public_base_url' => 'https://idindustrial.com.mx/IoT/iot/api',
+    'alexa_oauth_client_id' => 'idindustrial-alexa',
+    'alexa_oauth_client_secret' => 'GENERA_UN_SECRETO_ALEATORIO_DE_48_CARACTERES_O_MAS',
+    'alexa_lambda_shared_secret' => 'GENERA_OTRO_SECRETO_ALEATORIO_DE_48_CARACTERES_O_MAS',
+    'alexa_event_client_id' => '',
+    'alexa_event_client_secret' => '',
+    'alexa_event_region' => 'NA',
+    'alexa_oauth_redirect_uris' => [
+      'https://pitangui.amazon.com/api/skill/link/TU_REDIRECT_ID',
+      'https://layla.amazon.com/api/skill/link/TU_REDIRECT_ID',
+      'https://alexa.amazon.co.jp/api/skill/link/TU_REDIRECT_ID',
+    ],
+    'retention_raw_days' => 90,
+    'retention_hourly_months' => 24,
+    'retention_hours_per_run' => 48,
+    'retention_max_runtime_seconds' => 45,
+  ],
+];

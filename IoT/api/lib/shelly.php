@@ -20,7 +20,7 @@ function idindShellyCredenciales(array $config): array
 
     if ($server === '' || $authKey === '') {
         throw new IdindShellyException(
-            'Shelly Cloud no esta configurado en api/config.local.php'
+            'Shelly Cloud no esta configurado en crm/config.php (seccion iot)'
         );
     }
     if (!preg_match('#^https://#i', $server)) {

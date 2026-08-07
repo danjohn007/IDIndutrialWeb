@@ -312,8 +312,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
       ];
       $opportunityId = crm_capture_public_lead($leadData);
       if ($opportunityId) {
+        $notificationService = $formData['service'] !== '' ? $formData['service'] : 'servicio por definir';
+        $adminOpportunityUrl = crm_app_url('oportunidades/' . $opportunityId);
         try {
-          $notificationService = $formData['service'] !== '' ? $formData['service'] : 'servicio por definir';
           crm_create_notification(crm_db(), [
             'recipient_type' => 'admin',
             'opportunity_id' => $opportunityId,
@@ -324,6 +325,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
           ]);
         } catch (Throwable $error) {
           error_log('CRM web lead notification failed: ' . $error->getMessage());
+        }
+        try {
+          crm_enqueue_quote_push_notifications(
+            crm_db(),
+            $opportunityId,
+            $formData['name'],
+            $notificationService,
+            $adminOpportunityUrl
+          );
+        } catch (Throwable $error) {
+          error_log('CRM quote push enqueue failed: ' . $error->getMessage());
         }
       }
 

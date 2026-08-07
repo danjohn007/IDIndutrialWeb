@@ -12006,7 +12006,7 @@ INSERT INTO `muestras_historicas` (`dispositivo_id`, `periodo_minuto`, `temperat
 CREATE TABLE `notificaciones_push` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `alerta_id` bigint(20) UNSIGNED DEFAULT NULL,
-  `origen_tipo` enum('ALERTA','SHELLY') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ALERTA',
+  `origen_tipo` enum('ALERTA','SHELLY','COTIZACION') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ALERTA',
   `evento_shelly_id` bigint(20) UNSIGNED DEFAULT NULL,
   `dedupe_key` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `push_token_id` bigint(20) UNSIGNED NOT NULL,

@@ -40,6 +40,49 @@ function idindPushActualizarCola(
     ]);
 }
 
+function idindPushTomarPendientes(PDO $pdo, int $maximo = 20): array
+{
+    $limite = max(1, min(50, $maximo));
+    $pdo->beginTransaction();
+    $stmt = $pdo->prepare(
+        "SELECT
+            np.id, np.alerta_id, np.origen_tipo, np.push_token_id,
+            np.titulo, np.cuerpo, np.payload_json, np.intentos,
+            mp.expo_push_token
+         FROM notificaciones_push np
+         INNER JOIN moviles_push mp ON mp.id = np.push_token_id
+         WHERE np.estado IN ('PENDIENTE', 'REINTENTAR')
+           AND np.disponible_en <= UTC_TIMESTAMP()
+           AND np.intentos < :max_intentos
+           AND mp.activo = 1
+         ORDER BY np.id ASC
+         LIMIT {$limite}
+         FOR UPDATE"
+    );
+    $stmt->bindValue(':max_intentos', IDIND_PUSH_MAX_ATTEMPTS_HELPER, PDO::PARAM_INT);
+    $stmt->execute();
+    $pendientes = $stmt->fetchAll();
+
+    if ($pendientes === []) {
+        $pdo->commit();
+        return [];
+    }
+
+    $ids = array_map(static function (array $fila): int {
+        return (int) $fila['id'];
+    }, $pendientes);
+    $marcadores = implode(',', array_fill(0, count($ids), '?'));
+    $stmtTomar = $pdo->prepare(
+        "UPDATE notificaciones_push
+         SET estado = 'ENVIANDO', intentos = intentos + 1, ultimo_error = NULL
+         WHERE id IN ({$marcadores})"
+    );
+    $stmtTomar->execute($ids);
+    $pdo->commit();
+
+    return $pendientes;
+}
+
 function idindPushTomarPendientesPorAlertas(
     PDO $pdo,
     array $alertaIds,
@@ -56,7 +99,7 @@ function idindPushTomarPendientesPorAlertas(
     $pdo->beginTransaction();
     $stmt = $pdo->prepare(
         "SELECT
-            np.id, np.alerta_id, np.push_token_id, np.titulo, np.cuerpo,
+            np.id, np.alerta_id, np.origen_tipo, np.push_token_id, np.titulo, np.cuerpo,
             np.payload_json, np.intentos, mp.expo_push_token
          FROM notificaciones_push np
          INNER JOIN moviles_push mp ON mp.id = np.push_token_id
@@ -129,20 +172,33 @@ function idindPushEnviarFilas(
             if (!is_array($data)) {
                 $data = [];
             }
-            $alertaId = (int) $fila['alerta_id'];
-            $data['alertaId'] = $alertaId;
-            $data['alerta_id'] = $alertaId;
-            $data['tipo'] = 'ALERTA';
-            $data['url'] = '/alerta/' . $alertaId;
-            return [
+            $origin = strtoupper((string) ($fila['origen_tipo'] ?? $data['tipo'] ?? 'ALERTA'));
+            $message = [
                 'to' => (string) $fila['expo_push_token'],
                 'sound' => 'default',
-                'priority' => 'high',
-                'channelId' => 'critical-alerts',
                 'title' => (string) $fila['titulo'],
                 'body' => (string) $fila['cuerpo'],
-                'data' => $data,
             ];
+
+            if ($origin === 'ALERTA') {
+                $alertaId = (int) $fila['alerta_id'];
+                $data['alertaId'] = $alertaId;
+                $data['alerta_id'] = $alertaId;
+                $data['tipo'] = 'ALERTA';
+                $data['url'] = '/alerta/' . $alertaId;
+                $message['priority'] = 'high';
+                $message['channelId'] = 'critical-alerts';
+            } elseif ($origin === 'COTIZACION') {
+                $data['tipo'] = 'COTIZACION';
+                $message['priority'] = 'default';
+                $message['channelId'] = 'crm-updates';
+            } else {
+                $data['tipo'] = $origin;
+                $message['priority'] = 'default';
+            }
+
+            $message['data'] = $data;
+            return $message;
         },
         $pendientes
     );

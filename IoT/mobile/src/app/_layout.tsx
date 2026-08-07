@@ -2,18 +2,35 @@ import * as Notifications from 'expo-notifications';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/context/auth-context';
 import { useAuth } from '@/context/auth-context';
+import { configureNotificationChannels } from '@/services/push-notifications';
 import { colors } from '@/theme/colors';
 
-function notificationAlertId(
+type NotificationDestination =
+  | { type: 'ALERT'; id: string }
+  | { type: 'QUOTE'; url: string };
+
+function notificationDestination(
   response: Notifications.NotificationResponse | null,
-): string | null {
+): NotificationDestination | null {
   const data = response?.notification.request.content.data;
   if (!data) return null;
+
+  if (String(data.tipo ?? '').toUpperCase() === 'COTIZACION') {
+    const quoteUrl = [data.url, data.crmUrl, data.targetUrl].find(
+      (value): value is string => typeof value === 'string',
+    );
+    if (
+      quoteUrl
+      && /^https:\/\/(?:www\.)?idindustrial\.com\.mx\/(?:[^?#]+\/)?crm\/oportunidades\/\d+(?:[/?#]|$)/i.test(quoteUrl)
+    ) {
+      return { type: 'QUOTE', url: quoteUrl };
+    }
+  }
 
   const candidates = [data.alertaId, data.alerta_id, data.alertId];
   for (const candidate of candidates) {
@@ -22,7 +39,7 @@ function notificationAlertId(
       && /^\d+$/.test(String(candidate))
       && Number(candidate) > 0
     ) {
-      return String(candidate);
+      return { type: 'ALERT', id: String(candidate) };
     }
   }
 
@@ -30,16 +47,16 @@ function notificationAlertId(
     (value): value is string => typeof value === 'string',
   );
   const routeMatch = route?.match(/\/alerta\/(\d+)(?:[/?#]|$)/i);
-  return routeMatch?.[1] ?? null;
+  return routeMatch ? { type: 'ALERT', id: routeMatch[1] } : null;
 }
 
 function NotificationNavigationObserver() {
   const router = useRouter();
   const { loading, user } = useAuth();
-  const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
+  const [pending, setPending] = useState<NotificationDestination | null>(null);
   const processedResponses = useRef(new Set<string>());
 
-  const captureAlert = useCallback(
+  const captureNotification = useCallback(
     (response: Notifications.NotificationResponse | null) => {
       if (!response) return;
 
@@ -49,11 +66,11 @@ function NotificationNavigationObserver() {
       ].join(':');
       if (processedResponses.current.has(responseKey)) return;
 
-      const alertId = notificationAlertId(response);
-      if (!alertId) return;
+      const destination = notificationDestination(response);
+      if (!destination) return;
 
       processedResponses.current.add(responseKey);
-      setPendingAlertId(alertId);
+      setPending(destination);
     },
     [],
   );
@@ -61,40 +78,45 @@ function NotificationNavigationObserver() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    captureAlert(Notifications.getLastNotificationResponse());
+    captureNotification(Notifications.getLastNotificationResponse());
     const subscription =
-      Notifications.addNotificationResponseReceivedListener(captureAlert);
+      Notifications.addNotificationResponseReceivedListener(captureNotification);
 
     return () => subscription.remove();
-  }, [captureAlert]);
+  }, [captureNotification]);
 
   useEffect(() => {
-    if (
-      Platform.OS === 'web'
-      || loading
-      || !user
-      || pendingAlertId === null
-    ) {
+    if (Platform.OS === 'web' || loading || !user || pending === null) {
       return;
     }
 
-    const alertId = pendingAlertId;
+    const destination = pending;
     const frame = requestAnimationFrame(() => {
-      router.push({
-        pathname: '/alerta/[id]',
-        params: { id: alertId },
-      });
-      setPendingAlertId(null);
+      if (destination.type === 'ALERT') {
+        router.push({
+          pathname: '/alerta/[id]',
+          params: { id: destination.id },
+        });
+      } else {
+        void Linking.openURL(destination.url).catch((error: unknown) => {
+          console.warn('No fue posible abrir la oportunidad del CRM', error);
+        });
+      }
+      setPending(null);
       Notifications.clearLastNotificationResponse();
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [loading, pendingAlertId, router, user]);
+  }, [loading, pending, router, user]);
 
   return null;
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    void configureNotificationChannels();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <AuthProvider>

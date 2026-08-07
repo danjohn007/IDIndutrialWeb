@@ -21,26 +21,41 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     exit;
 }
 
-$configLocal = [];
-$rutaConfigLocal = __DIR__ . '/config.local.php';
-if (is_file($rutaConfigLocal)) {
-    $configCargada = require $rutaConfigLocal;
-    if (is_array($configCargada)) {
-        $configLocal = $configCargada;
+$sharedConfig = [];
+$sharedConfigPaths = array_unique([
+    dirname(__DIR__, 2) . '/crm/config.php',
+    dirname(__DIR__, 3) . '/crm/config.php',
+    dirname(__DIR__, 2) . '/sistema/crm/config.php',
+    dirname(__DIR__, 3) . '/sistema/crm/config.php',
+]);
+foreach ($sharedConfigPaths as $sharedConfigPath) {
+    if (!is_file($sharedConfigPath)) {
+        continue;
     }
+    $sharedConfigLoaded = require $sharedConfigPath;
+    if (is_array($sharedConfigLoaded)) {
+        $sharedConfig = $sharedConfigLoaded;
+    }
+    break;
+}
+if ($sharedConfig === []) {
+    error_log('ID Industrial: no se encontro crm/config.php compartido');
 }
 
-$dbHost = getenv('IDIND_DB_HOST') ?: ($configLocal['db_host'] ?? 'localhost');
-$dbName = getenv('IDIND_DB_NAME') ?: ($configLocal['db_name'] ?? 'TU_BASE_DE_DATOS');
-$dbUser = getenv('IDIND_DB_USER') ?: ($configLocal['db_user'] ?? 'TU_USUARIO');
-$dbPass = getenv('IDIND_DB_PASS') ?: ($configLocal['db_pass'] ?? 'TU_PASSWORD');
+$configLocal = is_array($sharedConfig['iot'] ?? null)
+    ? $sharedConfig['iot']
+    : [];
+$dbHost = getenv('IDIND_DB_HOST') ?: ($sharedConfig['host'] ?? 'localhost');
+$dbName = getenv('IDIND_DB_NAME') ?: ($sharedConfig['database'] ?? 'TU_BASE_DE_DATOS');
+$dbUser = getenv('IDIND_DB_USER') ?: ($sharedConfig['username'] ?? 'TU_USUARIO');
+$dbPass = getenv('IDIND_DB_PASS') ?: ($sharedConfig['password'] ?? 'TU_PASSWORD');
 $apiToken = getenv('IDIND_API_TOKEN')
     ?: ($configLocal['api_token'] ?? 'CAMBIA_ESTE_TOKEN_SECRETO');
 $setupTokenLocal = trim((string) ($configLocal['setup_token'] ?? ''));
 $setupTokenEntorno = trim((string) (getenv('IDIND_SETUP_TOKEN') ?: ''));
 if ($setupTokenLocal !== '') {
     $setupToken = $setupTokenLocal;
-    $setupTokenOrigen = 'config.local.php';
+    $setupTokenOrigen = 'crm/config.php: iot';
 } elseif ($setupTokenEntorno !== '') {
     $setupToken = $setupTokenEntorno;
     $setupTokenOrigen = 'variable_de_entorno';

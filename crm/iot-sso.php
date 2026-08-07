@@ -41,6 +41,13 @@ $crmRole = strtolower(trim((string) ($crmUser['role'] ?? '')));
 $crmUserId = (int) ($crmUser['id'] ?? 0);
 session_write_close();
 
+// La autenticacion CRM ya comprobo la conexion a la base unificada.
+// Reutilizar este PDO evita una segunda conexion dentro del SSO.
+$pdo = $crmPdo;
+$sharedConfig = crm_config();
+$configLocal = is_array($sharedConfig['iot'] ?? null)
+  ? $sharedConfig['iot']
+  : [];
 require dirname(__DIR__) . '/IoT/api/auth.php';
 
 $configuredEmail = strtolower(trim((string) ($configLocal['crm_sso_iot_email'] ?? '')));
@@ -84,7 +91,7 @@ if (!$iotUser) {
   ]);
   crm_iot_sso_fail(
     403,
-    'Tu usuario del CRM no tiene un usuario IoT activo asociado. Configura crm_sso_iot_email en IoT/api/config.local.php.'
+    'Tu usuario del CRM no tiene un usuario IoT activo asociado. Configura iot.crm_sso_iot_email en crm/config.php.'
   );
 }
 

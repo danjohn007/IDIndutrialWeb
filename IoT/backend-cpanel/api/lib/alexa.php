@@ -71,7 +71,7 @@ function idindAlexaRequerirConfig(array $config): array
 {
     $estado = idindAlexaConfigEstado($config);
     if (!$estado['lista']) {
-        throw new IdindAlexaException('La integracion Alexa no esta configurada en config.local.php');
+        throw new IdindAlexaException('La integracion Alexa no esta configurada en crm/config.php (seccion iot)');
     }
     return idindAlexaConfig($config);
 }

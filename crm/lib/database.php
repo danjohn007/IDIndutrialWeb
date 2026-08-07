@@ -674,6 +674,68 @@ function crm_create_notification(PDO $pdo, array $data): void
   ]);
 }
 
+function crm_enqueue_quote_push_notifications(
+  PDO $pdo,
+  int $opportunityId,
+  string $companyName,
+  string $service,
+  string $crmUrl
+): int {
+  if ($opportunityId < 1) {
+    return 0;
+  }
+
+  $stmtTokens = $pdo->query("
+    SELECT DISTINCT mp.id AS push_token_id, u.cliente_id
+    FROM moviles_push mp
+    INNER JOIN usuarios u ON u.id = mp.usuario_id
+    WHERE u.rol = 'ADMIN'
+      AND u.estado = 'ACTIVO'
+      AND mp.activo = 1
+  ");
+  $tokens = $stmtTokens->fetchAll();
+  if ($tokens === []) {
+    return 0;
+  }
+
+  $companyName = trim($companyName) !== '' ? trim($companyName) : 'Un cliente';
+  $service = trim($service) !== '' ? trim($service) : 'servicio por definir';
+  $title = 'Nueva solicitud de cotizacion';
+  $body = $companyName . ' solicito ' . $service . '.';
+  $dedupeKey = hash('sha256', 'COTIZACION:' . $opportunityId);
+  $payload = json_encode([
+    'tipo' => 'COTIZACION',
+    'opportunityId' => $opportunityId,
+    'opportunity_id' => $opportunityId,
+    'url' => $crmUrl,
+  ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+  if ($payload === false) {
+    throw new RuntimeException('No fue posible generar el payload de la cotizacion');
+  }
+
+  $stmtInsert = $pdo->prepare("
+    INSERT IGNORE INTO notificaciones_push
+      (alerta_id, origen_tipo, dedupe_key, push_token_id, cliente_id,
+       titulo, cuerpo, payload_json, estado, intentos, disponible_en)
+    VALUES
+      (NULL, 'COTIZACION', ?, ?, ?, ?, ?, ?, 'PENDIENTE', 0, UTC_TIMESTAMP())
+  ");
+  $enqueued = 0;
+  foreach ($tokens as $token) {
+    $stmtInsert->execute([
+      $dedupeKey,
+      (int) $token['push_token_id'],
+      (int) $token['cliente_id'],
+      substr($title, 0, 120),
+      substr($body, 0, 255),
+      $payload,
+    ]);
+    $enqueued += $stmtInsert->rowCount();
+  }
+
+  return $enqueued;
+}
+
 function crm_notification_scope(string $recipientType, ?int $portalUserId = null): array
 {
   $where = ['n.recipient_type = ?'];

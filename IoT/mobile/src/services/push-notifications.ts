@@ -21,6 +21,27 @@ if (Platform.OS !== 'web') {
   });
 }
 
+export async function configureNotificationChannels(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+
+  await Promise.all([
+    Notifications.setNotificationChannelAsync('critical-alerts', {
+      name: 'Alertas críticas',
+      description: 'Incendio, flama, gas o temperatura peligrosa.',
+      importance: Notifications.AndroidImportance.MAX,
+      lightColor: '#FF453A',
+      sound: 'default',
+      vibrationPattern: [0, 250, 180, 250],
+    }),
+    Notifications.setNotificationChannelAsync('crm-updates', {
+      name: 'Solicitudes comerciales',
+      description: 'Nuevas solicitudes de cotización recibidas en el CRM.',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      lightColor: '#2563EB',
+      sound: 'default',
+    }),
+  ]);
+}
 export function getPushCapability(): PushCapability {
   if (Platform.OS === 'web') {
     return {
@@ -63,16 +84,7 @@ export async function requestExpoPushToken(): Promise<{
     throw new Error(capability.message);
   }
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('critical-alerts', {
-      name: 'Alertas críticas',
-      description: 'Incendio, flama, gas o temperatura peligrosa.',
-      importance: Notifications.AndroidImportance.MAX,
-      lightColor: '#FF453A',
-      sound: 'default',
-      vibrationPattern: [0, 250, 180, 250],
-    });
-  }
+  await configureNotificationChannels();
 
   const current = await Notifications.getPermissionsAsync();
   const permission =

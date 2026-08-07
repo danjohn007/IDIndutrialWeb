@@ -22,7 +22,6 @@ ID-Industrial/
 |       |   `-- crear_admin_inicial.php
 |       |-- auth.php
 |       |-- config.php
-|       |-- config.local.example.php
 |       |-- calibrar_mq2.php
 |       |-- cron_retencion.php
 |       |-- reporte_pdf.php
@@ -71,9 +70,7 @@ ID-Industrial/
    `database/migracion_retencion_mysql57.sql`.
 6. Registra el primer cliente y dispositivo con los ejemplos editables de
    `database/consultas.sql`.
-7. Crea `backend-cpanel/api/config.local.php` a partir de
-   `config.local.example.php` y coloca las credenciales reales y un token de al
-   menos 32 caracteres.
+7. Crea `crm/config.php` a partir de `crm/config.example.php`. Coloca ahi las credenciales de la base unificada y completa la seccion `iot`.
 8. Agrega un `setup_token` distinto de al menos 32 caracteres.
 9. Sube los archivos de `backend-cpanel/api/` a
    `public_html/ID-Industrial/api/`.
@@ -82,7 +79,7 @@ ID-Industrial/
 12. Configura el Cron Job de `docs/actualizacion_mq2_retencion.md`.
 
 El archivo `.htaccess` bloquea el acceso web directo a los archivos de
-configuración. `config.local.php` está ignorado por Git.
+configuración. `crm/config.php` está ignorado por Git y es la única fuente privada.
 
 ## Configuración del ESP32
 
@@ -157,6 +154,6 @@ Una respuesta correcta devuelve HTTP `201`, confirma el estado actualizado e
 indica con `historial_guardado` si los triggers almacenaron una alarma.
 
 Si la respuesta es HTTP `500` con el mensaje `No fue posible conectar con la
-base de datos`, la API si esta llegando, pero `backend-cpanel/api/config.local.php`
+base de datos`, la API si esta llegando, pero `crm/config.php`
 no coincide con la base, usuario o password de MySQL en cPanel, o el usuario no
 tiene permisos sobre la base.

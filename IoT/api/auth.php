@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
+if (!isset($pdo) || !($pdo instanceof PDO)) {
+    require_once __DIR__ . '/config.php';
+}
 
 const IDIND_SESSION_TIMEOUT = 28800;
 const IDIND_SESSION_ROTATION = 1800;
