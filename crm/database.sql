@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS opportunities (
   contact_email VARCHAR(190) NULL,
   contact_phone VARCHAR(60) NULL,
   service VARCHAR(160) NOT NULL,
+  request_type VARCHAR(40) NULL,
+  project_location VARCHAR(160) NULL,
+  desired_execution_date DATE NULL,
   source VARCHAR(120) NOT NULL DEFAULT 'Sitio web',
   status VARCHAR(80) NOT NULL DEFAULT 'Nueva solicitud',
   priority VARCHAR(30) NOT NULL DEFAULT 'Media',
@@ -52,6 +55,19 @@ CREATE TABLE IF NOT EXISTS opportunities (
   KEY idx_opportunities_status (status),
   KEY idx_opportunities_next_action (next_action_date),
   CONSTRAINT fk_opportunities_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS opportunity_attachments (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  opportunity_id INT UNSIGNED NOT NULL,
+  file_path VARCHAR(255) NOT NULL,
+  original_name VARCHAR(190) NOT NULL,
+  mime VARCHAR(100) NOT NULL,
+  size INT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_opportunity_attachments_opportunity (opportunity_id),
+  CONSTRAINT fk_opportunity_attachments_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS quotes (

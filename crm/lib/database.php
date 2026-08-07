@@ -1245,6 +1245,17 @@ function crm_ensure_columns(PDO $pdo): void
 {
   $isMysql = crm_driver($pdo) === 'mysql';
   $columns = [
+    'opportunities' => [
+      'request_type' => $isMysql
+        ? 'ALTER TABLE opportunities ADD COLUMN request_type VARCHAR(40) NULL AFTER service'
+        : 'ALTER TABLE opportunities ADD COLUMN request_type TEXT NULL',
+      'project_location' => $isMysql
+        ? 'ALTER TABLE opportunities ADD COLUMN project_location VARCHAR(160) NULL AFTER request_type'
+        : 'ALTER TABLE opportunities ADD COLUMN project_location TEXT NULL',
+      'desired_execution_date' => $isMysql
+        ? 'ALTER TABLE opportunities ADD COLUMN desired_execution_date DATE NULL AFTER project_location'
+        : 'ALTER TABLE opportunities ADD COLUMN desired_execution_date TEXT NULL',
+    ],
     'clients' => [
       'lifecycle_stage' => $isMysql
         ? "ALTER TABLE clients ADD COLUMN lifecycle_stage VARCHAR(40) NOT NULL DEFAULT 'Cliente' AFTER segment"
@@ -1443,6 +1454,9 @@ function crm_migrate_sqlite(PDO $pdo): void
       contact_email TEXT,
       contact_phone TEXT,
       service TEXT NOT NULL,
+      request_type TEXT,
+      project_location TEXT,
+      desired_execution_date TEXT,
       source TEXT NOT NULL DEFAULT 'Sitio web',
       status TEXT NOT NULL DEFAULT 'Nueva solicitud',
       priority TEXT NOT NULL DEFAULT 'Media',
@@ -1453,6 +1467,19 @@ function crm_migrate_sqlite(PDO $pdo): void
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS opportunity_attachments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      opportunity_id INTEGER NOT NULL,
+      file_path TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_opportunity_attachments_opportunity ON opportunity_attachments(opportunity_id);
 
     CREATE TABLE IF NOT EXISTS quotes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1658,6 +1685,9 @@ function crm_migrate_mysql(PDO $pdo): void
       contact_email VARCHAR(190) NULL,
       contact_phone VARCHAR(60) NULL,
       service VARCHAR(160) NOT NULL,
+      request_type VARCHAR(40) NULL,
+      project_location VARCHAR(160) NULL,
+      desired_execution_date DATE NULL,
       source VARCHAR(120) NOT NULL DEFAULT 'Sitio web',
       status VARCHAR(80) NOT NULL DEFAULT 'Nueva solicitud',
       priority VARCHAR(30) NOT NULL DEFAULT 'Media',
@@ -1671,6 +1701,19 @@ function crm_migrate_mysql(PDO $pdo): void
       KEY idx_opportunities_status (status),
       KEY idx_opportunities_next_action (next_action_date),
       CONSTRAINT fk_opportunities_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS opportunity_attachments (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      opportunity_id INT UNSIGNED NOT NULL,
+      file_path VARCHAR(255) NOT NULL,
+      original_name VARCHAR(190) NOT NULL,
+      mime VARCHAR(100) NOT NULL,
+      size INT UNSIGNED NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_opportunity_attachments_opportunity (opportunity_id),
+      CONSTRAINT fk_opportunity_attachments_opportunity FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
     CREATE TABLE IF NOT EXISTS quotes (
@@ -1970,8 +2013,135 @@ function crm_find_or_create_prospect_client(PDO $pdo, array $data): int
   return (int) $pdo->lastInsertId();
 }
 
-function crm_capture_public_lead(array $data): ?int
+function crm_prepare_opportunity_attachments(?array $upload): array
 {
+  if (!$upload || !isset($upload['name'], $upload['tmp_name'], $upload['error'], $upload['size'])) {
+    throw new RuntimeException('Adjunta al menos un archivo del proyecto.');
+  }
+
+  $names = is_array($upload['name']) ? $upload['name'] : [$upload['name']];
+  $tmpNames = is_array($upload['tmp_name']) ? $upload['tmp_name'] : [$upload['tmp_name']];
+  $errors = is_array($upload['error']) ? $upload['error'] : [$upload['error']];
+  $sizes = is_array($upload['size']) ? $upload['size'] : [$upload['size']];
+  $allowed = [
+    'application/pdf' => 'pdf',
+    'image/jpeg' => 'jpg',
+    'image/png' => 'png',
+    'image/webp' => 'webp',
+  ];
+  $files = [];
+  $totalSize = 0;
+
+  foreach ($names as $index => $name) {
+    $error = (int) ($errors[$index] ?? UPLOAD_ERR_NO_FILE);
+    if ($error === UPLOAD_ERR_NO_FILE) {
+      continue;
+    }
+    if ($error !== UPLOAD_ERR_OK) {
+      throw new RuntimeException('Uno de los archivos no pudo cargarse. Intenta nuevamente.');
+    }
+    if (count($files) >= 5) {
+      throw new RuntimeException('Puedes adjuntar un máximo de 5 archivos.');
+    }
+
+    $size = (int) ($sizes[$index] ?? 0);
+    if ($size <= 0 || $size > 8 * 1024 * 1024) {
+      throw new RuntimeException('Cada archivo debe pesar como máximo 8 MB.');
+    }
+    $totalSize += $size;
+    if ($totalSize > 20 * 1024 * 1024) {
+      throw new RuntimeException('El total de los archivos no puede superar 20 MB.');
+    }
+
+    $tmpPath = (string) ($tmpNames[$index] ?? '');
+    if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+      throw new RuntimeException('No fue posible validar uno de los archivos adjuntos.');
+    }
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($tmpPath) ?: '';
+    if (!isset($allowed[$mime])) {
+      throw new RuntimeException('Solo se permiten archivos PDF, JPG, PNG o WEBP.');
+    }
+    if (str_starts_with($mime, 'image/') && @getimagesize($tmpPath) === false) {
+      throw new RuntimeException('Uno de los archivos de imagen no es válido.');
+    }
+
+    $originalName = trim(basename(str_replace("\0", '', (string) $name)));
+    $files[] = [
+      'tmp_path' => $tmpPath,
+      'original_name' => mb_substr($originalName !== '' ? $originalName : ('archivo.' . $allowed[$mime]), 0, 190),
+      'mime' => $mime,
+      'size' => $size,
+      'extension' => $allowed[$mime],
+    ];
+  }
+
+  if (!$files) {
+    throw new RuntimeException('Adjunta al menos un archivo del proyecto.');
+  }
+
+  return $files;
+}
+
+function crm_store_opportunity_attachments(PDO $pdo, int $opportunityId, array $attachments): array
+{
+  $directory = dirname(__DIR__) . '/data/opportunity-attachments';
+  if (!is_dir($directory) && !mkdir($directory, 0770, true) && !is_dir($directory)) {
+    throw new RuntimeException('No fue posible preparar el almacenamiento de adjuntos.');
+  }
+
+  $storedPaths = [];
+  $insert = $pdo->prepare('INSERT INTO opportunity_attachments (opportunity_id, file_path, original_name, mime, size) VALUES (?, ?, ?, ?, ?)');
+  foreach ($attachments as $attachment) {
+    $storedName = bin2hex(random_bytes(20)) . '.' . $attachment['extension'];
+    $absolutePath = $directory . '/' . $storedName;
+    if (!move_uploaded_file($attachment['tmp_path'], $absolutePath)) {
+      foreach ($storedPaths as $storedPath) {
+        @unlink($storedPath);
+      }
+      throw new RuntimeException('No fue posible guardar uno de los archivos adjuntos.');
+    }
+    $storedPaths[] = $absolutePath;
+    $relativePath = 'data/opportunity-attachments/' . $storedName;
+    $insert->execute([
+      $opportunityId,
+      $relativePath,
+      $attachment['original_name'],
+      $attachment['mime'],
+      $attachment['size'],
+    ]);
+  }
+  return $storedPaths;
+}
+
+function crm_output_opportunity_attachment(PDO $pdo, int $attachmentId): void
+{
+  $stmt = $pdo->prepare('SELECT file_path, original_name, mime, size FROM opportunity_attachments WHERE id = ? LIMIT 1');
+  $stmt->execute([$attachmentId]);
+  $attachment = $stmt->fetch();
+  if (!$attachment) {
+    http_response_code(404);
+    exit('Archivo no encontrado.');
+  }
+
+  $baseDirectory = realpath(dirname(__DIR__) . '/data/opportunity-attachments');
+  $absolutePath = realpath(dirname(__DIR__) . '/' . ltrim((string) $attachment['file_path'], '/\\'));
+  if (!$baseDirectory || !$absolutePath || !str_starts_with($absolutePath, $baseDirectory . DIRECTORY_SEPARATOR) || !is_file($absolutePath)) {
+    http_response_code(404);
+    exit('Archivo no encontrado.');
+  }
+
+  $downloadName = str_replace(["\r", "\n", '"'], '', (string) $attachment['original_name']);
+  header('Content-Type: ' . ((string) $attachment['mime'] ?: 'application/octet-stream'));
+  header('Content-Length: ' . filesize($absolutePath));
+  header("Content-Disposition: attachment; filename*=UTF-8''" . rawurlencode($downloadName));
+  header('X-Content-Type-Options: nosniff');
+  readfile($absolutePath);
+  exit;
+}
+
+function crm_capture_public_lead(array $data, array $attachments = []): ?int
+{
+  $storedAttachmentPaths = [];
   try {
     $pdo = crm_db();
     $pdo->beginTransaction();
@@ -1982,8 +2152,8 @@ function crm_capture_public_lead(array $data): ?int
     $notes = trim((string) ($data['notes'] ?? ''));
 
     $stmt = $pdo->prepare('
-      INSERT INTO opportunities (client_id, company_name, contact_name, contact_email, contact_phone, service, source, status, priority, estimated_value, next_action_date, notes)
-      VALUES (?, ?, ?, ?, ?, ?, "Formulario web", "Nueva solicitud", "Alta", 0, ?, ?)
+      INSERT INTO opportunities (client_id, company_name, contact_name, contact_email, contact_phone, service, request_type, project_location, desired_execution_date, source, status, priority, estimated_value, next_action_date, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "Formulario web", "Nueva solicitud", "Alta", 0, ?, ?)
     ');
     $stmt->execute([
       $clientId,
@@ -1992,6 +2162,9 @@ function crm_capture_public_lead(array $data): ?int
       trim((string) ($data['contact_email'] ?? '')),
       trim((string) ($data['contact_phone'] ?? '')),
       $service,
+      trim((string) ($data['request_type'] ?? '')),
+      trim((string) ($data['project_location'] ?? '')),
+      trim((string) ($data['desired_execution_date'] ?? '')) ?: null,
       date('Y-m-d', strtotime('+1 day')),
       $notes,
     ]);
@@ -2002,11 +2175,19 @@ function crm_capture_public_lead(array $data): ?int
 
     $activity = $pdo->prepare('INSERT INTO activities (opportunity_id, type, summary, due_date) VALUES (?, "Primer contacto", "Contactar prospecto y preparar cotizacion.", ?)');
     $activity->execute([$opportunityId, date('Y-m-d', strtotime('+1 day'))]);
+
+    if ($attachments) {
+      $storedAttachmentPaths = crm_store_opportunity_attachments($pdo, $opportunityId, $attachments);
+    }
+
     $pdo->commit();
     return $opportunityId;
   } catch (Throwable $error) {
     if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
       $pdo->rollBack();
+    }
+    foreach ($storedAttachmentPaths as $storedPath) {
+      @unlink($storedPath);
     }
     crm_log_event('public_lead.capture_failed', [
       'driver' => isset($pdo) && $pdo instanceof PDO ? crm_driver($pdo) : (string) (crm_config()['driver'] ?? ''),
@@ -2017,7 +2198,6 @@ function crm_capture_public_lead(array $data): ?int
     return null;
   }
 }
-
 function crm_random_password(int $length = 12): string
 {
   $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';

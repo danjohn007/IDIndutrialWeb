@@ -1205,6 +1205,7 @@ $webLeadPendingCount = (int) $pdo->query('SELECT COUNT(*) FROM opportunities WHE
 $selectedOpportunity = null;
 $selectedOpportunityQuotes = [];
 $selectedOpportunityActivities = [];
+$selectedOpportunityAttachments = [];
 if ($view === 'opportunity') {
   $opportunityId = max(0, (int) ($_GET['id'] ?? 0));
   $stmt = $pdo->prepare('
@@ -1224,6 +1225,9 @@ if ($view === 'opportunity') {
     $activityStmt = $pdo->prepare('SELECT type, summary, due_date, completed_at, created_at FROM activities WHERE opportunity_id = ? ORDER BY created_at DESC LIMIT 8');
     $activityStmt->execute([(int) $selectedOpportunity['id']]);
     $selectedOpportunityActivities = $activityStmt->fetchAll();
+    $attachmentStmt = $pdo->prepare('SELECT id, original_name, mime, size, created_at FROM opportunity_attachments WHERE opportunity_id = ? ORDER BY created_at ASC, id ASC');
+    $attachmentStmt->execute([(int) $selectedOpportunity['id']]);
+    $selectedOpportunityAttachments = $attachmentStmt->fetchAll();
   }
 }
 $quotes = $pdo->query('
@@ -1669,8 +1673,25 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                   <div class="crm-list__item"><strong>Empresa</strong><span><?php echo h($selectedOpportunity['company_name']); ?></span></div>
                   <div class="crm-list__item"><strong>Contacto</strong><span><?php echo h($selectedOpportunity['contact_name']); ?></span></div>
                   <div class="crm-list__item"><strong>Correo</strong><span><?php echo h($selectedOpportunity['contact_email'] ?: 'Sin correo'); ?></span></div>
-                  <div class="crm-list__item"><strong>Telefono</strong><span><?php echo h($selectedOpportunity['contact_phone'] ?: 'Sin telefono'); ?></span></div>
+                  <div class="crm-list__item"><strong>Teléfono WhatsApp</strong><span><?php echo h($selectedOpportunity['contact_phone'] ?: 'Sin teléfono'); ?></span></div>
+                  <div class="crm-list__item"><strong>Tipo de solicitud</strong><span><?php echo h($selectedOpportunity['request_type'] ?: 'Sin especificar'); ?></span></div>
+                  <div class="crm-list__item"><strong>Locación del proyecto</strong><span><?php echo h($selectedOpportunity['project_location'] ?: 'Sin especificar'); ?></span></div>
+                  <div class="crm-list__item"><strong>Fecha deseada</strong><span><?php echo h($selectedOpportunity['desired_execution_date'] ?: 'Sin fecha'); ?></span></div>
                   <div class="crm-list__item"><strong>Origen</strong><span><?php echo h($selectedOpportunity['source']); ?></span></div>
+                </div>
+                <div class="crm-section-head">
+                  <h2>Archivos del proyecto</h2>
+                  <span class="crm-pill crm-pill--neutral"><?php echo count($selectedOpportunityAttachments); ?></span>
+                </div>
+                <div class="crm-list crm-list--compact">
+                  <?php foreach ($selectedOpportunityAttachments as $attachment): ?>
+                    <div class="crm-list__item">
+                      <strong><?php echo h($attachment['original_name']); ?></strong>
+                      <small><?php echo h($attachment['mime']); ?> · <?php echo number_format(((int) $attachment['size']) / 1048576, 2); ?> MB</small>
+                      <a class="crm-button crm-button--ghost" href="<?php echo h(crm_build_path(crm_web_base_path(), 'archivos-oportunidad/' . (int) $attachment['id'])); ?>">Descargar</a>
+                    </div>
+                  <?php endforeach; ?>
+                  <?php if (!$selectedOpportunityAttachments): ?><p>No hay archivos adjuntos.</p><?php endif; ?>
                 </div>
                 <?php if (($selectedOpportunity['lifecycle_stage'] ?? 'Prospecto') !== 'Cliente' && (int) ($selectedOpportunity['client_id'] ?? 0) > 0): ?>
                   <form class="crm-inline-form crm-conversion-form" method="post">

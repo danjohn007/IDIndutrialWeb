@@ -39,7 +39,9 @@ DirectoryIndex index.php index.html
   RewriteRule ^crm/portal/?$ crm/cliente.php?view=resumen [QSA,L]
 
   # CRM administration and protected evidence.
+  RewriteRule ^crm/data/ - [F,L]
   RewriteRule ^crm/archivos-cotizacion/([0-9]+)/?$ crm/quote-file.php?id=$1 [QSA,L]
+  RewriteRule ^crm/archivos-oportunidad/([0-9]+)/?$ crm/opportunity-file.php?id=$1 [QSA,L]
   RewriteRule ^crm/evidencias/([0-9]+)/?$ crm/evidence.php?id=$1 [QSA,L]
   RewriteRule ^crm/notificaciones/estado/?$ crm/index.php?notification_poll=1 [QSA,L]
   RewriteRule ^crm/salir/?$ crm/index.php?logout=1 [QSA,L]

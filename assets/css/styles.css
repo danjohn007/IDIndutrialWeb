@@ -3939,3 +3939,61 @@ body.has-quote-modal-open {
     min-height: 88px;
   }
 }
+/* Detailed quote request fields */
+.contact-form .field-help,
+.contact-form .file-selection {
+  display: block;
+  margin: 7px 4px 0;
+  color: #666d78;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.contact-form .file-selection {
+  color: #343b45;
+  overflow-wrap: anywhere;
+}
+
+.contact-form input[type="file"] {
+  min-height: 52px;
+  padding: 7px;
+  cursor: pointer;
+}
+
+.contact-form input[type="file"]::file-selector-button {
+  min-height: 40px;
+  margin-right: 12px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #171a1f;
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.contact-form input[type="file"]:hover::file-selector-button {
+  background: #876500;
+}
+
+.quote-modal__panel {
+  width: min(840px, calc(100vw - 32px));
+}
+
+.quote-modal .file-field {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .contact-form input[type="file"] {
+    font-size: 0.82rem;
+  }
+
+  .contact-form input[type="file"]::file-selector-button {
+    display: block;
+    width: 100%;
+    margin: 0 0 8px;
+  }
+}

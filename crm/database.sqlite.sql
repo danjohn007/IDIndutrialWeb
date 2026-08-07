@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS opportunities (
   contact_email TEXT,
   contact_phone TEXT,
   service TEXT NOT NULL,
+  request_type TEXT,
+  project_location TEXT,
+  desired_execution_date TEXT,
   source TEXT NOT NULL DEFAULT 'Sitio web',
   status TEXT NOT NULL DEFAULT 'Nueva solicitud',
   priority TEXT NOT NULL DEFAULT 'Media',
@@ -41,6 +44,19 @@ CREATE TABLE IF NOT EXISTS opportunities (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
 );
+
+CREATE TABLE IF NOT EXISTS opportunity_attachments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  opportunity_id INTEGER NOT NULL,
+  file_path TEXT NOT NULL,
+  original_name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_opportunity_attachments_opportunity ON opportunity_attachments(opportunity_id);
 
 CREATE TABLE IF NOT EXISTS quotes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

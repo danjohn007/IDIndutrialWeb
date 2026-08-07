@@ -47,23 +47,31 @@ function idindustrial_mobile_image($image)
 
 function idindustrial_quote_request_rows(array $data): string
 {
+  $desiredDate = trim((string) ($data['desired_execution_date'] ?? ''));
+  if ($desiredDate !== '') {
+    $dateObject = DateTimeImmutable::createFromFormat('!Y-m-d', $desiredDate);
+    $desiredDate = $dateObject ? $dateObject->format('d/m/Y') : $desiredDate;
+  }
+  $attachmentNames = array_values(array_filter(array_map('strval', (array) ($data['attachment_names'] ?? []))));
   $fields = [
-    'Nombre y empresa' => trim((string) ($data['name'] ?? '')),
+    'Nombre' => trim((string) ($data['name'] ?? '')),
+    'Empresa' => trim((string) ($data['company'] ?? '')),
     'Correo' => trim((string) ($data['email'] ?? '')),
-    'Telefono' => trim((string) ($data['phone'] ?? '')) ?: 'Sin telefono',
-    'Servicio de interes' => trim((string) ($data['service'] ?? '')) ?: 'Por definir',
+    'Teléfono WhatsApp' => trim((string) ($data['phone'] ?? '')),
+    'Tipo de solicitud' => trim((string) ($data['request_type'] ?? '')),
+    'Servicio de interés' => trim((string) ($data['service'] ?? '')),
+    'Locación del proyecto' => trim((string) ($data['city'] ?? '')),
+    'Fecha deseada de ejecución' => $desiredDate,
+    'Adjuntos' => implode("\n", $attachmentNames),
     'Mensaje' => trim((string) ($data['message'] ?? '')),
   ];
   $rows = '';
   foreach ($fields as $label => $value) {
-    if ($value === '') {
-      $value = 'Sin mensaje adicional';
-    }
+    $value = $value !== '' ? $value : 'Sin información';
     $rows .= '<tr><td style="padding:0 0 10px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border:1px solid #e8dfcf;border-radius:10px;background:#fffdf8;border-collapse:separate;"><tr><td style="padding:13px 15px 4px;font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#876500;line-height:1.3;">' . crm_email_h($label) . '</td></tr><tr><td style="padding:0 15px 14px;font-size:16px;line-height:1.55;color:#161a20;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;">' . crm_email_h($value) . '</td></tr></table></td></tr>';
   }
   return $rows;
 }
-
 function idindustrial_quote_request_admin_email_html(array $data, string $crmUrl): string
 {
   $safeCrmUrl = crm_email_h($crmUrl);
@@ -270,57 +278,102 @@ $serviceParamMap = [
 
 $formStatus = null;
 $formErrors = [];
+$quoteTimezone = new DateTimeZone('America/Mexico_City');
+$quoteMinDate = new DateTimeImmutable('today', $quoteTimezone);
+$quoteMaxDate = $quoteMinDate->modify('+6 months');
+$requestTypeOptions = ['Nuevo Sistema', 'Reparación', 'Mantenimiento'];
 $formData = [
   'name' => '',
+  'company' => '',
   'email' => '',
   'phone' => '',
+  'request_type' => '',
   'service' => $serviceParamMap[$_GET['servicio'] ?? ''] ?? '',
+  'city' => '',
+  'desired_execution_date' => '',
+  'attachment_names' => [],
   'message' => '',
 ];
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-  $formData['name'] = trim($_POST['name'] ?? '');
-  $formData['email'] = trim($_POST['email'] ?? '');
-  $formData['phone'] = trim($_POST['phone'] ?? '');
-  $formData['service'] = trim($_POST['service'] ?? '');
-  $formData['message'] = trim($_POST['message'] ?? '');
-  $honeypot = trim($_POST['company_site'] ?? '');
+  $formData['name'] = trim((string) ($_POST['name'] ?? ''));
+  $formData['company'] = trim((string) ($_POST['company'] ?? ''));
+  $formData['email'] = trim((string) ($_POST['email'] ?? ''));
+  $formData['phone'] = preg_replace('/\D+/', '', (string) ($_POST['phone'] ?? '')) ?? '';
+  $formData['request_type'] = trim((string) ($_POST['request_type'] ?? ''));
+  $formData['service'] = trim((string) ($_POST['service'] ?? ''));
+  $formData['city'] = trim((string) ($_POST['city'] ?? ''));
+  $formData['desired_execution_date'] = trim((string) ($_POST['desired_execution_date'] ?? ''));
+  $formData['message'] = trim((string) ($_POST['message'] ?? ''));
+  $honeypot = trim((string) ($_POST['company_site'] ?? ''));
+  $preparedAttachments = [];
 
   if ($honeypot !== '') {
     $formStatus = ['type' => 'ok', 'text' => 'Gracias. Recibimos tu solicitud.'];
   } else {
-    if ($formData['name'] === '') {
-      $formErrors['name'] = 'Indica tu nombre y empresa.';
+    if ($formData['name'] === '' || mb_strlen($formData['name']) > 160) {
+      $formErrors['name'] = 'Ingresa tu nombre.';
+    }
+    if ($formData['company'] === '' || mb_strlen($formData['company']) > 190) {
+      $formErrors['company'] = 'Ingresa el nombre de tu empresa.';
     }
     if (!filter_var($formData['email'], FILTER_VALIDATE_EMAIL)) {
       $formErrors['email'] = 'Ingresa un correo válido.';
     }
-    if ($formData['message'] === '') {
-      $formErrors['message'] = 'Cuéntanos brevemente qué necesitas instalar o mejorar.';
+    if (strlen($formData['phone']) !== 10) {
+      $formErrors['phone'] = 'Ingresa un teléfono WhatsApp de 10 dígitos.';
+    }
+    if (!in_array($formData['request_type'], $requestTypeOptions, true)) {
+      $formErrors['request_type'] = 'Selecciona el tipo de solicitud.';
+    }
+    if (!in_array($formData['service'], $serviceOptions, true)) {
+      $formErrors['service'] = 'Selecciona el servicio de interés.';
+    }
+    if ($formData['city'] === '' || mb_strlen($formData['city']) > 160) {
+      $formErrors['city'] = 'Indica la ciudad donde se realizará el proyecto.';
+    }
+
+    $desiredDate = DateTimeImmutable::createFromFormat('!Y-m-d', $formData['desired_execution_date'], $quoteTimezone);
+    $dateIsExact = $desiredDate && $desiredDate->format('Y-m-d') === $formData['desired_execution_date'];
+    if (!$dateIsExact || $desiredDate < $quoteMinDate || $desiredDate > $quoteMaxDate) {
+      $formErrors['desired_execution_date'] = 'Elige una fecha entre hoy y los próximos 6 meses.';
+    }
+    if ($formData['message'] === '' || mb_strlen($formData['message']) > 4000) {
+      $formErrors['message'] = 'Describe brevemente los requerimientos del proyecto.';
+    }
+
+    try {
+      $preparedAttachments = crm_prepare_opportunity_attachments($_FILES['project_files'] ?? null);
+      $formData['attachment_names'] = array_column($preparedAttachments, 'original_name');
+    } catch (RuntimeException $error) {
+      $formErrors['project_files'] = $error->getMessage();
     }
 
     if ($formErrors) {
       $formStatus = ['type' => 'error', 'text' => 'Revisa los campos marcados para enviar tu solicitud.'];
     } else {
       $leadData = [
-        'company_name' => $formData['name'],
+        'company_name' => $formData['company'],
         'contact_name' => $formData['name'],
         'contact_email' => $formData['email'],
         'contact_phone' => $formData['phone'],
+        'request_type' => $formData['request_type'],
         'service' => $formData['service'],
+        'project_location' => $formData['city'],
+        'desired_execution_date' => $formData['desired_execution_date'],
         'notes' => $formData['message'],
       ];
-      $opportunityId = crm_capture_public_lead($leadData);
+      $opportunityId = crm_capture_public_lead($leadData, $preparedAttachments);
       if ($opportunityId) {
-        $notificationService = $formData['service'] !== '' ? $formData['service'] : 'servicio por definir';
+        $notificationService = $formData['service'];
         $adminOpportunityUrl = crm_app_url('oportunidades/' . $opportunityId);
         try {
           crm_create_notification(crm_db(), [
             'recipient_type' => 'admin',
             'opportunity_id' => $opportunityId,
             'event_type' => 'web_lead_received',
-            'title' => 'Nuevo lead web',
-            'message' => $formData['name'] . ' solicito ' . $notificationService . ' desde el formulario publico.',
+            'title' => 'Nueva solicitud de cotización',
+            'message' => $formData['company'] . ' solicitó ' . $notificationService . ' (' . $formData['request_type'] . ').',
             'target_url' => crm_admin_url('opportunity', $opportunityId),
           ]);
         } catch (Throwable $error) {
@@ -330,7 +383,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
           crm_enqueue_quote_push_notifications(
             crm_db(),
             $opportunityId,
-            $formData['name'],
+            $formData['company'],
             $notificationService,
             $adminOpportunityUrl
           );
@@ -340,30 +393,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
       }
 
       $adminOpportunityUrl = $opportunityId ? crm_app_url('oportunidades/' . $opportunityId) : crm_app_url('oportunidades');
-      $notificationService = $formData['service'] !== '' ? $formData['service'] : 'servicio por definir';
-      $subject = 'Nueva solicitud de cotizacion web - ' . $notificationService;
-      $body = "Nueva solicitud de cotizacion web\n\nNombre: {$formData['name']}\nCorreo: {$formData['email']}\nTelefono: {$formData['phone']}\nServicio de interes: {$formData['service']}\n\nMensaje:\n{$formData['message']}\n\nAbrir en CRM: {$adminOpportunityUrl}";
+      $subject = 'Nueva solicitud de cotización web - ' . $formData['service'];
+      $body = "Nueva solicitud de cotización web\n\nNombre: {$formData['name']}\nEmpresa: {$formData['company']}\nCorreo: {$formData['email']}\nTeléfono WhatsApp: {$formData['phone']}\nTipo: {$formData['request_type']}\nServicio: {$formData['service']}\nLocación: {$formData['city']}\nFecha deseada: {$formData['desired_execution_date']}\nAdjuntos: " . implode(', ', $formData['attachment_names']) . "\n\nMensaje:\n{$formData['message']}\n\nAbrir en CRM: {$adminOpportunityUrl}";
       $emailSent = crm_send_email($quoteRequestAdminEmail, $subject, $body, idindustrial_quote_request_admin_email_html($formData, $adminOpportunityUrl), [
         'cc' => $quoteRequestSecondaryEmail !== '' ? [$quoteRequestSecondaryEmail] : [],
         'reply_to' => $formData['email'],
       ]);
-      $clientBody = "Hola {$formData['name']},\n\nRecibimos tu solicitud de cotizacion con estos datos:\n\nServicio de interes: {$formData['service']}\nTelefono: {$formData['phone']}\n\nMensaje:\n{$formData['message']}\n\nNuestro equipo te contactara para confirmar alcance, tiempos y siguientes pasos.\n\nID Industrial";
+      $clientBody = "Hola {$formData['name']},\n\nRecibimos la solicitud de {$formData['request_type']} para {$formData['company']}.\nServicio: {$formData['service']}\nLocación: {$formData['city']}\nFecha deseada: {$formData['desired_execution_date']}\nTeléfono WhatsApp: {$formData['phone']}\n\nNuestro equipo te contactará para confirmar alcance, tiempos y siguientes pasos.\n\nID Industrial";
       $clientEmailSent = crm_send_email($formData['email'], 'Recibimos tu solicitud - ID Industrial', $clientBody, idindustrial_quote_request_client_email_html($formData));
       if (!$clientEmailSent) {
         error_log('CRM web lead client copy failed for opportunity ' . (int) $opportunityId);
       }
 
       if ($opportunityId) {
-        $formStatus = ['type' => 'ok', 'text' => 'Listo. Registramos tu solicitud y te contactaremos para preparar la cotizacion.'];
-      } elseif ($emailSent) {
-        $formStatus = ['type' => 'ok', 'text' => 'Recibimos tu solicitud por correo. Si es urgente, tambien puedes escribirnos por WhatsApp.'];
+        $formStatus = ['type' => 'ok', 'text' => 'Listo. Registramos tu solicitud y los archivos del proyecto. Te contactaremos para preparar la cotización.'];
+        $formData = array_fill_keys(array_keys($formData), '');
+        $formData['attachment_names'] = [];
       } else {
-        $formStatus = ['type' => 'error', 'text' => 'No se pudo registrar desde el servidor. Escribenos por WhatsApp y te atendemos.'];
+        $formStatus = ['type' => 'error', 'text' => 'No fue posible guardar la solicitud y sus archivos. Intenta nuevamente o escríbenos por WhatsApp.'];
       }
     }
   }
 }
-
 include __DIR__ . '/includes/head.php';
 include __DIR__ . '/includes/navbar.php';
 ?>
@@ -643,48 +694,96 @@ include __DIR__ . '/includes/navbar.php';
       <span class="quote-modal__badge">Seguimiento visible</span>
     </div>
     <div class="quote-modal__body">
-    <form id="quote-request-form" class="contact-form" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" data-contact-form novalidate>
+    <form id="quote-request-form" class="contact-form" action="<?php echo htmlspecialchars(crm_public_url('', [], 'cotizacion')); ?>" method="post" enctype="multipart/form-data" data-contact-form>
       <?php if ($formStatus): ?>
-        <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="status"><?php echo htmlspecialchars($formStatus['text']); ?></p>
+        <p class="form-status form-status--<?php echo htmlspecialchars($formStatus['type']); ?>" role="<?php echo $formStatus['type'] === 'error' ? 'alert' : 'status'; ?>"><?php echo htmlspecialchars($formStatus['text']); ?></p>
         <?php if ($formStatus['type'] === 'error'): ?><a class="form-fallback" href="https://wa.me/<?php echo htmlspecialchars($whatsapp); ?>?text=Hola%20ID%20Industrial,%20quiero%20solicitar%20una%20evaluacion%20tecnica" target="_blank" rel="noopener noreferrer">Continuar por WhatsApp</a><?php endif; ?>
       <?php endif; ?>
+
       <div class="form-row">
         <label for="contact-name">
-          <span class="field-pill">Nombre y empresa *</span>
-          <input id="contact-name" type="text" name="name" autocomplete="name" placeholder="Nombre y empresa" value="<?php echo htmlspecialchars($formData['name']); ?>" required aria-invalid="<?php echo isset($formErrors['name']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['name']) ? 'contact-name-error' : ''; ?>">
-          <?php if (isset($formErrors['name'])): ?><span class="field-error" id="contact-name-error"><?php echo htmlspecialchars($formErrors['name']); ?></span><?php endif; ?>
+          <span class="field-pill">Nombre *</span>
+          <input id="contact-name" type="text" name="name" autocomplete="name" maxlength="160" placeholder="Nombre completo" value="<?php echo htmlspecialchars($formData['name']); ?>" required aria-invalid="<?php echo isset($formErrors['name']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['name'])): ?> aria-describedby="contact-name-error"<?php endif; ?>>
+          <?php if (isset($formErrors['name'])): ?><span class="field-error" id="contact-name-error" role="alert"><?php echo htmlspecialchars($formErrors['name']); ?></span><?php endif; ?>
         </label>
-        <label for="contact-email">
-          <span class="field-pill">Correo *</span>
-          <input id="contact-email" type="email" name="email" autocomplete="email" placeholder="correo@empresa.com" value="<?php echo htmlspecialchars($formData['email']); ?>" required aria-invalid="<?php echo isset($formErrors['email']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['email']) ? 'contact-email-error' : ''; ?>">
-          <?php if (isset($formErrors['email'])): ?><span class="field-error" id="contact-email-error"><?php echo htmlspecialchars($formErrors['email']); ?></span><?php endif; ?>
+        <label for="contact-company">
+          <span class="field-pill">Empresa *</span>
+          <input id="contact-company" type="text" name="company" autocomplete="organization" maxlength="190" placeholder="Nombre de la empresa" value="<?php echo htmlspecialchars($formData['company']); ?>" required aria-invalid="<?php echo isset($formErrors['company']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['company'])): ?> aria-describedby="contact-company-error"<?php endif; ?>>
+          <?php if (isset($formErrors['company'])): ?><span class="field-error" id="contact-company-error" role="alert"><?php echo htmlspecialchars($formErrors['company']); ?></span><?php endif; ?>
         </label>
       </div>
+
       <div class="form-row">
+        <label for="contact-email">
+          <span class="field-pill">Correo *</span>
+          <input id="contact-email" type="email" name="email" autocomplete="email" maxlength="190" placeholder="correo@empresa.com" value="<?php echo htmlspecialchars($formData['email']); ?>" required aria-invalid="<?php echo isset($formErrors['email']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['email'])): ?> aria-describedby="contact-email-error"<?php endif; ?>>
+          <?php if (isset($formErrors['email'])): ?><span class="field-error" id="contact-email-error" role="alert"><?php echo htmlspecialchars($formErrors['email']); ?></span><?php endif; ?>
+        </label>
         <label for="contact-phone">
-          <span class="field-pill">Teléfono</span>
-          <input id="contact-phone" type="tel" name="phone" autocomplete="tel" placeholder="+52 442 000 0000" value="<?php echo htmlspecialchars($formData['phone']); ?>">
+          <span class="field-pill">Teléfono WhatsApp *</span>
+          <input id="contact-phone" type="tel" name="phone" autocomplete="tel-national" inputmode="numeric" minlength="10" maxlength="10" pattern="[0-9]{10}" placeholder="4420000000" value="<?php echo htmlspecialchars($formData['phone']); ?>" required data-quote-phone aria-invalid="<?php echo isset($formErrors['phone']) ? 'true' : 'false'; ?>" aria-describedby="contact-phone-help<?php echo isset($formErrors['phone']) ? ' contact-phone-error' : ''; ?>">
+          <span class="field-help" id="contact-phone-help">10 dígitos, sin espacios ni +52.</span>
+          <?php if (isset($formErrors['phone'])): ?><span class="field-error" id="contact-phone-error" role="alert"><?php echo htmlspecialchars($formErrors['phone']); ?></span><?php endif; ?>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label for="contact-request-type">
+          <span class="field-pill">Tipo de solicitud *</span>
+          <select id="contact-request-type" name="request_type" required aria-invalid="<?php echo isset($formErrors['request_type']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['request_type'])): ?> aria-describedby="contact-request-type-error"<?php endif; ?>>
+            <option value="">Seleccionar</option>
+            <?php foreach ($requestTypeOptions as $option): ?>
+              <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['request_type'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php if (isset($formErrors['request_type'])): ?><span class="field-error" id="contact-request-type-error" role="alert"><?php echo htmlspecialchars($formErrors['request_type']); ?></span><?php endif; ?>
         </label>
         <label for="contact-service">
-          <span class="field-pill">Servicio de interés</span>
-          <select id="contact-service" name="service" data-quote-service-field>
+          <span class="field-pill">Servicio de interés *</span>
+          <select id="contact-service" name="service" data-quote-service-field required aria-invalid="<?php echo isset($formErrors['service']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['service'])): ?> aria-describedby="contact-service-error"<?php endif; ?>>
             <option value="">Seleccionar</option>
             <?php foreach ($serviceOptions as $option): ?>
               <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['service'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
             <?php endforeach; ?>
           </select>
+          <?php if (isset($formErrors['service'])): ?><span class="field-error" id="contact-service-error" role="alert"><?php echo htmlspecialchars($formErrors['service']); ?></span><?php endif; ?>
         </label>
       </div>
+
+      <div class="form-row">
+        <label for="contact-city">
+          <span class="field-pill">Locación (ciudad) *</span>
+          <input id="contact-city" type="text" name="city" autocomplete="address-level2" maxlength="160" placeholder="Ej. Querétaro, Qro." value="<?php echo htmlspecialchars($formData['city']); ?>" required aria-invalid="<?php echo isset($formErrors['city']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['city'])): ?> aria-describedby="contact-city-error"<?php endif; ?>>
+          <?php if (isset($formErrors['city'])): ?><span class="field-error" id="contact-city-error" role="alert"><?php echo htmlspecialchars($formErrors['city']); ?></span><?php endif; ?>
+        </label>
+        <label for="contact-execution-date">
+          <span class="field-pill">Fecha deseada de ejecución *</span>
+          <input id="contact-execution-date" type="date" name="desired_execution_date" min="<?php echo htmlspecialchars($quoteMinDate->format('Y-m-d')); ?>" max="<?php echo htmlspecialchars($quoteMaxDate->format('Y-m-d')); ?>" value="<?php echo htmlspecialchars($formData['desired_execution_date']); ?>" required aria-invalid="<?php echo isset($formErrors['desired_execution_date']) ? 'true' : 'false'; ?>" aria-describedby="contact-date-help<?php echo isset($formErrors['desired_execution_date']) ? ' contact-date-error' : ''; ?>">
+          <span class="field-help" id="contact-date-help">Disponible desde hoy y hasta 6 meses.</span>
+          <?php if (isset($formErrors['desired_execution_date'])): ?><span class="field-error" id="contact-date-error" role="alert"><?php echo htmlspecialchars($formErrors['desired_execution_date']); ?></span><?php endif; ?>
+        </label>
+      </div>
+
+      <label class="file-field" for="contact-project-files">
+        <span class="field-pill">Imágenes, requerimientos o planos *</span>
+        <input id="contact-project-files" type="file" name="project_files[]" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" multiple required data-quote-files aria-invalid="<?php echo isset($formErrors['project_files']) ? 'true' : 'false'; ?>" aria-describedby="contact-files-help contact-files-summary<?php echo isset($formErrors['project_files']) ? ' contact-files-error' : ''; ?>">
+        <span class="field-help" id="contact-files-help">PDF, JPG, PNG o WEBP. Máximo 5 archivos, 8 MB por archivo y 20 MB en total.</span>
+        <span class="file-selection" id="contact-files-summary" data-file-summary aria-live="polite">Ningún archivo seleccionado.</span>
+        <?php if (isset($formErrors['project_files'])): ?><span class="field-error" id="contact-files-error" role="alert"><?php echo htmlspecialchars($formErrors['project_files']); ?></span><?php endif; ?>
+      </label>
+
       <label class="honeypot" for="company-site">
         Sitio
         <input id="company-site" type="text" name="company_site" tabindex="-1" autocomplete="off">
       </label>
+
       <label for="contact-message">
-        <span class="field-pill">Mensaje *</span>
-        <textarea id="contact-message" name="message" rows="3" placeholder="Ubicacion, tipo de instalacion y prioridad." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>" aria-describedby="<?php echo isset($formErrors['message']) ? 'contact-message-error' : ''; ?>"><?php echo htmlspecialchars($formData['message']); ?></textarea>
-        <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
+        <span class="field-pill">Requerimientos del proyecto *</span>
+        <textarea id="contact-message" name="message" rows="4" maxlength="4000" placeholder="Describe alcance, tipo de instalación, prioridad y cualquier detalle técnico relevante." required aria-invalid="<?php echo isset($formErrors['message']) ? 'true' : 'false'; ?>"<?php if (isset($formErrors['message'])): ?> aria-describedby="contact-message-error"<?php endif; ?>><?php echo htmlspecialchars($formData['message']); ?></textarea>
+        <?php if (isset($formErrors['message'])): ?><span class="field-error" id="contact-message-error" role="alert"><?php echo htmlspecialchars($formErrors['message']); ?></span><?php endif; ?>
       </label>
-      <p class="form-privacy">Al enviar aceptas el <a href="aviso-de-privacidad/">Aviso de Privacidad</a>.</p>
+
+      <p class="form-privacy">Todos los campos son obligatorios. Al enviar aceptas el <a href="aviso-de-privacidad/">Aviso de Privacidad</a>.</p>
       <button class="button button--primary" type="submit">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2Z"/></svg>
         Enviar solicitud

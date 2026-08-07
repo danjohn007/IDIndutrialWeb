@@ -179,6 +179,7 @@ setHeaderState();
 
 document.querySelectorAll('[data-contact-form]').forEach((form) => {
   form.addEventListener('submit', () => {
+    if (!form.checkValidity()) return;
     const button = form.querySelector('[type="submit"]');
     if (!button) return;
     button.disabled = true;
@@ -186,6 +187,42 @@ document.querySelectorAll('[data-contact-form]').forEach((form) => {
     button.textContent = 'Enviando solicitud...';
   });
 });
+
+const quotePhoneField = document.querySelector('[data-quote-phone]');
+if (quotePhoneField instanceof HTMLInputElement) {
+  const validateQuotePhone = () => {
+    quotePhoneField.value = quotePhoneField.value.replace(/\D/g, '').slice(0, 10);
+    quotePhoneField.setCustomValidity(
+      quotePhoneField.value.length === 10 ? '' : 'Ingresa exactamente 10 dígitos.'
+    );
+  };
+  quotePhoneField.addEventListener('input', validateQuotePhone);
+  quotePhoneField.addEventListener('blur', validateQuotePhone);
+}
+
+const quoteFilesField = document.querySelector('[data-quote-files]');
+const quoteFilesSummary = document.querySelector('[data-file-summary]');
+if (quoteFilesField instanceof HTMLInputElement) {
+  const validateQuoteFiles = () => {
+    const files = Array.from(quoteFilesField.files || []);
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    let message = '';
+    if (!files.length) message = 'Adjunta al menos un archivo del proyecto.';
+    else if (files.length > 5) message = 'Puedes adjuntar un máximo de 5 archivos.';
+    else if (files.some((file) => file.size > 8 * 1024 * 1024)) message = 'Cada archivo debe pesar como máximo 8 MB.';
+    else if (totalSize > 20 * 1024 * 1024) message = 'El total de los archivos no puede superar 20 MB.';
+    else if (files.some((file) => file.type && !allowedTypes.includes(file.type))) message = 'Solo se permiten archivos PDF, JPG, PNG o WEBP.';
+    quoteFilesField.setCustomValidity(message);
+
+    if (quoteFilesSummary) {
+      quoteFilesSummary.textContent = files.length
+        ? files.length + ' archivo' + (files.length === 1 ? '' : 's') + ': ' + files.map((file) => file.name).join(', ')
+        : 'Ningún archivo seleccionado.';
+    }
+  };
+  quoteFilesField.addEventListener('change', validateQuoteFiles);
+}
 
 const quoteModal = document.querySelector('[data-quote-modal]');
 
