@@ -1,0 +1,59 @@
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  border-top: 3px solid #ffb000;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition: border-color 160ms ease, background-color 160ms ease,
+    color 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+button:active,
+a.button:active,
+a.icon-button:active {
+  transform: scale(0.98);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #00a3ff;
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  main > section,
+  main > article,
+  dialog > form,
+  dialog > div {
+    transition: border-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  main > section:hover,
+  main > article:hover {
+    border-color: #465762;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

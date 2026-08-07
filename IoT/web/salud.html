@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#12161B">
+    <title>Salud del sistema | ID Industrial</title>
+    <link rel="stylesheet" href="css/dashboard.css?v=20260804-routines-motion1">
+    <link rel="stylesheet" href="css/salud.css?v=20260728-health1">
+    <link rel="stylesheet" href="css/motion.css?v=20260804-motion1">
+  </head>
+  <body>
+    <main class="app-shell health-shell">
+      <header class="topbar health-topbar">
+        <div class="brand-lockup">
+          <img class="brand-logo health-logo" src="assets/logo-id-industrial.png" alt="ID Industrial">
+          <div class="brand-copy">
+            <p class="eyebrow">Supervision operativa</p>
+            <h1>Salud del sistema</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="session-user">
+            <span id="healthUserName">Verificando...</span>
+            <small id="healthUserRole">--</small>
+          </div>
+          <a class="icon-button" href="reportes.html" aria-label="Abrir reportes" title="Reportes">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5zM15 3v5h5M8 13h8M8 17h8"/></svg>
+          </a>
+          <button class="icon-button" id="healthRefresh" type="button" aria-label="Actualizar salud" title="Actualizar">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>
+          </button>
+          <a class="icon-button" href="index.html" aria-label="Volver al panel" title="Volver al panel">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+          </a>
+          <button class="icon-button" id="healthLogout" type="button" aria-label="Cerrar sesion" title="Cerrar sesion">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M15 4h4a2 2 0 0 1 2 2h-4"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="health-summary" aria-live="polite">
+        <div>
+          <p class="section-label">Estado operativo</p>
+          <strong id="healthState">Consultando</strong>
+          <p id="healthDescription">Revisando conexion, sensores y calibraciones.</p>
+        </div>
+        <div class="health-summary-meta">
+          <span>Actualizado</span>
+          <strong id="healthUpdated">--</strong>
+        </div>
+      </section>
+
+      <section class="health-metrics" aria-label="Resumen de salud">
+        <article class="health-metric"><span>Dispositivos online</span><strong id="onlineDevices">0</strong><small id="onlineDetail">0 registrados</small></article>
+        <article class="health-metric"><span>Dispositivos offline</span><strong id="offlineDevices">0</strong><small>Sin comunicacion por mas de 2 min</small></article>
+        <article class="health-metric"><span>Sensores a revisar</span><strong id="sensorsReview">0</strong><small>DHT11, MQ-2 o KY-026</small></article>
+        <article class="health-metric"><span>Calibraciones MQ-2</span><strong id="calibrationDue">0</strong><small>Pendientes o con mas de 90 dias</small></article>
+        <article class="health-metric"><span>Lecturas atascadas</span><strong id="stuckReadings">0</strong><small>MQ-2 sin variacion util</small></article>
+      </section>
+
+      <section class="panel health-devices-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Diagnostico</p>
+            <h2>Estado por dispositivo</h2>
+          </div>
+          <a class="download-link" href="reportes.html">Generar reporte</a>
+        </div>
+        <p class="health-status" id="healthStatus" aria-live="polite"></p>
+        <div class="health-device-list" id="healthDeviceList"></div>
+      </section>
+    </main>
+    <template id="healthEmptyTemplate"><div class="empty-state"><strong>Sin dispositivos para revisar</strong><span>Los dispositivos activos apareceran aqui automaticamente.</span></div></template>
+    <script src="js/motion.js?v=20260804-motion1" defer></script>
+    <script src="js/salud.js?v=20260728-health1" defer></script>
+  </body>
+</html>

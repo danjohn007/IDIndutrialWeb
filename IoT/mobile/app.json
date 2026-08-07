@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "ID Industrial",
+    "slug": "id-industrial",
+    "version": "1.0.1",
+    "icon": "./assets/app-icon.png",
+    "orientation": "portrait",
+    "scheme": "idindustrial",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "digital.idactivos.idindustrial",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/app-icon.png",
+        "backgroundColor": "#12161B"
+      },
+      "package": "digital.idactivos.idindustrial",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/app-icon.png",
+      "output": "single"
+    },
+    "splash": {
+      "image": "./assets/app-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#12161B"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#FFB000",
+          "defaultChannel": "critical-alerts"
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Permite que ID Industrial proteja tu sesion."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "65e50b1c-2076-4b58-990f-4da68dbafc3a"
+      }
+    },
+    "owner": "impactos-digitales"
+  }
+}

@@ -1,0 +1,12 @@
+backend-cpanel/api/config.local.php
+api/config.local.php
+firmware/**/secrets.h
+.env
+.DS_Store
+Thumbs.db
+.preview/
+*.zip
+*.log
+*.ipa
+*.apk
+*.aab

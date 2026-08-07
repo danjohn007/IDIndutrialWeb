@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#12161B">
+    <title>Acceso | ID Industrial</title>
+    <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="css/motion.css?v=20260804-motion1">
+  </head>
+  <body>
+    <main class="login-shell">
+      <header class="login-brand">
+        <img src="assets/logo-id-industrial.png" alt="ID Industrial">
+        <div>
+          <p>Panel industrial</p>
+          <h1>Acceso seguro</h1>
+        </div>
+      </header>
+
+      <section class="login-panel" aria-labelledby="loginTitle">
+        <div class="login-heading">
+          <p>Monitoreo contra incendios</p>
+          <h2 id="loginTitle">Iniciar sesion</h2>
+        </div>
+
+        <form id="loginForm">
+          <label>
+            <span>Correo</span>
+            <input name="email" type="email" maxlength="160" autocomplete="username" required autofocus>
+          </label>
+          <label>
+            <span>Password</span>
+            <input name="password" type="password" maxlength="200" autocomplete="current-password" required>
+          </label>
+          <p class="form-message" id="loginMessage" aria-live="polite"></p>
+          <button class="primary-button" type="submit">Entrar al panel</button>
+        </form>
+
+        <button class="setup-toggle" id="setupToggle" type="button" aria-expanded="false">
+          Crear administrador inicial
+        </button>
+
+        <form class="setup-form" id="setupForm" hidden>
+          <div class="setup-heading">
+            <h2>Primer acceso</h2>
+            <span>Disponible solamente antes de crear el primer usuario.</span>
+          </div>
+          <label>
+            <span>Correo del cliente registrado</span>
+            <input name="cliente_email" type="email" maxlength="160" autocomplete="off" required>
+          </label>
+          <label>
+            <span>Nombre del administrador</span>
+            <input name="nombre" type="text" minlength="2" maxlength="100" autocomplete="name" required>
+          </label>
+          <label>
+            <span>Correo de acceso</span>
+            <input name="email" type="email" maxlength="160" autocomplete="username" required>
+          </label>
+          <label>
+            <span>Password</span>
+            <input name="password" type="password" minlength="8" maxlength="200" autocomplete="new-password" required>
+          </label>
+          <label>
+            <span>Token de instalacion</span>
+            <input name="setup_token" type="password" minlength="32" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+          </label>
+          <p class="form-message" id="setupMessage" aria-live="polite"></p>
+          <button class="primary-button" type="submit">Crear administrador</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="js/motion.js?v=20260804-motion1" defer></script>
+    <script src="js/login.js?v=20260727-auth2" defer></script>
+  </body>
+</html>

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#12161B">
+    <title>ID Industrial | Dispositivos</title>
+    <link rel="stylesheet" href="css/usuarios.css?v=20260731-shelly1">
+    <link rel="stylesheet" href="css/motion.css?v=20260804-motion1">
+  </head>
+  <body>
+    <main class="users-shell">
+      <header class="users-topbar">
+        <a class="brand-lockup" href="index.html" aria-label="Volver al panel">
+          <img src="assets/logo-id-industrial.png" alt="ID Industrial">
+          <span>
+            <small>Panel industrial</small>
+            <strong>Administracion de dispositivos</strong>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <span class="session-user">
+            <strong id="sessionUserName">Verificando...</strong>
+            <small id="sessionUserRole">--</small>
+          </span>
+          <a class="button button-secondary" href="usuarios.html">Usuarios</a>
+          <a class="button button-secondary" href="index.html">Volver al panel</a>
+          <button class="icon-button" id="logoutButton" type="button" aria-label="Cerrar sesion" title="Cerrar sesion">Salir</button>
+        </div>
+      </header>
+
+      <section class="users-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Administracion</p>
+            <h1>Dispositivos registrados</h1>
+            <p class="panel-description">Registra equipos de monitoreo ESP32 y actuadores Shelly sin mezclar sus funciones.</p>
+          </div>
+          <button class="button button-primary" id="newDeviceButton" type="button">Nuevo dispositivo</button>
+        </div>
+        <p class="form-message" id="pageMessage" aria-live="polite"></p>
+        <div class="users-summary" id="devicesSummary">Cargando dispositivos...</div>
+        <div class="table-wrap">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>Identificador</th>
+                <th>Tipo</th>
+                <th>Ubicacion</th>
+                <th>Estado</th>
+                <th>Ultima conexion</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="devicesTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <dialog class="user-dialog" id="deviceDialog" aria-labelledby="deviceDialogTitle">
+      <form class="user-form" id="deviceForm" method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-label">Equipo de monitoreo</p>
+            <h2 id="deviceDialogTitle">Nuevo dispositivo</h2>
+          </div>
+          <button class="dialog-close" id="dialogClose" type="button" aria-label="Cerrar">X</button>
+        </div>
+        <label class="form-field">
+          <span>Tipo de dispositivo</span>
+          <select id="deviceType">
+            <option value="ESP32">ESP32 - Monitoreo de sensores</option>
+            <option value="SHELLY">Shelly - Actuador de alarma</option>
+          </select>
+          <small>El ESP32 detecta riesgos; Shelly controla una sirena, baliza u otro actuador.</small>
+        </label>
+        <label class="form-field">
+          <span>Identificador del dispositivo</span>
+          <input id="deviceId" type="text" minlength="3" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]*" placeholder="ESP32_002" autocomplete="off" required>
+          <small id="deviceIdHelp">Debe coincidir exactamente con DISPOSITIVO_ID en el firmware del ESP32.</small>
+        </label>
+        <label class="form-field">
+          <span>Ubicacion</span>
+          <input id="deviceLocation" type="text" minlength="2" maxlength="160" placeholder="Almacen principal" autocomplete="off" required>
+        </label>
+        <label class="form-field">
+          <span>Estado</span>
+          <select id="deviceStatus">
+            <option value="Activo">Activo</option>
+            <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </label>
+        <fieldset class="device-fields" id="shellyFields" hidden>
+          <legend>Configuracion Shelly</legend>
+          <p class="device-fields-note">La clave de Shelly Cloud no se captura aqui. Debe permanecer protegida en <code>api/config.local.php</code>.</p>
+          <div class="form-grid">
+            <label class="form-field">
+              <span>ID del dispositivo Shelly</span>
+              <input id="shellyDeviceId" type="text" maxlength="100" placeholder="485519D8A1B2" autocomplete="off">
+              <small>Identificador mostrado por la app o la interfaz web de Shelly.</small>
+            </label>
+            <label class="form-field">
+              <span>Modelo</span>
+              <input id="shellyModel" type="text" maxlength="80" placeholder="Shelly Plus 1" autocomplete="off">
+            </label>
+            <label class="form-field">
+              <span>Generacion de API</span>
+              <select id="shellyGeneration">
+                <option value="GEN2_PLUS">Gen2 o posterior (RPC)</option>
+                <option value="GEN1">Gen1</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>IP o host local</span>
+              <input id="shellyLocalIp" type="text" maxlength="255" placeholder="192.168.1.50" autocomplete="off">
+              <small>Opcional. Conviene reservar esta IP en el router.</small>
+            </label>
+            <label class="form-field">
+              <span>Canal de salida</span>
+              <input id="shellyChannel" type="number" min="0" max="31" step="1" value="0">
+            </label>
+            <label class="form-field">
+              <span>Funcion</span>
+              <select id="shellyFunction">
+                <option value="SIRENA">Sirena</option>
+                <option value="BALIZA">Baliza</option>
+                <option value="VENTILACION">Ventilacion</option>
+                <option value="CONTACTOR">Contactor</option>
+                <option value="OTRO">Otro</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Modo de control</span>
+              <select id="shellyControlMode">
+                <option value="HIBRIDO">Hibrido - Local y nube</option>
+                <option value="LOCAL">Solo red local</option>
+                <option value="CLOUD">Solo Shelly Cloud</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>ESP32 asociado</span>
+              <select id="shellyLinkedDevice">
+                <option value="">Sin asociar</option>
+              </select>
+              <small>Relaciona el actuador con el equipo que detecta el riesgo.</small>
+            </label>
+          </div>
+        </fieldset>
+        <p class="form-message" id="dialogMessage" aria-live="polite"></p>
+        <div class="dialog-actions">
+          <button class="button button-secondary" id="dialogCancel" type="button">Cancelar</button>
+          <button class="button button-primary" id="dialogSubmit" type="submit">Guardar dispositivo</button>
+        </div>
+      </form>
+    </dialog>
+    <script src="js/motion.js?v=20260804-motion1" defer></script>
+    <script src="js/dispositivos.js?v=20260731-shelly-live1" defer></script>
+  </body>
+</html>

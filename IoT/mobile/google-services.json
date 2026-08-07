@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "21611183845",
+    "project_id": "id-industrial-c70e5",
+    "storage_bucket": "id-industrial-c70e5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:21611183845:android:f3503587498e940e241e0c",
+        "android_client_info": {
+          "package_name": "digital.idactivos.idindustrial"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzoKht5Lu3S7Tje3x-JCLPAenhGcixTYE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

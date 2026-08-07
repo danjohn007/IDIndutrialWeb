@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#12161B">
+    <title>Historial de alertas | ID Industrial</title>
+    <link rel="stylesheet" href="css/dashboard.css?v=20260804-routines-motion1">
+    <link rel="stylesheet" href="css/alertas.css?v=20260727-history1">
+    <link rel="stylesheet" href="css/motion.css?v=20260804-motion1">
+  </head>
+  <body>
+    <main class="app-shell history-shell">
+      <header class="topbar history-topbar">
+        <div class="brand-lockup">
+          <img class="brand-logo history-logo" src="assets/logo-id-industrial.png" alt="ID Industrial">
+          <div class="brand-copy">
+            <p class="eyebrow">Analisis de eventos</p>
+            <h1>Historial de alertas</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="session-user">
+            <span id="historyUserName">Verificando...</span>
+            <small id="historyUserRole">--</small>
+          </div>
+          <a class="icon-button" href="index.html" aria-label="Volver al panel" title="Volver al panel">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M19 12H5M11 18l-6-6 6-6"/>
+            </svg>
+          </a>
+          <button class="icon-button" id="historyLogout" type="button" aria-label="Cerrar sesion" title="Cerrar sesion">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M10 17l5-5-5-5M15 12H3M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="panel filter-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Filtros</p>
+            <h2>Buscar alertas</h2>
+          </div>
+        </div>
+        <form class="history-filters" id="historyFilters">
+          <label>
+            <span>Dispositivo</span>
+            <select name="dispositivo_id" id="filterDevice">
+              <option value="">Todos</option>
+            </select>
+          </label>
+          <label>
+            <span>Sensor</span>
+            <select name="sensor">
+              <option value="">Todos</option>
+              <option value="GAS">MQ-2 / Humo y gas</option>
+              <option value="FLAMA">KY-026 / Flama</option>
+              <option value="TEMPERATURA">Temperatura</option>
+              <option value="CONECTIVIDAD">Conectividad</option>
+              <option value="DHT">DHT11</option>
+            </select>
+          </label>
+          <label>
+            <span>Severidad</span>
+            <select name="severidad">
+              <option value="">Todas</option>
+              <option value="CRITICO">Critico</option>
+              <option value="PRECAUCION">Precaucion</option>
+              <option value="NORMAL">Normal</option>
+            </select>
+          </label>
+          <label>
+            <span>Atencion</span>
+            <select name="estado">
+              <option value="">Todos</option>
+              <option value="NUEVA">Nueva</option>
+              <option value="RECONOCIDA">Reconocida</option>
+              <option value="RESUELTA">Resuelta</option>
+            </select>
+          </label>
+          <label>
+            <span>Desde</span>
+            <input name="desde" type="datetime-local">
+          </label>
+          <label>
+            <span>Hasta</span>
+            <input name="hasta" type="datetime-local">
+          </label>
+          <label>
+            <span>Por pagina</span>
+            <select name="por_pagina">
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
+          <div class="filter-actions">
+            <button class="button button-primary" type="submit">Aplicar filtros</button>
+            <button class="button button-secondary" id="clearFilters" type="button">Limpiar</button>
+            <a class="button button-secondary" id="exportAlerts" href="api/exportar_alertas_csv.php">Exportar CSV</a>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel history-results">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Resultados</p>
+            <h2 id="historyCount">Consultando alertas...</h2>
+          </div>
+        </div>
+        <p class="history-status" id="historyStatus" aria-live="polite"></p>
+        <div class="table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Dispositivo</th>
+                <th>Ubicacion</th>
+                <th>Origen</th>
+                <th>Valor</th>
+                <th>Severidad</th>
+                <th>Atencion</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody id="historyTable"></tbody>
+          </table>
+        </div>
+        <nav class="pagination" aria-label="Paginacion del historial">
+          <button class="icon-button" id="previousPage" type="button" aria-label="Pagina anterior" title="Pagina anterior">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <span id="pageStatus">Pagina 1 de 1</span>
+          <button class="icon-button" id="nextPage" type="button" aria-label="Pagina siguiente" title="Pagina siguiente">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </nav>
+      </section>
+    </main>
+
+    <script src="js/motion.js?v=20260804-motion1" defer></script>
+    <script src="js/alertas.js?v=20260803-connectivity1" defer></script>
+  </body>
+</html>
