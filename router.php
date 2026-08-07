@@ -58,6 +58,44 @@ foreach ($routes as $pattern => [$script, $routeQuery]) {
   }
 }
 
+// Modulo IoT: panel web en /iot/ y API en /iot/api/.
+if ( === 'iot' ||  === 'iot/') {
+   =  . '/IoT/web/index.html';
+  if (is_file()) {
+    header('Content-Type: text/html; charset=UTF-8');
+    readfile();
+    exit;
+  }
+}
+if (preg_match('#^iot/api/(.+)\$#', , )) {
+   = 'IoT/api/' . [1];
+   = realpath( . '/' . );
+  if ( && str_starts_with(,  . DIRECTORY_SEPARATOR . 'IoT' . DIRECTORY_SEPARATOR . 'api')) {
+    ('IoT/api/' . [1]);
+  }
+}
+if (preg_match('#^iot/(.+)\$#', , )) {
+   = 'IoT/web/' . [1];
+   = realpath( . '/' . );
+  if ( && str_starts_with(,  . DIRECTORY_SEPARATOR . 'IoT' . DIRECTORY_SEPARATOR . 'web') && is_file()) {
+     = strtolower(pathinfo(, PATHINFO_EXTENSION));
+     = [
+      'css' => 'text/css; charset=UTF-8',
+      'js' => 'application/javascript; charset=UTF-8',
+      'html' => 'text/html; charset=UTF-8',
+      'svg' => 'image/svg+xml',
+      'png' => 'image/png',
+      'jpg' => 'image/jpeg',
+      'jpeg' => 'image/jpeg',
+      'webp' => 'image/webp',
+    ];
+    if (isset([])) {
+      header('Content-Type: ' . []);
+    }
+    readfile();
+    exit;
+  }
+}
 http_response_code(404);
 header('Content-Type: text/plain; charset=UTF-8');
 echo 'Ruta no encontrada.';

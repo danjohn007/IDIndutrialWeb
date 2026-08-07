@@ -6,7 +6,8 @@ DirectoryIndex index.php index.html
 
   # Redirect the previous /sistema deployment to the public root.
   RewriteCond %{THE_REQUEST} \s/+sistema(?:[/?\s]) [NC]
-  RewriteRule ^sistema(?:/(.*))?$ /$1 [R=301,L,NE]
+  RewriteRule ^sistema/?$ ./ [R=301,L,NE]
+  RewriteRule ^sistema/(.+)$ $1 [R=301,L,NE]
 
   # Canonical host and protocol in production.
   RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
@@ -52,6 +53,10 @@ DirectoryIndex index.php index.html
   RewriteRule ^crm/perfil/?$ crm/index.php?view=profile [QSA,L]
   RewriteRule ^crm/configuracion/?$ crm/index.php?view=settings [QSA,L]
   RewriteRule ^crm/?$ crm/index.php?view=dashboard [QSA,L]
+  # Modulo IoT: panel web en /iot/ y API en /iot/api/
+  RewriteRule ^iot/api/(.+)$ api/$1 [QSA,L]
+  RewriteRule ^iot/?$ web/index.html [L]
+  RewriteRule ^iot/(.+)$ web/$1 [L]
 
   # Preserve service preselection on the public quote form.
   RewriteCond %{QUERY_STRING} (^|&)servicio= [NC]

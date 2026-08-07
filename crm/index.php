@@ -135,6 +135,7 @@ function crm_icon(string $name): string
     'scheduled' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>',
     'overdue' => '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M12 18h.01"/></svg>',
     'bell' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+    'iot' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v6"/><path d="m8.5 8.5-3-1.5"/><path d="m15.5 8.5 3-1.5"/><circle cx="12" cy="13" r="4"/><path d="M12 17v5"/><path d="M8 22h8"/><path d="M4 13H2"/><path d="M22 13h-2"/><path d="M6.3 9.3 5 8"/><path d="M17.7 9.3 19 8"/></svg>',
   ];
   return $icons[$name] ?? $icons['reports'];
 }
@@ -1431,6 +1432,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
         <a class="<?php echo $view === 'bitacora' && isset($_GET['notifications']) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('notifications', 0, [], 'reportes-recibidos')); ?>">Notificaciones<em data-notification-count <?php echo $adminUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $adminUnreadNotifications; ?></em></a>
         <a class="<?php echo $view === 'profile' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('profile')); ?>">Perfil</a>
         <a class="<?php echo $view === 'settings' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('settings')); ?>">Configuracion</a>
+        <a class="crm-nav__iot" href="<?php echo h(crm_public_url('iot/')); ?>">Monitoreo IoT</a>
         <a href="<?php echo h(crm_public_url()); ?>">Vista publica</a>
       </nav>
       <div class="crm-sidebar__footer">
@@ -1547,6 +1549,15 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 </a>
               <?php endforeach; ?>
               <?php if (!$webLeadsRecent): ?><p>No hay leads web registrados todavia.</p><?php endif; ?>
+            </div>
+          </article>
+          <article class="crm-card crm-iot-card">
+            <div class="crm-card-headline">
+              <div>
+                <h2><span class="crm-kpi__icon"><?php echo crm_icon('iot'); ?></span> Modulo IoT</h2>
+                <p>Monitoreo industrial: sensores, alarmas, dispositivos Shelly, rutinas y reportes en tiempo real.</p>
+              </div>
+              <a class="crm-button" href="<?php echo h(crm_public_url('iot/')); ?>">Abrir panel IoT</a>
             </div>
           </article>
           <div class="crm-kpis crm-kpis--secondary crm-dashboard-alerts">
