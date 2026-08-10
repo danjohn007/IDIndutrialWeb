@@ -90,7 +90,7 @@ textarea {
 }
 
 .section-pad {
-  padding: clamp(72px, 8vw, 128px) 0;
+  padding: clamp(56px, 6vw, 96px) 0;
 }
 
 .section-dark {
@@ -1108,7 +1108,7 @@ p {
 
 .lamp-section {
   position: relative;
-  min-height: 760px;
+  min-height: 560px;
   overflow: hidden;
   background: #07080b;
   color: var(--ink);
@@ -1126,12 +1126,12 @@ p {
 
 .lamp-scene {
   position: relative;
-  min-height: 760px;
+  min-height: 560px;
   display: flex;
   align-items: center;
   justify-content: center;
   isolation: isolate;
-  transform: translateY(24px) scale(0.98);
+  transform: translateY(0) scale(0.99);
 }
 
 .lamp-beam {
@@ -1260,7 +1260,7 @@ p {
   position: relative;
   z-index: 8;
   width: var(--container);
-  margin-top: 120px;
+  margin-top: 32px;
   text-align: center;
   transform: translateY(54px);
   opacity: 0;
@@ -2845,7 +2845,7 @@ p {
 
   .lamp-section,
   .lamp-scene {
-    min-height: 640px;
+    min-height: 500px;
   }
 
   .lamp-beam {
@@ -2867,7 +2867,7 @@ p {
   }
 
   .lamp-content {
-    margin-top: 90px;
+    margin-top: 24px;
   }
 }
 
@@ -3379,6 +3379,7 @@ p {
   position: relative;
   overflow: hidden;
   background: #080a0c;
+  padding-bottom: clamp(48px, 4vw, 64px);
 }
 
 .bitacora-id::before {
