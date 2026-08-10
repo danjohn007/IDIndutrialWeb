@@ -31,6 +31,7 @@ $moreServiceItems = [
   ['label' => 'CCTV industrial', 'href' => $assetBase . 'instalacion-camaras-seguridad-industrial-queretaro/'],
   ['label' => 'Fibra óptica', 'href' => $assetBase . '#fibra-optica'],
   ['label' => 'Control de Accesos', 'href' => $assetBase . 'control-de-acceso-de-personal-queretaro/'],
+  ['label' => 'Smart Factories / IoT', 'href' => $assetBase . '#smart-factories-iot'],
 ];
 
 $secondaryNavItems = [

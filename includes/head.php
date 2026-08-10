@@ -80,7 +80,8 @@
       "CCTV industrial",
       "control de accesos",
       "HVAC industrial",
-      "detección de incendios"
+      "detección de incendios",
+      "Smart Factories e IoT industrial"
     ],
     "hasOfferCatalog": {
       "@type": "OfferCatalog",
@@ -90,7 +91,8 @@
         {"@type": "Service", "name": "Detección de incendios"},
         {"@type": "Service", "name": "Sistemas HVAC"},
         {"@type": "Service", "name": "Control de accesos"},
-        {"@type": "Service", "name": "CCTV industrial"}
+        {"@type": "Service", "name": "CCTV industrial"},
+        {"@type": "Service", "name": "Smart Factories / IoT"}
       ]
     }
   }

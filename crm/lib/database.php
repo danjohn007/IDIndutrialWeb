@@ -233,6 +233,7 @@ function crm_admin_url(string $view = 'dashboard', int $id = 0, array $query = [
     'dashboard' => '',
     'opportunities' => 'oportunidades',
     'quotes' => 'cotizaciones',
+    'calendar' => 'calendario',
     'clients' => 'clientes',
     'prospects' => 'prospectos',
     'bitacora' => 'bitacora',

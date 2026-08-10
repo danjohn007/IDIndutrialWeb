@@ -133,6 +133,7 @@ function crm_icon(string $name): string
     'urgent' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
     'response' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="m8 11 2 2 5-5"/></svg>',
     'scheduled' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>',
+    'calendar' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M7 14h.01"/><path d="M12 14h.01"/><path d="M17 14h.01"/><path d="M7 18h.01"/><path d="M12 18h.01"/></svg>',
     'overdue' => '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M12 18h.01"/></svg>',
     'bell' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
     'iot' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v6"/><path d="m8.5 8.5-3-1.5"/><path d="m15.5 8.5 3-1.5"/><circle cx="12" cy="13" r="4"/><path d="M12 17v5"/><path d="M8 22h8"/><path d="M4 13H2"/><path d="M22 13h-2"/><path d="M6.3 9.3 5 8"/><path d="M17.7 9.3 19 8"/></svg>',
@@ -203,6 +204,48 @@ function crm_pill_class(string $value): string
   return 'crm-pill--neutral';
 }
 
+function crm_calendar_state(string $recordType, string $status, string $eventDate): string
+{
+  $normalizedStatus = strtolower(trim($status));
+  $completedStatuses = $recordType === 'quote'
+    ? ['enviada', 'aprobada']
+    : ['cotizacion enviada', 'proyecto entregado'];
+  if (in_array($normalizedStatus, $completedStatuses, true)) {
+    return 'completed';
+  }
+
+  if ($eventDate !== '' && $eventDate < date('Y-m-d')) {
+    return 'pending';
+  }
+
+  $pendingStatuses = $recordType === 'quote'
+    ? ['solicitud recibida', 'en elaboracion']
+    : ['nueva solicitud'];
+  if (in_array($normalizedStatus, $pendingStatuses, true)) {
+    return 'pending';
+  }
+
+  return 'followup';
+}
+
+function crm_calendar_state_label(string $state): string
+{
+  $labels = [
+    'pending' => 'Pendiente o vencido',
+    'followup' => 'En seguimiento',
+    'completed' => 'Enviado o completado',
+  ];
+  return $labels[$state] ?? 'En seguimiento';
+}
+
+function crm_calendar_date_label(string $date): string
+{
+  $timestamp = strtotime($date);
+  if ($timestamp === false) {
+    return $date;
+  }
+  return date('d/m/Y', $timestamp);
+}
 function crm_opportunity_age_label(string $date): string
 {
   $timestamp = strtotime($date) ?: time();
@@ -334,23 +377,23 @@ if (empty($_SESSION['crm_user'])):
       </div>
       <h1 id="login-title">Acceso administrador</h1>
       <p>Seguimiento de leads, cotizaciones y clientes industriales.</p>
-      <?php if ($loginError): ?><p class="crm-alert"><?php echo h($loginError); ?></p><?php endif; ?>
+      <?php if ($loginError): ?><p class="crm-alert" role="alert"><?php echo h($loginError); ?></p><?php endif; ?>
       <form method="post" autocomplete="on" data-login-form novalidate>
         <input type="hidden" name="action" value="login">
         <label class="crm-field">
           Correo
-          <input type="email" name="crm_email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" required data-login-email>
-          <span class="crm-field__error" data-error-email>Ingresa un correo valido.</span>
+          <input type="email" name="crm_email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="nombre@empresa.com" required data-login-email>
+          <span class="crm-field__error" data-error-email role="alert">Ingresa un correo valido.</span>
         </label>
         <label class="crm-field">
           Password
           <span class="crm-password-field">
-            <input id="crm-password" type="password" name="crm_password" autocomplete="current-password" minlength="8" required data-login-password>
+            <input id="crm-password" type="password" name="crm_password" autocomplete="current-password" minlength="8" placeholder="Tu contrasena" required data-login-password>
             <button class="crm-password-toggle" type="button" aria-label="Mostrar password" aria-controls="crm-password" data-password-toggle>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg>
             </button>
           </span>
-          <span class="crm-field__error" data-error-password>La contrasena debe tener al menos 8 caracteres.</span>
+          <span class="crm-field__error" data-error-password role="alert">La contrasena debe tener al menos 8 caracteres.</span>
         </label>
         <label class="crm-field crm-human-check">
           Verificacion humana
@@ -362,9 +405,9 @@ if (empty($_SESSION['crm_user'])):
             <span class="crm-human-check__equals" aria-hidden="true">=</span>
             <input type="text" name="human_answer" inputmode="numeric" pattern="[0-9]{1,2}" maxlength="2" autocomplete="off" enterkeyhint="done" required data-human-answer placeholder="Respuesta" aria-label="Respuesta de la suma">
           </span>
-          <span class="crm-field__error">Resuelve la suma para continuar.</span>
+          <span class="crm-field__error" role="alert">Resuelve la suma para continuar.</span>
         </label>
-        <button class="crm-button" type="submit">Entrar al CRM</button>
+        <button class="crm-button" type="submit" data-login-submit>Entrar al CRM</button>
       </form>
     </section>
   </main>
@@ -397,7 +440,8 @@ if (empty($_SESSION['crm_user'])):
       const toggle = document.querySelector('[data-password-toggle]');
       const email = document.querySelector('[data-login-email]');
       const human = document.querySelector('[data-human-answer]');
-      if (!form || !password || !toggle || !email || !human) return;
+      const submit = document.querySelector('[data-login-submit]');
+      if (!form || !password || !toggle || !email || !human || !submit) return;
 
       toggle.addEventListener('click', () => {
         const showing = password.type === 'text';
@@ -412,7 +456,11 @@ if (empty($_SESSION['crm_user'])):
           event.preventDefault();
           const invalid = form.querySelector(':invalid');
           if (invalid) invalid.focus();
+          return;
         }
+        submit.disabled = true;
+        submit.setAttribute('aria-busy', 'true');
+        submit.textContent = 'Validando acceso...';
       });
     })();
   </script>
@@ -1407,7 +1455,146 @@ for ($monthsAgo = 5; $monthsAgo >= 0; $monthsAgo--) {
     'total' => $monthlyTotals[$monthKey] ?? 0,
   ];
 }
-$services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', 'HVAC industrial', 'Deteccion de incendios', 'Fibra optica', 'Subestaciones electricas', 'Mantenimiento'];
+$calendarEvents = [];
+$calendarAgenda = [];
+$calendarInitialDate = date('Y-m-d');
+$calendarSummary = ['total' => 0, 'pending' => 0, 'followup' => 0, 'completed' => 0];
+
+if ($view === 'calendar') {
+  $calendarPalette = [
+    'pending' => ['background' => '#a63c32', 'border' => '#7f2821', 'text' => '#ffffff'],
+    'followup' => ['background' => '#d9a514', 'border' => '#9d7400', 'text' => '#17130a'],
+    'completed' => ['background' => '#247451', 'border' => '#18583c', 'text' => '#ffffff'],
+  ];
+
+  $addCalendarEvent = static function (
+    string $recordType,
+    int $recordId,
+    string $recordLabel,
+    string $reference,
+    string $company,
+    string $service,
+    string $status,
+    string $date,
+    string $dateMeaning,
+    string $eventKind,
+    string $url,
+    ?string $forcedState = null
+  ) use (&$calendarEvents, &$calendarSummary, $calendarPalette): void {
+    $date = substr(trim($date), 0, 10);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)
+      || !checkdate((int) substr($date, 5, 2), (int) substr($date, 8, 2), (int) substr($date, 0, 4))) {
+      return;
+    }
+
+    $state = $forcedState ?: crm_calendar_state($recordType, $status, $date);
+    $colors = $calendarPalette[$state] ?? $calendarPalette['followup'];
+    $referenceLabel = trim($reference) !== '' ? trim($reference) : $company;
+    $title = $recordLabel . ' · ' . $referenceLabel;
+    if ($company !== '' && $company !== $referenceLabel) {
+      $title .= ' · ' . $company;
+    }
+
+    $calendarEvents[] = [
+      'id' => $recordType . '-' . $recordId . '-' . $eventKind . '-' . $date,
+      'title' => $title,
+      'start' => $date,
+      'allDay' => true,
+      'url' => $url,
+      'backgroundColor' => $colors['background'],
+      'borderColor' => $colors['border'],
+      'textColor' => $colors['text'],
+      'classNames' => ['crm-calendar-event', 'crm-calendar-event--' . $state, 'crm-calendar-event--' . $recordType],
+      'extendedProps' => [
+        'recordType' => $recordType,
+        'recordLabel' => $recordLabel,
+        'reference' => $referenceLabel,
+        'company' => $company,
+        'service' => $service,
+        'status' => $status,
+        'state' => $state,
+        'stateLabel' => crm_calendar_state_label($state),
+        'dateLabel' => crm_calendar_date_label($date),
+        'dateMeaning' => $dateMeaning,
+        'url' => $url,
+      ],
+    ];
+    $calendarSummary['total']++;
+    $calendarSummary[$state]++;
+  };
+
+  $calendarQuoteRows = $pdo->query('
+    SELECT q.id, q.quote_code, q.status, q.requested_date, q.valid_until, q.sent_at,
+      o.company_name, o.service
+    FROM quotes q
+    JOIN opportunities o ON o.id = q.opportunity_id
+    WHERE q.status <> "Perdida"
+    ORDER BY q.updated_at DESC, q.created_at DESC
+  ')->fetchAll();
+
+  foreach ($calendarQuoteRows as $calendarQuote) {
+    $quoteUrl = crm_admin_url('quote', (int) $calendarQuote['id']);
+    $quoteCode = trim((string) ($calendarQuote['quote_code'] ?? '')) ?: 'Cotizacion #' . (int) $calendarQuote['id'];
+    $company = trim((string) ($calendarQuote['company_name'] ?? '')) ?: 'Empresa por definir';
+    $service = trim((string) ($calendarQuote['service'] ?? '')) ?: 'Servicio por definir';
+    $status = trim((string) ($calendarQuote['status'] ?? '')) ?: 'Solicitud recibida';
+    $addCalendarEvent('quote', (int) $calendarQuote['id'], 'Cotizacion', $quoteCode, $company, $service, $status, (string) ($calendarQuote['requested_date'] ?? ''), 'Fecha requerida por el cliente', 'requested', $quoteUrl);
+    $addCalendarEvent('quote', (int) $calendarQuote['id'], 'Cotizacion', $quoteCode, $company, $service, $status, (string) ($calendarQuote['valid_until'] ?? ''), 'Fin de vigencia de la propuesta', 'validity', $quoteUrl);
+    $addCalendarEvent('quote', (int) $calendarQuote['id'], 'Cotizacion', $quoteCode, $company, $service, $status, (string) ($calendarQuote['sent_at'] ?? ''), 'Fecha de envio al cliente', 'sent', $quoteUrl, 'completed');
+  }
+
+  $calendarProjectRows = $pdo->query('
+    SELECT id, company_name, service, status, next_action_date, desired_execution_date, updated_at
+    FROM opportunities
+    WHERE status <> "Proyecto perdido"
+    ORDER BY updated_at DESC, created_at DESC
+  ')->fetchAll();
+
+  foreach ($calendarProjectRows as $calendarProject) {
+    $projectId = (int) $calendarProject['id'];
+    $projectUrl = crm_admin_url('opportunity', $projectId);
+    $company = trim((string) ($calendarProject['company_name'] ?? '')) ?: 'Empresa por definir';
+    $service = trim((string) ($calendarProject['service'] ?? '')) ?: 'Servicio por definir';
+    $status = trim((string) ($calendarProject['status'] ?? '')) ?: 'Nueva solicitud';
+    $recordLabel = strpos($status, 'Proyecto ') === 0 ? 'Proyecto' : 'Oportunidad';
+    $addCalendarEvent('project', $projectId, $recordLabel, $service, $company, $service, $status, (string) ($calendarProject['next_action_date'] ?? ''), 'Proximo seguimiento comercial u operativo', 'followup', $projectUrl);
+    $addCalendarEvent('project', $projectId, $recordLabel, $service, $company, $service, $status, (string) ($calendarProject['desired_execution_date'] ?? ''), 'Ejecucion o entrega propuesta', 'delivery', $projectUrl);
+    if ($status === 'Proyecto entregado' && empty($calendarProject['desired_execution_date'])) {
+      $addCalendarEvent('project', $projectId, 'Proyecto', $service, $company, $service, $status, (string) ($calendarProject['updated_at'] ?? ''), 'Ultima actualizacion del proyecto entregado', 'completed', $projectUrl, 'completed');
+    }
+  }
+
+  usort($calendarEvents, static fn(array $a, array $b): int => strcmp((string) $a['start'], (string) $b['start']));
+  foreach ($calendarEvents as $calendarEvent) {
+    if ((string) $calendarEvent['start'] >= date('Y-m-d')) {
+      $calendarInitialDate = (string) $calendarEvent['start'];
+      break;
+    }
+  }
+  if ($calendarEvents && $calendarInitialDate === date('Y-m-d') && (string) end($calendarEvents)['start'] < date('Y-m-d')) {
+    $calendarInitialDate = (string) end($calendarEvents)['start'];
+  }
+  reset($calendarEvents);
+
+  $calendarAgenda = $calendarEvents;
+  usort($calendarAgenda, static function (array $a, array $b): int {
+    $today = date('Y-m-d');
+    $aState = (string) ($a['extendedProps']['state'] ?? 'followup');
+    $bState = (string) ($b['extendedProps']['state'] ?? 'followup');
+    $aPast = (string) $a['start'] < $today;
+    $bPast = (string) $b['start'] < $today;
+    $aRank = $aPast && $aState === 'pending' ? 0 : ($aPast ? 2 : 1);
+    $bRank = $bPast && $bState === 'pending' ? 0 : ($bPast ? 2 : 1);
+    if ($aRank !== $bRank) {
+      return $aRank <=> $bRank;
+    }
+    return $aRank === 1
+      ? strcmp((string) $a['start'], (string) $b['start'])
+      : strcmp((string) $b['start'], (string) $a['start']);
+  });
+  $calendarAgenda = array_slice($calendarAgenda, 0, 12);
+}
+$services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', 'HVAC industrial', 'Deteccion de incendios', 'Fibra optica', 'Subestaciones electricas', 'Mantenimiento', 'Smart Factories / IoT', 'Otro'];
 ?>
 <!doctype html>
 <html lang="es-MX">
@@ -1419,6 +1606,11 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
   <link rel="stylesheet" href="<?php echo h(crm_public_url('assets/css/crm.css')); ?>">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
   <script src="<?php echo h(crm_public_url('assets/js/crm-workspace.js')); ?>" defer></script>
+  <?php if ($view === 'calendar'): ?>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.20/index.global.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.20/locales-all.global.min.js" defer></script>
+    <script src="<?php echo h(crm_public_url('assets/js/crm-calendar.js')); ?>" defer></script>
+  <?php endif; ?>
 </head>
 <body class="crm-app" data-notification-poll="<?php echo h(crm_admin_url('notification_poll')); ?>">
   <a class="crm-skip-link" href="#crm-main-content">Ir al contenido principal</a>
@@ -1437,6 +1629,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
         <span class="crm-nav__label">Ventas</span>
         <a class="<?php echo in_array($view, ['opportunities', 'opportunity'], true) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('opportunities')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('leads'); ?></span><span>Oportunidades</span></a>
         <a class="<?php echo in_array($view, ['quotes', 'quote'], true) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('quotes')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('money'); ?></span><span>Cotizaciones</span></a>
+        <a class="<?php echo $view === 'calendar' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('calendar')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('calendar'); ?></span><span>Calendario</span></a>
         <span class="crm-nav__label">Cartera</span>
         <a class="<?php echo $view === 'prospects' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('prospects')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('prospects'); ?></span><span>Prospectos</span></a>
         <a class="<?php echo $view === 'clients' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('clients')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('clients'); ?></span><span>Clientes</span></a>
@@ -1544,6 +1737,94 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             'monthly' => array_map(static fn(array $row): array => ['label' => (string) $row['label'], 'value' => (int) $row['total']], $monthlyRows),
             'pipeline' => array_map(static fn(array $row): array => ['label' => (string) $row['status'], 'value' => (int) $row['total']], $statusRows),
           ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
+        <?php elseif ($view === 'calendar'): ?>
+          <div class="crm-head crm-calendar-head">
+            <div>
+              <p class="eyebrow">Planeacion comercial y operativa</p>
+              <h1>Calendario de seguimiento</h1>
+              <p>Consulta en un solo lugar los compromisos, fechas requeridas, vigencias, envios y entregas propuestas.</p>
+            </div>
+            <div class="crm-head__actions">
+              <a class="crm-button crm-button--ghost" href="<?php echo h(crm_admin_url('opportunities')); ?>">Ver oportunidades</a>
+              <a class="crm-button" href="<?php echo h(crm_admin_url('quotes')); ?>">Ver cotizaciones</a>
+            </div>
+          </div>
+
+          <section class="crm-calendar-summary" aria-label="Resumen del calendario">
+            <article class="crm-card crm-calendar-stat crm-calendar-stat--total"><span><?php echo crm_icon('calendar'); ?></span><div><small>Fechas visibles</small><strong><?php echo (int) $calendarSummary['total']; ?></strong><p>Hitos registrados</p></div></article>
+            <article class="crm-card crm-calendar-stat crm-calendar-stat--pending"><span><?php echo crm_icon('overdue'); ?></span><div><small>Pendientes / vencidas</small><strong><?php echo (int) $calendarSummary['pending']; ?></strong><p>Requieren atencion</p></div></article>
+            <article class="crm-card crm-calendar-stat crm-calendar-stat--followup"><span><?php echo crm_icon('scheduled'); ?></span><div><small>En seguimiento</small><strong><?php echo (int) $calendarSummary['followup']; ?></strong><p>Compromisos activos</p></div></article>
+            <article class="crm-card crm-calendar-stat crm-calendar-stat--completed"><span><?php echo crm_icon('tasks'); ?></span><div><small>Enviadas / completadas</small><strong><?php echo (int) $calendarSummary['completed']; ?></strong><p>Hitos cumplidos</p></div></article>
+          </section>
+
+          <section class="crm-card crm-calendar-controls" aria-label="Filtros y significado de colores">
+            <div class="crm-calendar-filters">
+              <span>Mostrar</span>
+              <div role="group" aria-label="Filtrar eventos del calendario">
+                <button class="is-active" type="button" data-calendar-filter="all" aria-pressed="true">Todo</button>
+                <button type="button" data-calendar-filter="quote" aria-pressed="false">Cotizaciones</button>
+                <button type="button" data-calendar-filter="project" aria-pressed="false">Proyectos</button>
+              </div>
+            </div>
+            <div class="crm-calendar-legend" aria-label="Estados del calendario">
+              <span><i class="crm-calendar-dot crm-calendar-dot--pending"></i><strong>Rojo</strong> Pendiente o vencido</span>
+              <span><i class="crm-calendar-dot crm-calendar-dot--followup"></i><strong>Amarillo</strong> En seguimiento</span>
+              <span><i class="crm-calendar-dot crm-calendar-dot--completed"></i><strong>Verde</strong> Enviado o completado</span>
+            </div>
+          </section>
+
+          <div class="crm-calendar-layout">
+            <section class="crm-card crm-calendar-panel" aria-labelledby="crm-calendar-title">
+              <div class="crm-calendar-panel__head">
+                <div><p class="eyebrow">Vista mensual</p><h2 id="crm-calendar-title">Agenda de fechas</h2></div>
+                <output data-calendar-visible-count aria-live="polite"><?php echo (int) $calendarSummary['total']; ?> fechas</output>
+              </div>
+              <div class="crm-calendar-root" id="crm-calendar" data-calendar-root aria-label="Calendario mensual de cotizaciones y proyectos">
+                <p class="crm-calendar-loading" data-calendar-loading>Cargando vista del calendario...</p>
+              </div>
+              <noscript><p class="crm-calendar-notice">Activa JavaScript para navegar por meses y filtrar. La agenda lateral conserva enlaces directos a cada registro.</p></noscript>
+            </section>
+
+            <aside class="crm-card crm-calendar-agenda" aria-labelledby="crm-calendar-agenda-title">
+              <header><div><p class="eyebrow">Prioridades</p><h2 id="crm-calendar-agenda-title">Agenda inmediata</h2></div><span>12 max.</span></header>
+              <p>Primero aparecen los vencidos recientes; despues, las proximas fechas.</p>
+              <div class="crm-calendar-agenda__list">
+                <?php foreach ($calendarAgenda as $agendaEvent): ?>
+                  <?php $agendaProps = $agendaEvent['extendedProps']; ?>
+                  <a class="crm-calendar-agenda__item crm-calendar-agenda__item--<?php echo h($agendaProps['state']); ?>" href="<?php echo h($agendaProps['url']); ?>" data-calendar-event="<?php echo h($agendaEvent['id']); ?>">
+                    <span class="crm-calendar-agenda__date"><strong><?php echo h(date('d', strtotime((string) $agendaEvent['start']))); ?></strong><small><?php echo h(strtoupper(substr(crm_month_name(date('m', strtotime((string) $agendaEvent['start']))), 0, 3))); ?></small></span>
+                    <span class="crm-calendar-agenda__body"><small><?php echo h($agendaProps['recordLabel'] . ' · ' . $agendaProps['dateMeaning']); ?></small><strong><?php echo h($agendaProps['reference']); ?></strong><em><?php echo h($agendaProps['company']); ?></em><b><?php echo h($agendaProps['stateLabel']); ?></b></span>
+                  </a>
+                <?php endforeach; ?>
+                <?php if (!$calendarAgenda): ?>
+                  <div class="crm-calendar-empty"><span><?php echo crm_icon('calendar'); ?></span><strong>No hay fechas registradas</strong><p>Agrega una siguiente accion, fecha requerida, vigencia o entrega propuesta desde su registro.</p></div>
+                <?php endif; ?>
+              </div>
+            </aside>
+          </div>
+
+          <dialog class="crm-calendar-dialog" id="crm-calendar-detail" aria-labelledby="crm-calendar-detail-title">
+            <div class="crm-modal__surface">
+              <header class="crm-modal__header">
+                <div><p class="eyebrow" data-calendar-detail-kind>Detalle de fecha</p><h2 id="crm-calendar-detail-title" data-calendar-detail-title>Evento del calendario</h2></div>
+                <button class="crm-modal__close" type="button" aria-label="Cerrar detalle" data-calendar-detail-close><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+              </header>
+              <div class="crm-calendar-detail__status" data-calendar-detail-state>En seguimiento</div>
+              <dl class="crm-calendar-detail__grid">
+                <div><dt>Fecha</dt><dd data-calendar-detail-date>&mdash;</dd></div>
+                <div><dt>Que representa</dt><dd data-calendar-detail-meaning>&mdash;</dd></div>
+                <div><dt>Empresa</dt><dd data-calendar-detail-company>&mdash;</dd></div>
+                <div><dt>Servicio</dt><dd data-calendar-detail-service>&mdash;</dd></div>
+                <div><dt>Estatus del registro</dt><dd data-calendar-detail-status>&mdash;</dd></div>
+              </dl>
+              <footer class="crm-modal__footer"><p>Abre el registro para actualizar la fecha o cambiar su estatus.</p><a class="crm-button" href="<?php echo h(crm_admin_url()); ?>" data-calendar-detail-url>Abrir registro</a></footer>
+            </div>
+          </dialog>
+
+          <script type="application/json" id="crm-calendar-data"><?php echo json_encode([
+            'events' => $calendarEvents,
+            'initialDate' => $calendarInitialDate,
+          ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?></script>
         <?php elseif ($view === 'opportunities'): ?>
           <div class="crm-head">
             <div>

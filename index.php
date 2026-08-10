@@ -208,6 +208,19 @@ $serviceOverview = [
     'badge' => 'Trazabilidad',
     'linkText' => 'Conocer control de acceso para empresas',
   ],
+  [
+    'id' => 'smart-factories-iot',
+    'title' => 'Smart Factories / IoT',
+    'copy' => 'Sensores, monitoreo remoto, tableros e integración de datos para conectar procesos y equipos industriales.',
+    'application' => 'Aplicación: producción, mantenimiento, energía, alertas y trazabilidad operativa.',
+    'href' => '#cotizacion',
+    'image' => 'assets/img/optimized/home-hero-logicas.jpg',
+    'alt' => 'Monitoreo para Smart Factories e IoT industrial',
+    'width' => 1920,
+    'height' => 500,
+    'badge' => 'Industria 4.0',
+    'linkText' => 'Cotizar Smart Factories e IoT',
+  ],
 ];
 
 $trustItems = [
@@ -265,6 +278,8 @@ $serviceOptions = [
   'Fibra óptica',
   'Control de Accesos',
   'Soporte técnico / Bitácora ID',
+  'Smart Factories / IoT',
+  'Otro',
 ];
 
 $serviceParamMap = [
@@ -274,6 +289,8 @@ $serviceParamMap = [
   'cctv' => 'CCTV industrial',
   'fibra' => 'Fibra óptica',
   'accesos' => 'Control de Accesos',
+  'iot' => 'Smart Factories / IoT',
+  'otro' => 'Otro',
 ];
 
 $formStatus = null;
@@ -790,6 +807,7 @@ include __DIR__ . '/includes/navbar.php';
                   <option value="<?php echo htmlspecialchars($option); ?>" <?php echo $formData['service'] === $option ? 'selected' : ''; ?>><?php echo htmlspecialchars($option); ?></option>
                 <?php endforeach; ?>
               </select>
+              <span class="field-help">Si eliges Otro, describe el servicio o integracion que necesitas en Requerimientos.</span>
               <?php if (isset($formErrors['service'])): ?><span class="field-error" id="contact-service-error" role="alert"><?php echo htmlspecialchars($formErrors['service']); ?></span><?php endif; ?>
             </label>
             <label class="quote-field" for="contact-city">
