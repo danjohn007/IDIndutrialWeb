@@ -50,6 +50,7 @@ DirectoryIndex index.php index.html
   RewriteRule ^crm/cotizaciones/([0-9]+)/?$ crm/index.php?view=quote&id=$1 [QSA,L]
   RewriteRule ^crm/cotizaciones/?$ crm/index.php?view=quotes [QSA,L]
   RewriteRule ^crm/clientes/?$ crm/index.php?view=clients [QSA,L]
+  RewriteRule ^crm/prospectos/?$ crm/index.php?view=prospects [QSA,L]
   RewriteRule ^crm/notificaciones/?$ crm/index.php?view=bitacora&notifications=1 [QSA,L]
   RewriteRule ^crm/bitacora/?$ crm/index.php?view=bitacora [QSA,L]
   RewriteRule ^crm/perfil/?$ crm/index.php?view=profile [QSA,L]

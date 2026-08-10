@@ -1151,7 +1151,6 @@ $counts = [
   'pending' => 0,
 ];
 $quoteTotal = (float) $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM quotes WHERE status NOT IN ('Perdida')")->fetchColumn();
-$wonTotal = (float) $pdo->query("SELECT COALESCE(SUM(estimated_value), 0) FROM opportunities WHERE status IN ('Proyecto ganado', 'Proyecto iniciado', 'Proyecto entregado')")->fetchColumn();
 $opportunityFilter = (string) ($_GET['filter'] ?? 'all');
 $opportunityAllowedFilters = ['all', 'new', 'today', 'quote', 'started', 'delivered'];
 if (!in_array($opportunityFilter, $opportunityAllowedFilters, true)) {
@@ -1194,14 +1193,6 @@ $opportunitySql .= '
 $opportunityStmt = $pdo->prepare($opportunitySql);
 $opportunityStmt->execute($opportunityParams);
 $opportunities = $opportunityStmt->fetchAll();
-$webLeadsRecent = $pdo->query('
-  SELECT id, company_name, contact_name, contact_email, contact_phone, service, priority, status, next_action_date, created_at
-  FROM opportunities
-  WHERE source = "Formulario web"
-  ORDER BY created_at DESC, id DESC
-  LIMIT 6
-')->fetchAll();
-$webLeadPendingCount = (int) $pdo->query('SELECT COUNT(*) FROM opportunities WHERE source = "Formulario web" AND status = "Nueva solicitud"')->fetchColumn();
 $selectedOpportunity = null;
 $selectedOpportunityQuotes = [];
 $selectedOpportunityActivities = [];
@@ -1257,7 +1248,7 @@ if ($view === 'quote') {
     $selectedQuoteActivities = $activityStmt->fetchAll();
   }
 }
-$clients = $pdo->query('
+$clientRecords = $pdo->query('
   SELECT c.*,
     COALESCE(SUM(CASE WHEN o.status IN ("Proyecto iniciado", "Proyecto entregado") THEN 1 ELSE 0 END), 0) AS started_projects,
     COALESCE(SUM(CASE WHEN o.status = "Proyecto entregado" THEN 1 ELSE 0 END), 0) AS delivered_projects,
@@ -1267,8 +1258,10 @@ $clients = $pdo->query('
   FROM clients c
   LEFT JOIN opportunities o ON o.client_id = c.id
   GROUP BY c.id
-  ORDER BY CASE WHEN c.lifecycle_stage = "Prospecto" THEN 0 ELSE 1 END, c.created_at DESC, c.name
+  ORDER BY c.created_at DESC, c.name
 ')->fetchAll();
+$clients = array_values(array_filter($clientRecords, static fn(array $client): bool => (string) ($client['lifecycle_stage'] ?? 'Prospecto') === 'Cliente'));
+$prospects = array_values(array_filter($clientRecords, static fn(array $client): bool => (string) ($client['lifecycle_stage'] ?? 'Prospecto') === 'Prospecto'));
 $portalUsers = $pdo->query('
   SELECT cpu.*, o.company_name, o.contact_name, o.contact_email, o.service, o.status AS opportunity_status
   FROM client_portal_users cpu
@@ -1394,19 +1387,26 @@ $pendingStmt = $pdo->prepare('SELECT COUNT(*) FROM activities WHERE completed_at
 $pendingStmt->execute([date('Y-m-d', strtotime('+2 days'))]);
 $counts['pending'] = (int) $pendingStmt->fetchColumn();
 $statusRows = $pdo->query('SELECT status, COUNT(*) AS total FROM opportunities GROUP BY status ORDER BY total DESC')->fetchAll();
+$monthlyStart = date('Y-m-01', strtotime('-5 months'));
 $monthlySql = crm_driver($pdo) === 'mysql'
-  ? "SELECT DATE_FORMAT(created_at, '%m') AS month, COUNT(*) AS total FROM opportunities GROUP BY DATE_FORMAT(created_at, '%m') ORDER BY month"
-  : "SELECT strftime('%m', created_at) AS month, COUNT(*) AS total FROM opportunities GROUP BY strftime('%m', created_at) ORDER BY month";
-$monthlyRows = $pdo->query($monthlySql)->fetchAll();
-$maxOpportunityMonthlyTotal = 1;
-foreach ($monthlyRows as $row) {
-  $maxOpportunityMonthlyTotal = max($maxOpportunityMonthlyTotal, (int) $row['total']);
+  ? "SELECT DATE_FORMAT(created_at, '%Y-%m') AS month_key, COUNT(*) AS total FROM opportunities WHERE created_at >= ? GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month_key"
+  : "SELECT strftime('%Y-%m', created_at) AS month_key, COUNT(*) AS total FROM opportunities WHERE created_at >= ? GROUP BY strftime('%Y-%m', created_at) ORDER BY month_key";
+$monthlyStmt = $pdo->prepare($monthlySql);
+$monthlyStmt->execute([$monthlyStart]);
+$monthlyTotals = [];
+foreach ($monthlyStmt->fetchAll() as $row) {
+  $monthlyTotals[(string) $row['month_key']] = (int) $row['total'];
 }
-$maxOpportunityStatusTotal = 1;
-foreach ($statusRows as $row) {
-  $maxOpportunityStatusTotal = max($maxOpportunityStatusTotal, (int) $row['total']);
+$monthlyRows = [];
+for ($monthsAgo = 5; $monthsAgo >= 0; $monthsAgo--) {
+  $timestamp = strtotime('first day of -' . $monthsAgo . ' months');
+  $monthKey = date('Y-m', $timestamp);
+  $monthlyRows[] = [
+    'month' => $monthKey,
+    'label' => substr(crm_month_name(date('m', $timestamp)), 0, 3) . ' ' . date('Y', $timestamp),
+    'total' => $monthlyTotals[$monthKey] ?? 0,
+  ];
 }
-
 $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', 'HVAC industrial', 'Deteccion de incendios', 'Fibra optica', 'Subestaciones electricas', 'Mantenimiento'];
 ?>
 <!doctype html>
@@ -1417,8 +1417,11 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
   <meta name="robots" content="noindex, nofollow">
   <title>ID Industrial CRM</title>
   <link rel="stylesheet" href="<?php echo h(crm_public_url('assets/css/crm.css')); ?>">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
+  <script src="<?php echo h(crm_public_url('assets/js/crm-workspace.js')); ?>" defer></script>
 </head>
 <body class="crm-app" data-notification-poll="<?php echo h(crm_admin_url('notification_poll')); ?>">
+  <a class="crm-skip-link" href="#crm-main-content">Ir al contenido principal</a>
   <div class="crm-shell">
     <aside class="crm-sidebar" id="crm-sidebar">
       <div class="crm-brand">
@@ -1428,17 +1431,24 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
           <span>Gestion comercial</span>
         </div>
       </div>
-      <nav class="crm-nav" aria-label="CRM">
-        <a class="<?php echo $view === 'dashboard' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url()); ?>">Dashboard</a>
-        <a class="<?php echo $view === 'opportunities' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('opportunities')); ?>">Oportunidades</a>
-        <a class="<?php echo $view === 'quotes' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('quotes')); ?>">Cotizaciones</a>
-        <a class="<?php echo $view === 'clients' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('clients')); ?>">Clientes</a>
-        <a class="<?php echo $view === 'bitacora' && !isset($_GET['notifications']) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('bitacora')); ?>">Bitacora ID</a>
-        <a class="<?php echo $view === 'bitacora' && isset($_GET['notifications']) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('notifications', 0, [], 'reportes-recibidos')); ?>">Notificaciones<em data-notification-count <?php echo $adminUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $adminUnreadNotifications; ?></em></a>
-        <a class="<?php echo $view === 'profile' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('profile')); ?>">Perfil</a>
-        <a class="<?php echo $view === 'settings' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('settings')); ?>">Configuracion</a>
-        <a class="crm-nav__iot" href="<?php echo h(crm_build_path(crm_web_base_path(), 'iot')); ?>">Monitoreo IoT</a>
-        <a href="<?php echo h(crm_public_url()); ?>">Vista publica</a>
+      <nav class="crm-nav" aria-label="Navegacion principal del CRM">
+        <span class="crm-nav__label">Resumen</span>
+        <a class="<?php echo $view === 'dashboard' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url()); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('reports'); ?></span><span>Dashboard</span></a>
+        <span class="crm-nav__label">Ventas</span>
+        <a class="<?php echo in_array($view, ['opportunities', 'opportunity'], true) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('opportunities')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('leads'); ?></span><span>Oportunidades</span></a>
+        <a class="<?php echo in_array($view, ['quotes', 'quote'], true) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('quotes')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('money'); ?></span><span>Cotizaciones</span></a>
+        <span class="crm-nav__label">Cartera</span>
+        <a class="<?php echo $view === 'prospects' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('prospects')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('prospects'); ?></span><span>Prospectos</span></a>
+        <a class="<?php echo $view === 'clients' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('clients')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('clients'); ?></span><span>Clientes</span></a>
+        <span class="crm-nav__label">Operacion</span>
+        <a class="<?php echo $view === 'bitacora' && !isset($_GET['notifications']) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('bitacora')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('portal'); ?></span><span>Bitacora ID</span></a>
+        <a class="<?php echo $view === 'bitacora' && isset($_GET['notifications']) ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('notifications', 0, [], 'reportes-recibidos')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('bell'); ?></span><span>Notificaciones</span><em data-notification-count <?php echo $adminUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $adminUnreadNotifications; ?></em></a>
+        <span class="crm-nav__label">Administracion</span>
+        <a class="<?php echo $view === 'profile' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('profile')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('clients'); ?></span><span>Perfil</span></a>
+        <a class="<?php echo $view === 'settings' ? 'is-active' : ''; ?>" href="<?php echo h(crm_admin_url('settings')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('tasks'); ?></span><span>Configuracion</span></a>
+        <span class="crm-nav__label">Sistemas</span>
+        <a class="crm-nav__iot" href="<?php echo h(crm_build_path(crm_web_base_path(), 'iot')); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('iot'); ?></span><span>Monitoreo IoT</span></a>
+        <a href="<?php echo h(crm_public_url()); ?>"><span class="crm-nav__item-icon"><?php echo crm_icon('open'); ?></span><span>Vista publica</span></a>
       </nav>
       <div class="crm-sidebar__footer">
         <strong><?php echo h($_SESSION['crm_user']['name']); ?></strong><br>
@@ -1449,7 +1459,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
 
         <button class="crm-menu-overlay" type="button" aria-label="Cerrar menu" data-menu-close></button>
 
-    <main class="crm-main">
+    <main class="crm-main" id="crm-main-content" tabindex="-1">
       <header class="crm-topbar">
         <button class="crm-menu-toggle" type="button" aria-label="Abrir menu" aria-controls="crm-sidebar" aria-expanded="false" data-menu-toggle>
           <span></span><span></span><span></span>
@@ -1504,103 +1514,85 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
           <div class="crm-grid crm-dashboard-grid">
             <article class="crm-card crm-dashboard-card crm-chart-card">
               <div class="crm-chart-card__head">
-                <div><h2>Nuevos contactos</h2><p>Distribucion mensual de oportunidades.</p></div>
+                <div><h2>Nuevas oportunidades</h2><p>Tendencia mensual de registros comerciales.</p></div>
                 <span class="crm-chart-total"><?php echo array_sum(array_column($monthlyRows, 'total')); ?><small>periodo</small></span>
               </div>
-              <div class="crm-month-chart crm-month-chart--dashboard">
-                <?php foreach ($monthlyRows as $index => $row): ?>
-                  <?php $height = (int) $row['total'] > 0 ? max(14, round(((int) $row['total'] / $maxOpportunityMonthlyTotal) * 100)) : 5; ?>
-                  <div class="crm-month-chart__bar" aria-label="<?php echo h(crm_month_name((string) $row['month'])); ?>: <?php echo (int) $row['total']; ?> oportunidades">
-                    <span style="height: <?php echo $height; ?>%; background: <?php echo h(crm_chart_color((int) $index)); ?>"></span>
-                    <strong><?php echo h($row['total']); ?></strong>
-                    <small><?php echo h(crm_month_name((string) $row['month'])); ?></small>
-                  </div>
-                <?php endforeach; ?>
+              <div class="crm-chart-stage">
+                <canvas id="crm-opportunity-trend" role="img" aria-label="Grafica de oportunidades creadas por mes"></canvas>
               </div>
+              <details class="crm-chart-data">
+                <summary>Consultar datos de la grafica</summary>
+                <table><thead><tr><th>Mes</th><th>Oportunidades</th></tr></thead><tbody><?php foreach ($monthlyRows as $row): ?><tr><td><?php echo h((string) $row['label']); ?></td><td><?php echo (int) $row['total']; ?></td></tr><?php endforeach; ?></tbody></table>
+              </details>
             </article>
             <article class="crm-card crm-dashboard-card crm-chart-card">
               <?php $pipelineTotal = crm_chart_total($statusRows); ?>
               <div class="crm-chart-card__head">
-                <div><h2>Pipeline ID Industrial</h2><p>Distribucion actual por etapa comercial.</p></div>
+                <div><h2>Pipeline comercial</h2><p>Volumen actual por etapa, de mayor a menor.</p></div>
                 <span class="crm-chart-total"><?php echo $pipelineTotal; ?><small>oportunidades</small></span>
               </div>
-              <div class="crm-distribution" aria-label="Distribucion del pipeline">
-                <?php foreach ($statusRows as $index => $row): ?>
-                  <?php $value = (int) $row['total']; $percent = crm_chart_percent($value, $pipelineTotal); ?>
-                  <div class="crm-distribution__row">
-                    <div class="crm-distribution__label"><span><i style="background: <?php echo h(crm_chart_color((int) $index)); ?>"></i><?php echo h($row['status']); ?></span><strong><?php echo $value; ?><small><?php echo $percent; ?>%</small></strong></div>
-                    <div class="crm-distribution__track" role="img" aria-label="<?php echo h($row['status']); ?>: <?php echo $value; ?>, <?php echo $percent; ?> por ciento"><span style="width: <?php echo $percent; ?>%; background: <?php echo h(crm_chart_color((int) $index)); ?>"></span></div>
-                  </div>
-                <?php endforeach; ?>
+              <div class="crm-chart-stage crm-chart-stage--pipeline">
+                <canvas id="crm-pipeline-distribution" role="img" aria-label="Grafica de oportunidades por etapa comercial"></canvas>
               </div>
+              <details class="crm-chart-data">
+                <summary>Consultar datos de la grafica</summary>
+                <table><thead><tr><th>Etapa</th><th>Total</th><th>Participacion</th></tr></thead><tbody><?php foreach ($statusRows as $row): ?><tr><td><?php echo h($row['status']); ?></td><td><?php echo (int) $row['total']; ?></td><td><?php echo crm_chart_percent((int) $row['total'], $pipelineTotal); ?>%</td></tr><?php endforeach; ?></tbody></table>
+              </details>
             </article>
           </div>
-
-          <article class="crm-card crm-web-leads">
-            <div class="crm-card-headline">
-              <div>
-                <h2>Leads web recientes</h2>
-                <p><?php echo $webLeadPendingCount; ?> solicitudes web nuevas esperan primer contacto.</p>
-              </div>
-              <a class="crm-button crm-button--ghost" href="<?php echo h(crm_admin_url('opportunities', 0, ['filter' => 'new'])); ?>">Ver nuevas</a>
-            </div>
-            <div class="crm-list crm-list--compact">
-              <?php foreach ($webLeadsRecent as $lead): ?>
-                <a class="crm-list__item crm-web-lead" href="<?php echo h(crm_admin_url('opportunity', (int) $lead['id'])); ?>">
-                  <span class="crm-pill <?php echo h(crm_pill_class((string) $lead['priority'])); ?>"><?php echo h($lead['priority']); ?></span>
-                  <strong><?php echo h($lead['company_name']); ?></strong>
-                  <small><?php echo h($lead['service']); ?> - <?php echo h(crm_opportunity_age_label((string) $lead['created_at'])); ?></small>
-                  <small>Siguiente accion: <?php echo h($lead['next_action_date'] ?: 'Sin fecha'); ?></small>
-                </a>
-              <?php endforeach; ?>
-              <?php if (!$webLeadsRecent): ?><p>No hay leads web registrados todavia.</p><?php endif; ?>
-            </div>
-          </article>
-          <article class="crm-card crm-iot-card">
-            <div class="crm-card-headline">
-              <div>
-                <h2><span class="crm-kpi__icon"><?php echo crm_icon('iot'); ?></span> Modulo IoT</h2>
-                <p>Monitoreo industrial: sensores, alarmas, dispositivos Shelly, rutinas y reportes en tiempo real.</p>
-              </div>
-              <a class="crm-button" href="<?php echo h(crm_build_path(crm_web_base_path(), 'iot')); ?>">Abrir panel IoT</a>
-            </div>
-          </article>
-          <div class="crm-kpis crm-kpis--secondary crm-dashboard-alerts">
-            <article class="crm-card"><h2>Venta ganada</h2><p><?php echo crm_money($wonTotal); ?></p></article>
-            <article class="crm-card"><h2>Modelo comercial</h2><p>Levantamiento, ingenieria, propuesta, seguimiento y cierre.</p></article>
-            <article class="crm-card"><h2>Alertas</h2><p><?php echo $counts['pending']; ?> tareas requieren atencion comercial.</p></article>
-            <article class="crm-card"><h2>Proyectos entregados</h2><p><?php echo $counts['delivered']; ?> clientes pueden pasar a mantenimiento continuo.</p></article>
-          </div>
+          <script type="application/json" id="crm-dashboard-chart-data"><?php echo json_encode([
+            'monthly' => array_map(static fn(array $row): array => ['label' => (string) $row['label'], 'value' => (int) $row['total']], $monthlyRows),
+            'pipeline' => array_map(static fn(array $row): array => ['label' => (string) $row['status'], 'value' => (int) $row['total']], $statusRows),
+          ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
         <?php elseif ($view === 'opportunities'): ?>
           <div class="crm-head">
             <div>
               <p class="eyebrow">Pipeline</p>
               <h1>Oportunidades</h1>
-              <p>Lista resumida. Abre cada oportunidad para actualizar estatus y activar Bitacora ID.</p>
+              <p>Gestiona el seguimiento comercial. Cada oportunidad conserva su contacto, servicio, prioridad y siguiente accion.</p>
             </div>
+            <button class="crm-button" type="button" data-modal-open="crm-modal-opportunity">Nueva oportunidad</button>
           </div>
 
-          <article class="crm-card crm-form-card">
-            <h2>Nueva oportunidad</h2>
-            <form class="crm-form" method="post">
-              <input type="hidden" name="token" value="<?php echo h($token); ?>">
-              <input type="hidden" name="action" value="create_opportunity">
-              <div class="crm-form-grid">
-                <label class="crm-field">Empresa<input name="company_name" required></label>
-                <label class="crm-field">Contacto<input name="contact_name" required></label>
-                <label class="crm-field">Telefono<input name="contact_phone"></label>
-                <label class="crm-field">Correo<input type="email" name="contact_email"></label>
-                <label class="crm-field">Servicio<select name="service"><?php foreach ($services as $service): ?><option><?php echo h($service); ?></option><?php endforeach; ?></select></label>
-                <label class="crm-field">Estatus<select name="status"><?php foreach ($statuses as $status): ?><option><?php echo h($status); ?></option><?php endforeach; ?></select></label>
-                <label class="crm-field">Prioridad<select name="priority"><option>Alta</option><option selected>Media</option><option>Baja</option></select></label>
-                <label class="crm-field">Valor estimado<input type="number" name="estimated_value" min="0" step="1000"></label>
-                <label class="crm-field">Siguiente accion<input type="date" name="next_action_date"></label>
-                <label class="crm-field crm-field--wide">Notas<textarea name="notes" rows="3"></textarea></label>
-              </div>
-              <button class="crm-button" type="submit">Guardar oportunidad</button>
-            </form>
-          </article>
-
+          <dialog class="crm-modal" id="crm-modal-opportunity" aria-labelledby="crm-modal-opportunity-title" aria-describedby="crm-modal-opportunity-description">
+            <div class="crm-modal__surface">
+              <header class="crm-modal__header">
+                <div><p class="eyebrow">Nuevo registro</p><h2 id="crm-modal-opportunity-title">Crear oportunidad</h2><p id="crm-modal-opportunity-description">Registra primero el contacto y despues define el siguiente paso comercial.</p></div>
+                <button class="crm-modal__close" type="button" aria-label="Cerrar formulario de oportunidad" data-modal-close>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                </button>
+              </header>
+              <form class="crm-form crm-modal__form" method="post" data-modal-form>
+                <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                <input type="hidden" name="action" value="create_opportunity">
+                <input type="hidden" name="source" value="Captura manual">
+                <fieldset class="crm-form-section">
+                  <legend>Empresa y contacto</legend>
+                  <div class="crm-form-grid">
+                    <label class="crm-field" for="opportunity-company"><span>Empresa <b aria-hidden="true">*</b></span><input id="opportunity-company" name="company_name" autocomplete="organization" required><small>Razon social o nombre comercial con el que identificaras el proyecto.</small></label>
+                    <label class="crm-field" for="opportunity-contact"><span>Contacto <b aria-hidden="true">*</b></span><input id="opportunity-contact" name="contact_name" autocomplete="name" required><small>Persona responsable de evaluar o autorizar el servicio.</small></label>
+                    <label class="crm-field" for="opportunity-phone"><span>Telefono</span><input id="opportunity-phone" type="tel" name="contact_phone" autocomplete="tel"><small>Incluye lada; se usara para seguimiento comercial.</small></label>
+                    <label class="crm-field" for="opportunity-email"><span>Correo</span><input id="opportunity-email" type="email" name="contact_email" autocomplete="email"><small>Correo donde se enviaran avances y propuestas.</small></label>
+                  </div>
+                </fieldset>
+                <fieldset class="crm-form-section">
+                  <legend>Seguimiento comercial</legend>
+                  <div class="crm-form-grid">
+                    <label class="crm-field" for="opportunity-service"><span>Servicio</span><select id="opportunity-service" name="service"><?php foreach ($services as $service): ?><option><?php echo h($service); ?></option><?php endforeach; ?></select><small>Linea de servicio principal solicitada por el prospecto.</small></label>
+                    <label class="crm-field" for="opportunity-status"><span>Estatus</span><select id="opportunity-status" name="status"><?php foreach ($statuses as $status): ?><option><?php echo h($status); ?></option><?php endforeach; ?></select><small>Etapa actual del proceso; inicia en Nueva solicitud si aun no hubo contacto.</small></label>
+                    <label class="crm-field" for="opportunity-priority"><span>Prioridad</span><select id="opportunity-priority" name="priority"><option>Alta</option><option selected>Media</option><option>Baja</option></select><small>Urgencia interna para ordenar el trabajo del equipo.</small></label>
+                    <label class="crm-field" for="opportunity-value"><span>Valor estimado</span><input id="opportunity-value" type="number" name="estimated_value" min="0" step="1000" inputmode="decimal"><small>Monto preliminar esperado; puede actualizarse despues del levantamiento.</small></label>
+                    <label class="crm-field" for="opportunity-next-action"><span>Siguiente accion</span><input id="opportunity-next-action" type="date" name="next_action_date" value="<?php echo h(date('Y-m-d', strtotime('+1 day'))); ?>"><small>Fecha compromiso para llamar, visitar, cotizar o dar seguimiento.</small></label>
+                    <label class="crm-field crm-field--wide" for="opportunity-notes"><span>Notas</span><textarea id="opportunity-notes" name="notes" rows="4" placeholder="Necesidad, alcance inicial, restricciones y acuerdos."></textarea><small>Resume el contexto necesario para que cualquier integrante pueda continuar el seguimiento.</small></label>
+                  </div>
+                </fieldset>
+                <footer class="crm-modal__footer">
+                  <button class="crm-button crm-button--ghost" type="button" data-modal-close>Cancelar</button>
+                  <button class="crm-button" type="submit">Guardar oportunidad</button>
+                </footer>
+              </form>
+            </div>
+          </dialog>
           <article class="crm-card crm-opportunity-tools">
             <div class="crm-filter-tabs" aria-label="Filtros rapidos de oportunidades">
               <?php $quickFilters = ['all' => 'Todas', 'new' => 'Nuevas', 'today' => 'Hoy / vencidas', 'quote' => 'Cotizacion', 'started' => 'Proyecto iniciado', 'delivered' => 'Proyecto entregado']; ?>
@@ -1726,11 +1718,11 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                   <input type="hidden" name="return_to" value="opportunity">
                   <input type="hidden" name="opportunity_id" value="<?php echo (int) $selectedOpportunity['id']; ?>">
                   <div class="crm-form-grid">
-                    <label class="crm-field">Estatus<select name="status"><?php foreach ($statuses as $status): ?><option <?php echo $status === $selectedOpportunity['status'] ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select></label>
-                    <label class="crm-field">Prioridad<select name="priority"><option <?php echo $selectedOpportunity['priority'] === 'Alta' ? 'selected' : ''; ?>>Alta</option><option <?php echo $selectedOpportunity['priority'] === 'Media' ? 'selected' : ''; ?>>Media</option><option <?php echo $selectedOpportunity['priority'] === 'Baja' ? 'selected' : ''; ?>>Baja</option></select></label>
-                    <label class="crm-field">Valor estimado<input type="number" name="estimated_value" value="<?php echo h($selectedOpportunity['estimated_value']); ?>" min="0" step="1000"></label>
-                    <label class="crm-field">Siguiente accion<input type="date" name="next_action_date" value="<?php echo h($selectedOpportunity['next_action_date']); ?>"></label>
-                    <label class="crm-field crm-field--wide">Notas<textarea name="notes" rows="4"><?php echo h($selectedOpportunity['notes']); ?></textarea></label>
+                    <label class="crm-field"><span>Estatus</span><select name="status"><?php foreach ($statuses as $status): ?><option <?php echo $status === $selectedOpportunity['status'] ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select><small>Etapa comercial real. Proyecto entregado convierte al cliente y habilita Bitacora ID.</small></label>
+                    <label class="crm-field"><span>Prioridad</span><select name="priority"><option <?php echo $selectedOpportunity['priority'] === 'Alta' ? 'selected' : ''; ?>>Alta</option><option <?php echo $selectedOpportunity['priority'] === 'Media' ? 'selected' : ''; ?>>Media</option><option <?php echo $selectedOpportunity['priority'] === 'Baja' ? 'selected' : ''; ?>>Baja</option></select><small>Orden interno de atencion, no la probabilidad de venta.</small></label>
+                    <label class="crm-field"><span>Valor estimado</span><input type="number" name="estimated_value" value="<?php echo h($selectedOpportunity['estimated_value']); ?>" min="0" step="1000"><small>Ingreso potencial de la oportunidad; actualizalo conforme avance la ingenieria.</small></label>
+                    <label class="crm-field"><span>Siguiente accion</span><input type="date" name="next_action_date" value="<?php echo h($selectedOpportunity['next_action_date']); ?>"><small>Fecha del proximo compromiso comercial, no la fecha de ejecucion del proyecto.</small></label>
+                    <label class="crm-field crm-field--wide"><span>Notas</span><textarea name="notes" rows="4"><?php echo h($selectedOpportunity['notes']); ?></textarea><small>Registra acuerdos, alcance, bloqueos y contexto para el siguiente contacto.</small></label>
                   </div>
                   <button class="crm-button" type="submit">Guardar seguimiento</button>
                 </form>
@@ -1768,30 +1760,53 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
               </article>
             </div>
           <?php endif; ?>        <?php elseif ($view === 'quotes'): ?>
-          <div class="crm-head"><div><p class="eyebrow">Propuestas</p><h1>Cotizaciones</h1><p>Solicitudes y propuestas resumidas. Abre cada registro para ver todos los datos.</p></div></div>
+          <div class="crm-head">
+            <div><p class="eyebrow">Propuestas</p><h1>Cotizaciones</h1><p>Consulta solicitudes y propuestas sin mezclar la captura con el historial.</p></div>
+            <button class="crm-button" type="button" data-modal-open="crm-modal-quote" <?php echo !$quoteableOpportunities ? 'disabled aria-describedby="quote-create-disabled"' : ''; ?>>Nueva cotizacion</button>
+          </div>
+          <?php if (!$quoteableOpportunities): ?><p class="crm-context-note" id="quote-create-disabled">Primero crea una oportunidad activa para poder vincular la cotizacion.</p><?php endif; ?>
 
-          <article class="crm-card crm-form-card">
-            <h2>Nueva cotizacion</h2>
-            <form class="crm-form" method="post">
-              <input type="hidden" name="token" value="<?php echo h($token); ?>">
-              <input type="hidden" name="action" value="create_quote">
-              <div class="crm-form-grid crm-form-grid--quotes">
-                <label class="crm-field">Oportunidad
-                  <select name="opportunity_id" required>
-                    <?php foreach ($quoteableOpportunities as $opportunity): ?>
-                      <option value="<?php echo (int) $opportunity['id']; ?>"><?php echo h($opportunity['company_name'] . ' - ' . $opportunity['service']); ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </label>
-                <label class="crm-field">Monto<input type="number" name="amount" min="0" step="1000" required></label>
-                <label class="crm-field">Estatus<select name="status"><?php foreach ($quoteStatuses as $status): ?><option><?php echo h($status); ?></option><?php endforeach; ?></select></label>
-                <label class="crm-field">Probabilidad<input type="number" name="probability" min="0" max="100" value="40"></label>
-                <label class="crm-field">Vigencia<input type="date" name="valid_until"></label>
-              </div>
-              <button class="crm-button" type="submit">Crear cotizacion</button>
-            </form>
-          </article>
-
+          <dialog class="crm-modal" id="crm-modal-quote" aria-labelledby="crm-modal-quote-title" aria-describedby="crm-modal-quote-description">
+            <div class="crm-modal__surface">
+              <header class="crm-modal__header">
+                <div><p class="eyebrow">Nueva propuesta</p><h2 id="crm-modal-quote-title">Crear cotizacion</h2><p id="crm-modal-quote-description">Esta alta crea el folio inicial. El PDF y las condiciones se agregan desde el detalle antes de publicar al cliente.</p></div>
+                <button class="crm-modal__close" type="button" aria-label="Cerrar formulario de cotizacion" data-modal-close>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                </button>
+              </header>
+              <form class="crm-form crm-modal__form" method="post" data-modal-form>
+                <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                <input type="hidden" name="action" value="create_quote">
+                <fieldset class="crm-form-section">
+                  <legend>Referencia comercial</legend>
+                  <div class="crm-form-grid crm-form-grid--quotes">
+                    <label class="crm-field crm-field--wide" for="quote-opportunity"><span>Oportunidad <b aria-hidden="true">*</b></span>
+                      <select id="quote-opportunity" name="opportunity_id" required>
+                        <?php foreach ($quoteableOpportunities as $opportunity): ?>
+                          <option value="<?php echo (int) $opportunity['id']; ?>"><?php echo h($opportunity['company_name'] . ' - ' . $opportunity['service']); ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                      <small>Relaciona la propuesta con la empresa, contacto y servicio correctos.</small>
+                    </label>
+                  </div>
+                </fieldset>
+                <fieldset class="crm-form-section">
+                  <legend>Condiciones iniciales</legend>
+                  <div class="crm-form-grid crm-form-grid--quotes">
+                    <label class="crm-field" for="quote-amount"><span>Monto <b aria-hidden="true">*</b></span><input id="quote-amount" type="number" name="amount" min="0" step="1000" inputmode="decimal" required><small>Importe total antes de impuestos, salvo que las condiciones indiquen lo contrario.</small></label>
+                    <label class="crm-field" for="quote-status"><span>Estatus</span><select id="quote-status" name="status"><?php foreach ($quoteStatuses as $status): ?><option <?php echo $status === 'En elaboracion' ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select><small>Usa En elaboracion mientras falten alcance, costos o autorizaciones internas.</small></label>
+                    <label class="crm-field" for="quote-probability"><span>Probabilidad</span><input id="quote-probability" type="number" name="probability" min="0" max="100" value="40" inputmode="numeric"><small>Estimacion comercial de cierre, entre 0 y 100%; no modifica el monto.</small></label>
+                    <label class="crm-field" for="quote-valid-until"><span>Vigencia</span><input id="quote-valid-until" type="date" name="valid_until"><small>Ultimo dia en que precio, alcance y tiempos ofrecidos siguen vigentes.</small></label>
+                  </div>
+                </fieldset>
+                <aside class="crm-form-guidance" aria-label="Siguiente paso"><strong>Despues de crearla</strong><p>Abre el folio, agrega condiciones comerciales y adjunta el PDF. La cotizacion no sera visible para el cliente hasta activar Publicar en portal.</p></aside>
+                <footer class="crm-modal__footer">
+                  <button class="crm-button crm-button--ghost" type="button" data-modal-close>Cancelar</button>
+                  <button class="crm-button" type="submit">Crear cotizacion</button>
+                </footer>
+              </form>
+            </div>
+          </dialog>
           <article class="crm-card">
             <div class="crm-table-wrap">
               <table class="crm-table crm-table--compact">
@@ -1884,11 +1899,11 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <input type="hidden" name="return_to" value="quote">
                 <input type="hidden" name="quote_id" value="<?php echo (int) $selectedQuote['id']; ?>">
                 <div class="crm-form-grid crm-form-grid--quotes">
-                  <label class="crm-field">Monto<input type="number" name="amount" value="<?php echo h($selectedQuote['amount']); ?>" min="0" step="1000"></label>
-                  <label class="crm-field">Estatus<select name="status"><?php foreach ($quoteStatuses as $status): ?><option <?php echo $status === $quoteStatus ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select></label>
-                  <label class="crm-field">Probabilidad<input type="number" name="probability" min="0" max="100" value="<?php echo $quoteProbability; ?>"></label>
-                  <label class="crm-field">Vigencia<input type="date" name="valid_until" value="<?php echo h($quoteValidUntil); ?>"></label>
-                  <label class="crm-field crm-field--wide">Condiciones comerciales<textarea name="terms" rows="5" maxlength="5000" placeholder="Alcance incluido, exclusiones, forma de pago y tiempos de entrega."><?php echo h($selectedQuote['terms'] ?? ''); ?></textarea></label>
+                  <label class="crm-field"><span>Monto</span><input type="number" name="amount" value="<?php echo h($selectedQuote['amount']); ?>" min="0" step="1000"><small>Importe comercial de la propuesta; confirma en condiciones si incluye impuestos.</small></label>
+                  <label class="crm-field"><span>Estatus</span><select name="status"><?php foreach ($quoteStatuses as $status): ?><option <?php echo $status === $quoteStatus ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select><small>Refleja el avance interno; publicar al cliente cambia el flujo a Enviada.</small></label>
+                  <label class="crm-field"><span>Probabilidad</span><input type="number" name="probability" min="0" max="100" value="<?php echo $quoteProbability; ?>"><small>Estimacion de cierre entre 0 y 100%, independiente del importe.</small></label>
+                  <label class="crm-field"><span>Vigencia</span><input type="date" name="valid_until" value="<?php echo h($quoteValidUntil); ?>"><small>Ultimo dia en que la propuesta conserva precio, alcance y tiempos.</small></label>
+                  <label class="crm-field crm-field--wide"><span>Condiciones comerciales</span><textarea name="terms" rows="5" maxlength="5000" placeholder="Alcance incluido, exclusiones, forma de pago y tiempos de entrega."><?php echo h($selectedQuote['terms'] ?? ''); ?></textarea><small>Detalla inclusiones, exclusiones, anticipos, entregables y plazo estimado.</small></label>
                   <label class="crm-field crm-field--wide">PDF de propuesta<input type="file" name="proposal_file" accept="application/pdf"><small><?php echo !empty($selectedQuote['proposal_original_name']) ? h('Actual: ' . $selectedQuote['proposal_original_name']) : 'PDF obligatorio para publicar. Maximo 12 MB.'; ?></small></label>
                   <label class="crm-check crm-field--wide"><input type="checkbox" name="visible_to_client" value="1" <?php echo (int) ($selectedQuote['visible_to_client'] ?? 0) === 1 ? 'checked' : ''; ?>><span><strong>Publicar en portal cliente</strong><small>El cliente recibira una notificacion y podra aceptar, pedir cambios o rechazar.</small></span></label>
                 </div>
@@ -1909,50 +1924,94 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                 <?php if (!$selectedQuoteActivities): ?><p>No hay actividad registrada para esta cotizacion.</p><?php endif; ?>
               </div>
             </article>
-          <?php endif; ?>        <?php elseif ($view === 'clients'): ?>
-          <div class="crm-head"><div><p class="eyebrow">Cartera</p><h1>Clientes y prospectos</h1><p>Prospectos del sitio publico, clientes convertidos y referencias comerciales.</p></div></div>
+          <?php endif; ?>
+        <?php elseif ($view === 'prospects'): ?>
+          <div class="crm-head">
+            <div><p class="eyebrow">Cartera potencial</p><h1>Prospectos</h1><p>Contactos que aun estan en evaluacion comercial y no deben mezclarse con clientes activos.</p></div>
+            <a class="crm-button" href="<?php echo h(crm_admin_url('opportunities')); ?>">Crear oportunidad</a>
+          </div>
+          <div class="crm-kpis crm-kpis--secondary crm-portfolio-kpis">
+            <article class="crm-card"><h2>Prospectos activos</h2><p><?php echo count($prospects); ?></p><small>Registros pendientes de conversion comercial.</small></article>
+            <article class="crm-card"><h2>Criterio de conversion</h2><p>Relacion confirmada</p><small>Convierte cuando exista proyecto ganado, iniciado o una validacion comercial equivalente.</small></article>
+          </div>
           <article class="crm-card">
-            <div class="crm-table-wrap">
-              <table class="crm-table">
-                <thead><tr><th>Cliente</th><th>Etapa</th><th>Segmento</th><th>Ciudad</th><th>Contacto</th><th>Publico</th><th>Notas</th><th>Accion</th></tr></thead>
-                <tbody>
-                  <?php foreach ($clients as $client): ?>
-                    <?php $clientStage = (string) ($client['lifecycle_stage'] ?? 'Prospecto'); ?>
-                    <tr>
-                      <td><strong><?php echo h($client['name']); ?></strong></td>
-                      <td><span class="crm-pill <?php echo $clientStage === 'Prospecto' ? 'crm-pill--warning' : 'crm-pill--success'; ?>"><?php echo h($clientStage); ?></span></td>
-                      <td><?php echo h($client['segment']); ?></td>
-                      <td><?php echo h($client['city']); ?></td>
-                      <td><?php echo h($client['contact_name'] ?: 'Sin contacto'); ?><br><small><?php echo h($client['contact_email'] ?: $client['contact_phone']); ?></small></td>
-                      <td><span class="crm-pill <?php echo $client['is_public'] ? 'crm-pill--success' : 'crm-pill--neutral'; ?>"><?php echo $client['is_public'] ? 'Si' : 'No'; ?></span></td>
-                      <td><?php echo h($client['notes']); ?></td>
-                      <td>
-                        <?php if ($clientStage === 'Prospecto'): ?>
-                          <form class="crm-inline-form crm-conversion-form" method="post">
+            <div class="crm-section-head"><div><h2>Directorio de prospectos</h2><p>Revisa contacto y contexto antes de convertir. La conversion mueve el registro a Clientes.</p></div></div>
+            <?php if ($prospects): ?>
+              <div class="crm-table-wrap">
+                <table class="crm-table crm-table--compact">
+                  <thead><tr><th>Prospecto</th><th>Contacto</th><th>Ciudad</th><th>Alta</th><th>Contexto</th><th>Accion</th></tr></thead>
+                  <tbody>
+                    <?php foreach ($prospects as $prospect): ?>
+                      <tr>
+                        <td><strong><?php echo h($prospect['name']); ?></strong><br><small><?php echo h($prospect['segment'] ?: 'Prospecto'); ?></small></td>
+                        <td><?php echo h($prospect['contact_name'] ?: 'Sin contacto'); ?><br><small><?php echo h($prospect['contact_email'] ?: $prospect['contact_phone'] ?: 'Sin datos de contacto'); ?></small></td>
+                        <td><?php echo h($prospect['city'] ?: 'Sin ciudad'); ?></td>
+                        <td><?php echo h(substr((string) $prospect['created_at'], 0, 10)); ?></td>
+                        <td><?php echo h($prospect['notes'] ?: 'Sin notas'); ?></td>
+                        <td>
+                          <form class="crm-inline-form crm-conversion-form" method="post" data-confirm-message="El prospecto pasara a la cartera de clientes. Verifica que la relacion comercial ya este confirmada.">
                             <input type="hidden" name="token" value="<?php echo h($token); ?>">
                             <input type="hidden" name="action" value="convert_client">
-                            <input type="hidden" name="client_id" value="<?php echo (int) $client['id']; ?>">
+                            <input type="hidden" name="client_id" value="<?php echo (int) $prospect['id']; ?>">
                             <button class="crm-button" type="submit">Convertir a cliente</button>
                           </form>
-                        <?php elseif ((int) ($client['portal_access_count'] ?? 0) > 0): ?>
-                          <span class="crm-pill crm-pill--success">Bitacora activa</span>
-                        <?php elseif ((int) ($client['access_opportunity_id'] ?? 0) > 0): ?>
-                          <form class="crm-inline-form crm-conversion-form" method="post">
-                            <input type="hidden" name="token" value="<?php echo h($token); ?>">
-                            <input type="hidden" name="action" value="activate_portal_access">
-                            <input type="hidden" name="opportunity_id" value="<?php echo (int) $client['access_opportunity_id']; ?>">
-                            <input type="hidden" name="return_to" value="clients">
-                            <button class="crm-button" type="submit">Activar Bitacora</button>
-                          </form>
-                        <?php else: ?>
-                          <span class="crm-pill crm-pill--neutral">Sin proyecto entregado</span>
-                        <?php endif; ?>
-                      </td>
-                    </tr>
-                  <?php endforeach; ?>
-                </tbody>
-              </table>
-            </div>
+                        </td>
+                      </tr>
+                    <?php endforeach; ?>
+                  </tbody>
+                </table>
+              </div>
+            <?php else: ?>
+              <div class="crm-empty-state"><strong>No hay prospectos pendientes</strong><p>Los nuevos contactos apareceran aqui al registrar una oportunidad o recibir una solicitud web.</p><a class="crm-button crm-button--ghost" href="<?php echo h(crm_admin_url('opportunities')); ?>">Ir a oportunidades</a></div>
+            <?php endif; ?>
+          </article>
+        <?php elseif ($view === 'clients'): ?>
+          <div class="crm-head">
+            <div><p class="eyebrow">Cartera activa</p><h1>Clientes</h1><p>Empresas convertidas con su avance de proyectos y estado de acceso a Bitacora ID.</p></div>
+            <a class="crm-button crm-button--ghost" href="<?php echo h(crm_admin_url('prospects')); ?>">Ver prospectos</a>
+          </div>
+          <div class="crm-kpis crm-kpis--secondary crm-portfolio-kpis">
+            <article class="crm-card"><h2>Clientes activos</h2><p><?php echo count($clients); ?></p><small>Empresas ya convertidas a cartera.</small></article>
+            <article class="crm-card"><h2>Bitacoras activas</h2><p><?php echo $counts['portal']; ?></p><small>Accesos vigentes al portal de mantenimiento.</small></article>
+            <article class="crm-card"><h2>Proyectos entregados</h2><p><?php echo $counts['delivered']; ?></p><small>Proyectos elegibles para continuidad operativa.</small></article>
+          </div>
+          <article class="crm-card">
+            <div class="crm-section-head"><div><h2>Directorio de clientes</h2><p>Consulta responsables, proyectos y habilitacion del portal sin registros de prospeccion.</p></div></div>
+            <?php if ($clients): ?>
+              <div class="crm-table-wrap">
+                <table class="crm-table crm-table--compact">
+                  <thead><tr><th>Cliente</th><th>Contacto</th><th>Ciudad</th><th>Proyectos</th><th>Ultima actividad</th><th>Bitacora ID</th></tr></thead>
+                  <tbody>
+                    <?php foreach ($clients as $client): ?>
+                      <tr>
+                        <td><strong><?php echo h($client['name']); ?></strong><br><small><?php echo h($client['segment'] ?: 'Industrial'); ?><?php echo $client['is_public'] ? ' - Referencia publica' : ''; ?></small></td>
+                        <td><?php echo h($client['contact_name'] ?: 'Sin contacto'); ?><br><small><?php echo h($client['contact_email'] ?: $client['contact_phone'] ?: 'Sin datos de contacto'); ?></small></td>
+                        <td><?php echo h($client['city'] ?: 'Sin ciudad'); ?></td>
+                        <td><strong><?php echo (int) $client['started_projects']; ?></strong> iniciados<br><small><?php echo (int) $client['delivered_projects']; ?> entregados</small></td>
+                        <td><?php echo h($client['last_project_update'] ?: $client['converted_at'] ?: $client['created_at']); ?></td>
+                        <td>
+                          <?php if ((int) ($client['portal_access_count'] ?? 0) > 0): ?>
+                            <span class="crm-pill crm-pill--success">Activa</span>
+                          <?php elseif ((int) ($client['access_opportunity_id'] ?? 0) > 0): ?>
+                            <form class="crm-inline-form crm-conversion-form" method="post">
+                              <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                              <input type="hidden" name="action" value="activate_portal_access">
+                              <input type="hidden" name="opportunity_id" value="<?php echo (int) $client['access_opportunity_id']; ?>">
+                              <input type="hidden" name="return_to" value="clients">
+                              <button class="crm-button" type="submit">Activar Bitacora</button>
+                            </form>
+                          <?php else: ?>
+                            <span class="crm-pill crm-pill--neutral">Requiere proyecto entregado</span>
+                          <?php endif; ?>
+                        </td>
+                      </tr>
+                    <?php endforeach; ?>
+                  </tbody>
+                </table>
+              </div>
+            <?php else: ?>
+              <div class="crm-empty-state"><strong>Aun no hay clientes convertidos</strong><p>Convierte un prospecto cuando la relacion comercial este confirmada.</p><a class="crm-button crm-button--ghost" href="<?php echo h(crm_admin_url('prospects')); ?>">Revisar prospectos</a></div>
+            <?php endif; ?>
           </article>
         <?php elseif ($view === 'profile'): ?>
           <div class="crm-head">
@@ -2354,6 +2413,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                   <?php $requestPriority = trim((string) ($request['priority'] ?? 'Media')) ?: 'Media'; ?>
                   <?php $requestDueDate = trim((string) ($request['due_date'] ?? '')) ?: crm_request_due_date($requestPriority, (string) ($request['created_at'] ?? 'now')); ?>
                   <?php $requestScheduledDate = trim((string) ($request['scheduled_date'] ?? '')); ?>
+                  <?php $requestResolvedAt = trim((string) ($request['resolved_at'] ?? '')); ?>
                   <?php $requestAssignedTo = trim((string) ($request['assigned_to'] ?? '')); ?>
                   <?php $requestIsOverdue = !crm_request_is_final($requestStatus) && $requestDueDate !== '' && $requestDueDate < date('Y-m-d'); ?>
                   <form id="request-<?php echo (int) $request['id']; ?>" class="crm-list__item crm-request-card <?php echo $requestIsOverdue ? 'crm-request-card--overdue' : ''; ?>" method="post">
@@ -2375,7 +2435,7 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                       <div class="crm-report-detail-grid">
                         <span><strong>Equipo afectado</strong><?php echo h($request['equipment'] ?: 'No especificado'); ?></span>
                         <span><strong>Fecha objetivo</strong><?php echo h($requestDueDate); ?><?php echo $requestIsOverdue ? ' - vencida' : ''; ?></span>
-                        <span><strong>Fecha programada</strong><?php echo h($requestScheduledDate ?: 'Sin fecha'); ?></span>
+                        <span><strong>Fecha programada</strong><?php echo h($requestScheduledDate ?: 'Sin fecha'); ?></span><span><strong>Fecha real de resolucion</strong><?php echo h($requestResolvedAt ?: 'Pendiente'); ?></span>
                         <span><strong>Responsable</strong><?php echo h($requestAssignedTo ?: 'Sin asignar'); ?></span>
                       </div>
                       <section><strong>Descripcion enviada por el cliente</strong><p><?php echo nl2br(h($request['message'])); ?></p></section>
@@ -2393,17 +2453,20 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                     <p class="crm-request-next"><strong>Siguiente accion:</strong> <?php echo h(crm_request_next_step($requestStatus)); ?></p>
                     <?php if (!empty($request['admin_response'])): ?><div class="crm-response"><strong>Respuesta actual</strong><p><?php echo h($request['admin_response']); ?></p></div><?php endif; ?>
                     <div class="crm-form-grid crm-form-grid--request">
-                      <label class="crm-field">Estatus
+                      <label class="crm-field"><span>Estatus</span>
                         <select name="status"><?php foreach ($requestStatuses as $status): ?><option <?php echo $status === $requestStatus ? 'selected' : ''; ?>><?php echo h($status); ?></option><?php endforeach; ?></select>
+                        <small>Indica la etapa operativa. Resuelta o Cerrada registra automaticamente la fecha real de resolucion.</small>
                       </label>
-                      <label class="crm-field">Prioridad
+                      <label class="crm-field"><span>Prioridad</span>
                         <select name="priority"><?php foreach ($requestPriorities as $priority): ?><option <?php echo $priority === $requestPriority ? 'selected' : ''; ?>><?php echo h($priority); ?></option><?php endforeach; ?></select>
+                        <small>Define la urgencia y el SLA sugerido para la fecha objetivo.</small>
                       </label>
-                      <label class="crm-field">Fecha objetivo<input type="date" name="due_date" value="<?php echo h($requestDueDate); ?>"></label>
-                      <label class="crm-field">Fecha programada<input type="date" name="scheduled_date" value="<?php echo h($requestScheduledDate); ?>"></label>
-                      <label class="crm-field crm-field--wide">Responsable<input name="assigned_to" value="<?php echo h($requestAssignedTo); ?>" placeholder="Tecnico o area responsable"></label>
-                      <label class="crm-field crm-field--wide">Respuesta para el cliente<textarea name="admin_response" rows="3"><?php echo h($request['admin_response'] ?? ''); ?></textarea></label>
-                      <label class="crm-field crm-field--wide">Notas internas<textarea name="internal_notes" rows="3"><?php echo h($request['internal_notes'] ?? ''); ?></textarea></label>
+                      <label class="crm-field"><span>Fecha objetivo</span><input type="date" name="due_date" value="<?php echo h($requestDueDate); ?>"><small>Limite interno para completar la atencion; sirve para detectar vencimientos.</small></label>
+                      <label class="crm-field"><span>Fecha programada</span><input type="date" name="scheduled_date" value="<?php echo h($requestScheduledDate); ?>"><small>Dia acordado para visita, mantenimiento o intervencion tecnica.</small></label>
+                      <div class="crm-field crm-readonly-field"><span>Fecha real de resolucion</span><output><?php echo h($requestResolvedAt ?: 'Se asignara al resolver'); ?></output><small>La genera el sistema al cambiar el estatus a Resuelta o Cerrada; no se captura manualmente.</small></div>
+                      <label class="crm-field"><span>Responsable</span><input name="assigned_to" value="<?php echo h($requestAssignedTo); ?>" placeholder="Tecnico o area responsable"><small>Persona o equipo que ejecutara y documentara la atencion.</small></label>
+                      <label class="crm-field crm-field--wide"><span>Respuesta para el cliente</span><textarea name="admin_response" rows="3"><?php echo h($request['admin_response'] ?? ''); ?></textarea><small>Mensaje visible en el portal; explica avance, acuerdos o solucion sin notas internas.</small></label>
+                      <label class="crm-field crm-field--wide"><span>Notas internas</span><textarea name="internal_notes" rows="3"><?php echo h($request['internal_notes'] ?? ''); ?></textarea><small>Contexto exclusivo del equipo: diagnostico, riesgos, refacciones o pendientes.</small></label>
                     </div>
                     <button class="crm-button crm-button--ghost" type="submit">Guardar seguimiento</button>
                   </form>
