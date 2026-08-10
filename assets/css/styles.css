@@ -4499,7 +4499,7 @@ body.has-quote-modal-open {
   z-index: 1;
 }
 
-.nav-client-entry {
+.nav-menu > .nav-client-entry {
   display: none;
 }
 
