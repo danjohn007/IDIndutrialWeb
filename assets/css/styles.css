@@ -325,8 +325,7 @@ p {
   transform: translateX(-50%) rotate(45deg);
 }
 
-.nav-dropdown.is-open .nav-dropdown__menu,
-.nav-dropdown:focus-within .nav-dropdown__menu {
+.nav-dropdown.is-open .nav-dropdown__menu {
   transform: translate(-50%, 0);
   opacity: 1;
   pointer-events: auto;
@@ -2662,8 +2661,7 @@ p {
     display: none;
   }
 
-  .nav-dropdown.is-open .nav-dropdown__menu,
-  .nav-dropdown:focus-within .nav-dropdown__menu {
+  .nav-dropdown.is-open .nav-dropdown__menu {
     display: grid;
     transform: none;
   }

@@ -377,23 +377,23 @@ if (empty($_SESSION['crm_user'])):
       </div>
       <h1 id="login-title">Acceso administrador</h1>
       <p>Seguimiento de leads, cotizaciones y clientes industriales.</p>
-      <?php if ($loginError): ?><p class="crm-alert" role="alert"><?php echo h($loginError); ?></p><?php endif; ?>
+      <?php if ($loginError): ?><p class="crm-alert"><?php echo h($loginError); ?></p><?php endif; ?>
       <form method="post" autocomplete="on" data-login-form novalidate>
         <input type="hidden" name="action" value="login">
         <label class="crm-field">
           Correo
-          <input type="email" name="crm_email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="nombre@empresa.com" required data-login-email>
-          <span class="crm-field__error" data-error-email role="alert">Ingresa un correo valido.</span>
+          <input type="email" name="crm_email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" required data-login-email>
+          <span class="crm-field__error" data-error-email>Ingresa un correo valido.</span>
         </label>
         <label class="crm-field">
           Password
           <span class="crm-password-field">
-            <input id="crm-password" type="password" name="crm_password" autocomplete="current-password" minlength="8" placeholder="Tu contrasena" required data-login-password>
+            <input id="crm-password" type="password" name="crm_password" autocomplete="current-password" minlength="8" required data-login-password>
             <button class="crm-password-toggle" type="button" aria-label="Mostrar password" aria-controls="crm-password" data-password-toggle>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5 0 8.5 4.2 9.7 6.1a1.7 1.7 0 0 1 0 1.8C20.5 14.8 17 19 12 19s-8.5-4.2-9.7-6.1a1.7 1.7 0 0 1 0-1.8C3.5 9.2 7 5 12 5Zm0 2C7.9 7 4.9 10.4 4 12c.9 1.6 3.9 5 8 5s7.1-3.4 8-5c-.9-1.6-3.9-5-8-5Zm0 2.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z"/></svg>
             </button>
           </span>
-          <span class="crm-field__error" data-error-password role="alert">La contrasena debe tener al menos 8 caracteres.</span>
+          <span class="crm-field__error" data-error-password>La contrasena debe tener al menos 8 caracteres.</span>
         </label>
         <label class="crm-field crm-human-check">
           Verificacion humana
@@ -405,9 +405,9 @@ if (empty($_SESSION['crm_user'])):
             <span class="crm-human-check__equals" aria-hidden="true">=</span>
             <input type="text" name="human_answer" inputmode="numeric" pattern="[0-9]{1,2}" maxlength="2" autocomplete="off" enterkeyhint="done" required data-human-answer placeholder="Respuesta" aria-label="Respuesta de la suma">
           </span>
-          <span class="crm-field__error" role="alert">Resuelve la suma para continuar.</span>
+          <span class="crm-field__error">Resuelve la suma para continuar.</span>
         </label>
-        <button class="crm-button" type="submit" data-login-submit>Entrar al CRM</button>
+        <button class="crm-button" type="submit">Entrar al CRM</button>
       </form>
     </section>
   </main>
@@ -440,8 +440,7 @@ if (empty($_SESSION['crm_user'])):
       const toggle = document.querySelector('[data-password-toggle]');
       const email = document.querySelector('[data-login-email]');
       const human = document.querySelector('[data-human-answer]');
-      const submit = document.querySelector('[data-login-submit]');
-      if (!form || !password || !toggle || !email || !human || !submit) return;
+      if (!form || !password || !toggle || !email || !human) return;
 
       toggle.addEventListener('click', () => {
         const showing = password.type === 'text';
@@ -456,11 +455,7 @@ if (empty($_SESSION['crm_user'])):
           event.preventDefault();
           const invalid = form.querySelector(':invalid');
           if (invalid) invalid.focus();
-          return;
         }
-        submit.disabled = true;
-        submit.setAttribute('aria-busy', 'true');
-        submit.textContent = 'Validando acceso...';
       });
     })();
   </script>
