@@ -4474,8 +4474,12 @@ body.has-quote-modal-open {
 }
 /* Acceso clientes en sitio publico */
 .nav-client-login {
-  min-width: 166px;
-  gap: 9px;
+  min-width: 0;
+  min-height: 46px;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .nav-client-login svg {
@@ -4538,7 +4542,7 @@ body.has-quote-modal-open {
 }
 
 @media (max-width: 1120px) {
-  .nav-client-entry {
+  .site-header.has-menu-open .nav-client-entry {
     width: 100%;
     min-height: 68px;
     display: grid;
