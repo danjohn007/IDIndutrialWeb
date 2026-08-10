@@ -2,6 +2,7 @@
 $assetBase = $basePath ?? '';
 $currentPath = trim(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '', '/');
 $currentSection = $currentSection ?? '';
+$clientPortalHref = $assetBase . 'crm/portal';
 
 function idindustrial_is_active_nav(string $href, string $currentPath, string $currentSection): bool
 {
@@ -71,10 +72,19 @@ $secondaryNavItems = [
         <a href="<?php echo htmlspecialchars($item['href']); ?>" <?php echo $isActive ? 'class="is-active" aria-current="page"' : ''; ?>><?php echo htmlspecialchars($item['label']); ?></a>
       <?php endforeach; ?>
 
+      <a class="nav-client-entry" href="<?php echo htmlspecialchars($clientPortalHref); ?>">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11V8a7 7 0 0 1 14 0v3"/><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 15v2"/></svg>
+        <span><small>Portal Bitácora ID</small><strong>Iniciar sesión</strong></span>
+      </a>
+
       <div class="nav-menu__contact">
         <span>Atención directa</span>
         <strong><?php echo htmlspecialchars($phone ?? '+52 442 598 6318'); ?></strong>
       </div>
     </div>
+    <a class="nav-cta nav-client-login" href="<?php echo htmlspecialchars($clientPortalHref); ?>" aria-label="Iniciar sesión en el portal de clientes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11V8a7 7 0 0 1 14 0v3"/><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 15v2"/></svg>
+      <span>Acceso clientes</span>
+    </a>
   </nav>
 </header>

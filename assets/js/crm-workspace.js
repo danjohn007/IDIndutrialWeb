@@ -65,6 +65,28 @@
       dialog.addEventListener('close', () => {
         dialog._crmTrigger?.focus();
       });
+
+      if (dialog.hasAttribute('data-open-on-load') && !dialog.open) {
+        dialog.showModal();
+        requestAnimationFrame(() => dialog.querySelector('input:not([type="hidden"]), select, textarea')?.focus());
+      }
+    });
+  };
+
+  const initSubmitLocks = () => {
+    document.querySelectorAll('form[data-submit-lock]').forEach((form) => {
+      form.addEventListener('submit', (event) => {
+        if (!form.checkValidity()) {
+          event.preventDefault();
+          form.querySelector(':invalid')?.focus();
+          return;
+        }
+        const submit = form.querySelector('button[type="submit"]');
+        if (!submit || submit.disabled) return;
+        submit.disabled = true;
+        submit.dataset.originalLabel = submit.textContent || '';
+        submit.textContent = form.dataset.submitLabel || 'Guardando...';
+      });
     });
   };
 
@@ -195,6 +217,7 @@
 
   ready(() => {
     initModals();
+    initSubmitLocks();
     initConfirmations();
     initCharts();
   });

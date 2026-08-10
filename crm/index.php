@@ -2057,16 +2057,19 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
           <div class="crm-head crm-settings-head">
             <div>
               <p class="eyebrow">Configuracion</p>
-              <h1>Ajustes del CRM</h1>
-              <p>Controla el correo que recibe las solicitudes enviadas desde la pagina web.</p>
+              <h1>Canales y notificaciones</h1>
+              <p>Define quién recibe las nuevas solicitudes comerciales y revisa cómo entra cada contacto al CRM.</p>
             </div>
+            <span class="crm-pill crm-pill--success">Recepción activa</span>
           </div>
 
-          <article class="crm-card crm-settings-card">
-            <div class="crm-section-head crm-settings-card__head">
-              <div><h2>Solicitudes web</h2><p>El administrador recibe los datos del cliente y el enlace directo a la oportunidad.</p></div>
-              <span class="crm-pill crm-pill--success">Activo</span>
-            </div>
+          <section class="crm-settings-overview" aria-label="Resumen de configuración">
+            <article class="crm-card crm-settings-stat"><span><?php echo crm_icon('reports'); ?></span><div><small>Canal</small><strong>Formulario web</strong><p>Crea oportunidades automáticamente.</p></div></article>
+            <article class="crm-card crm-settings-stat"><span><?php echo crm_icon('clients'); ?></span><div><small>Destino principal</small><strong><?php echo h($quoteRequestAdminEmail); ?></strong><p>Recibe el aviso y el enlace directo.</p></div></article>
+            <article class="crm-card crm-settings-stat"><span><?php echo crm_icon('bell'); ?></span><div><small>Copia de respaldo</small><strong><?php echo $quoteRequestSecondaryEmail !== '' ? h($quoteRequestSecondaryEmail) : 'Desactivada'; ?></strong><p><?php echo $quoteRequestSecondaryEmail !== '' ? 'También recibe cada solicitud.' : 'Puedes activarla cuando la necesites.'; ?></p></div></article>
+          </section>
+
+          <article class="crm-card crm-settings-card crm-settings-card--channel">
             <?php if ($flash): ?>
               <div class="crm-account-feedback crm-account-feedback--<?php echo h($flash['type'] ?? 'info'); ?>" role="status">
                 <strong><?php echo h($flash['title'] ?? 'Aviso'); ?></strong>
@@ -2074,25 +2077,25 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
               </div>
             <?php endif; ?>
             <div class="crm-settings-card__body">
-              <aside class="crm-settings-current">
-                <span><?php echo crm_icon('reports'); ?></span>
-                <div>
-                  <small>Destino actual</small>
-                  <strong><?php echo h($quoteRequestAdminEmail); ?></strong>
-                  <?php if ($quoteRequestSecondaryEmail !== ''): ?><p>Copia activa: <?php echo h($quoteRequestSecondaryEmail); ?></p><?php endif; ?>
-                  <p>Se usa para nuevas solicitudes de cotizacion.</p>
-                </div>
-              </aside>
-              <form class="crm-form crm-settings-form" method="post" autocomplete="on">
+              <form class="crm-form crm-settings-form" method="post" autocomplete="on" data-submit-lock data-submit-label="Guardando...">
+                <div class="crm-settings-form__head"><span><?php echo crm_icon('reports'); ?></span><div><p class="eyebrow">Entrega de solicitudes</p><h2>Correos de recepción</h2><p>Estos destinatarios se usan únicamente para nuevas solicitudes enviadas desde el sitio web.</p></div></div>
                 <input type="hidden" name="token" value="<?php echo h($token); ?>">
                 <input type="hidden" name="action" value="update_settings">
-                <label class="crm-field">Correo administrador<input type="email" name="quote_request_admin_email" value="<?php echo h($quoteRequestAdminEmail); ?>" placeholder="cotizaciones@idindustrial.com.mx" required></label>
-                <label class="crm-field">Correo copia opcional<input type="email" name="quote_request_secondary_email" value="<?php echo h($quoteRequestSecondaryEmail); ?>" placeholder="ventas@idindustrial.com.mx"></label>
-                <div class="crm-settings-actions"><small>El segundo correo recibe copia de las solicitudes web; dejalo vacio para desactivarlo.</small><button class="crm-button" type="submit">Guardar configuracion</button></div>
+                <label class="crm-field">Correo principal <span class="crm-field__required">Obligatorio</span><input type="email" name="quote_request_admin_email" value="<?php echo h($quoteRequestAdminEmail); ?>" placeholder="cotizaciones@idindustrial.com.mx" autocomplete="email" required><small>Responsable de revisar y asignar la nueva oportunidad.</small></label>
+                <label class="crm-field">Correo de copia <span class="crm-field__optional">Opcional</span><input type="email" name="quote_request_secondary_email" value="<?php echo h($quoteRequestSecondaryEmail); ?>" placeholder="ventas@idindustrial.com.mx" autocomplete="email"><small>Recibe el mismo aviso. Déjalo vacío para desactivar la copia.</small></label>
+                <div class="crm-settings-actions"><small>Los cambios se aplican a las próximas solicitudes; no modifican registros anteriores.</small><button class="crm-button" type="submit">Guardar cambios</button></div>
               </form>
+              <aside class="crm-settings-flow" aria-labelledby="settings-flow-title">
+                <div><p class="eyebrow">Flujo automático</p><h2 id="settings-flow-title">Qué ocurre al recibir una solicitud</h2></div>
+                <ol>
+                  <li><span>1</span><div><strong>El cliente envía el formulario</strong><p>Se validan sus datos de contacto y el servicio requerido.</p></div></li>
+                  <li><span>2</span><div><strong>El CRM crea la oportunidad</strong><p>El registro queda disponible en Oportunidades y Cotizaciones.</p></div></li>
+                  <li><span>3</span><div><strong>Se envía el aviso</strong><p>El correo incluye los datos del cliente y un acceso directo al seguimiento.</p></div></li>
+                </ol>
+                <div class="crm-settings-note"><strong>Recomendación</strong><p>Usa un buzón del equipo comercial como destino principal para evitar que las solicitudes dependan de una sola persona.</p></div>
+              </aside>
             </div>
-          </article>
-        <?php else: ?>
+          </article>        <?php else: ?>
           <div class="crm-head crm-report-head">
             <div>
               <p class="eyebrow">Mantenimiento continuo</p>

@@ -4472,3 +4472,125 @@ body.has-quote-modal-open {
     transition: none;
   }
 }
+/* Acceso clientes en sitio publico */
+.nav-client-login {
+  min-width: 166px;
+  gap: 9px;
+}
+
+.nav-client-login svg {
+  position: relative;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.nav-client-login span {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-client-entry {
+  display: none;
+}
+
+.bitacora-id__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.button--portal {
+  gap: 10px;
+  border-color: rgba(255, 216, 77, 0.42);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.button--portal svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: #ffd84d;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.button--portal:hover,
+.button--portal:focus-visible {
+  border-color: #ffd84d;
+  background: rgba(255, 216, 77, 0.1);
+  outline: 3px solid rgba(255, 216, 77, 0.2);
+  outline-offset: 3px;
+}
+
+.bitacora-id__access-help {
+  max-width: 650px;
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.62) !important;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 1120px) {
+  .nav-client-entry {
+    width: 100%;
+    min-height: 68px;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 13px;
+    align-items: center;
+    margin-top: 10px;
+    border: 1px solid rgba(243, 198, 35, 0.3) !important;
+    border-radius: 14px !important;
+    background: rgba(243, 198, 35, 0.09) !important;
+    padding: 12px 14px !important;
+  }
+
+  .nav-client-entry > svg {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(243, 198, 35, 0.14);
+    padding: 9px;
+    fill: none;
+    stroke: #ffd84d;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
+
+  .nav-client-entry > span {
+    display: grid;
+    gap: 2px;
+  }
+
+  .nav-client-entry small {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.62rem;
+    font-weight: 850;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .nav-client-entry strong {
+    color: #fff;
+    font-size: 0.94rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .bitacora-id__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .bitacora-id__actions .button {
+    width: 100%;
+  }
+}

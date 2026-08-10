@@ -53,6 +53,7 @@ function bitacora_icon(string $name): string
     'bell' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
     'quote' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6V3Z"/><path d="M14 3v4h4"/><path d="M9 11h6"/><path d="M9 15h6"/><path d="M9 19h3"/></svg>',
     'camera' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5 13 3h-2L9.5 5H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3h-4.5Z"/><circle cx="12" cy="12.5" r="4"/></svg>',
+    'close' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>',
   ];
   return $icons[$name] ?? $icons['dashboard'];
 }
@@ -812,6 +813,33 @@ $clientQuotesStmt->execute([(int) $portal['client_id']]);
 $clientQuotes = $clientQuotesStmt->fetchAll();
 $clientUnreadNotifications = crm_unread_notification_count($pdo, 'client', $activePortalUserId);
 $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUserId, 20);
+$openRequests = array_values(array_filter($requests, static function (array $request): bool {
+  return !in_array(trim((string) ($request['status'] ?? 'Recibida')), ['Resuelta', 'Cerrada'], true);
+}));
+$urgentOpenRequests = array_values(array_filter($openRequests, static function (array $request): bool {
+  return trim((string) ($request['priority'] ?? '')) === 'Urgente';
+}));
+$upcomingLogs = array_values(array_filter($logs, static function (array $log): bool {
+  return !empty($log['scheduled_date']) && substr((string) $log['scheduled_date'], 0, 10) >= date('Y-m-d');
+}));
+usort($upcomingLogs, static function (array $left, array $right): int {
+  return strcmp((string) $left['scheduled_date'], (string) $right['scheduled_date']);
+});
+$nextMaintenanceLog = $upcomingLogs[0] ?? null;
+$nextScheduledRequest = null;
+foreach ($openRequests as $request) {
+  $scheduledDate = trim((string) ($request['scheduled_date'] ?? ''));
+  if ($scheduledDate === '' || substr($scheduledDate, 0, 10) < date('Y-m-d')) {
+    continue;
+  }
+  if ($nextScheduledRequest === null || strcmp($scheduledDate, (string) $nextScheduledRequest['scheduled_date']) < 0) {
+    $nextScheduledRequest = $request;
+  }
+}
+$nextServiceDate = (string) ($nextScheduledRequest['scheduled_date'] ?? $nextMaintenanceLog['scheduled_date'] ?? '');
+$latestLog = $logs[0] ?? null;
+$latestRequest = $requests[0] ?? null;
+$latestClientQuote = $clientQuotes[0] ?? null;
 ?>
 <!doctype html>
 <html lang="es-MX">
@@ -821,19 +849,25 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
   <meta name="robots" content="noindex, nofollow">
   <title>Bitacora ID | <?php echo h($project['company_name']); ?></title>
   <link rel="stylesheet" href="<?php echo h(crm_public_url('assets/css/crm.css')); ?>">
+  <script src="<?php echo h(crm_public_url('assets/js/crm-workspace.js')); ?>" defer></script>
 </head>
 <body class="crm-app crm-client-app crm-client-portal" data-notification-poll="<?php echo h(crm_portal_url('notification_poll', $activeOpportunityId)); ?>">
+  <a class="crm-skip-link" href="#client-main">Saltar al contenido</a>
   <div class="crm-client-layout">
     <aside class="crm-client-sidebar" id="cliente-sidebar">
       <div class="crm-client-brand">
         <img src="<?php echo h(crm_public_url('assets/img/logo-idindustrial-small.webp')); ?>" alt="ID Industrial" width="280" height="74">
         <div><strong>Bitacora ID</strong><span>Portal cliente</span></div>
       </div>
-      <nav class="crm-client-nav" aria-label="Navegacion del portal cliente">
-        <?php foreach ($clientViews as $viewKey => $viewItem): ?>
-          <a href="<?php echo h(bitacora_client_url($viewKey, $activeOpportunityId)); ?>" class="<?php echo $activeView === $viewKey ? 'is-active' : ''; ?>">
-            <span><?php echo bitacora_icon($viewItem['icon']); ?></span><?php echo h($viewItem['label']); ?><?php if ($viewKey === 'notificaciones'): ?><em data-notification-count <?php echo $clientUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $clientUnreadNotifications; ?></em><?php endif; ?>
-          </a>
+      <nav class="crm-client-nav" aria-label="Navegación del portal cliente">
+        <?php foreach (['Panel' => ['resumen', 'proyectos'], 'Mantenimiento' => ['bitacora', 'solicitudes', 'cotizaciones'], 'Cuenta' => ['notificaciones', 'perfil']] as $groupLabel => $groupViews): ?>
+          <p class="crm-client-nav__label"><?php echo h($groupLabel); ?></p>
+          <?php foreach ($groupViews as $viewKey): ?>
+            <?php $viewItem = $clientViews[$viewKey]; ?>
+            <a href="<?php echo h(bitacora_client_url($viewKey, $activeOpportunityId)); ?>" class="<?php echo $activeView === $viewKey ? 'is-active' : ''; ?>" <?php echo $activeView === $viewKey ? 'aria-current="page"' : ''; ?>>
+              <span><?php echo bitacora_icon($viewItem['icon']); ?></span><?php echo h($viewItem['label']); ?><?php if ($viewKey === 'notificaciones'): ?><em data-notification-count <?php echo $clientUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $clientUnreadNotifications; ?></em><?php endif; ?>
+            </a>
+          <?php endforeach; ?>
         <?php endforeach; ?>
       </nav>
       <div class="crm-client-sidebar__footer">
@@ -844,12 +878,15 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
     </aside>
     <button class="crm-client-overlay" type="button" aria-label="Cerrar menu" data-client-menu-close></button>
 
-    <main class="crm-client-main">
+    <main class="crm-client-main" id="client-main">
       <header class="crm-client-topbar">
-        <button class="crm-client-menu" type="button" aria-label="Abrir menu" aria-controls="cliente-sidebar" aria-expanded="false" data-client-menu-toggle><?php echo bitacora_icon('menu'); ?></button>
-        <div><small>ID Industrial</small><strong>Bitacora ID</strong></div>
+        <button class="crm-client-menu" type="button" aria-label="Abrir menú" aria-controls="cliente-sidebar" aria-expanded="false" data-client-menu-toggle><?php echo bitacora_icon('menu'); ?></button>
+        <div class="crm-client-topbar__context"><small>Portal cliente / <?php echo h($clientViews[$activeView]['label']); ?></small><strong><?php echo h($project['service']); ?></strong></div>
         <div class="crm-topbar__actions crm-client-topbar__actions">
-          <a class="crm-button crm-button--ghost" href="<?php echo h(crm_portal_url('logout')); ?>">Cerrar sesion</a>
+          <a class="crm-client-notification-link" href="<?php echo h(bitacora_client_url('notificaciones', $activeOpportunityId)); ?>" aria-label="Abrir notificaciones<?php echo $clientUnreadNotifications > 0 ? ', ' . $clientUnreadNotifications . ' sin leer' : ''; ?>">
+            <?php echo bitacora_icon('bell'); ?><span data-notification-count <?php echo $clientUnreadNotifications > 0 ? '' : 'hidden'; ?>><?php echo $clientUnreadNotifications; ?></span>
+          </a>
+          <a class="crm-button crm-button--ghost" href="<?php echo h(crm_portal_url('logout')); ?>">Cerrar sesión</a>
         </div>
       </header>
 
@@ -864,30 +901,54 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
 
       <?php if ($activeView === 'resumen'): ?>
         <section class="crm-client-module crm-client-module--resumen">
-          <section class="crm-client-hero crm-client-hero--panel">
-            <div>
-              <p class="eyebrow">Bitacora ID</p>
-              <h1><?php echo h($project['company_name']); ?></h1>
-              <p><?php echo h($project['service']); ?> - <?php echo h($project['opportunity_status'] ?? 'Proyecto entregado'); ?> - <?php echo count($projects); ?> proyecto(s)</p>
+          <section class="crm-client-hero crm-client-hero--panel crm-client-hero--compact">
+            <div class="crm-client-hero__content">
+              <p class="eyebrow">Proyecto seleccionado</p>
+              <div class="crm-client-hero__title">
+                <div><h1><?php echo h($project['service']); ?></h1><p><?php echo h($project['company_name']); ?> · <?php echo count($projects); ?> proyecto(s) con acceso</p></div>
+                <span class="crm-pill <?php echo h(bitacora_pill_class((string) ($project['opportunity_status'] ?? 'Proyecto entregado'))); ?>"><?php echo h($project['opportunity_status'] ?? 'Proyecto entregado'); ?></span>
+              </div>
+              <div class="crm-client-hero__actions">
+                <a class="crm-button" href="<?php echo h(crm_portal_url('solicitudes', $activeOpportunityId, ['new' => 1])); ?>"><?php echo bitacora_icon('requests'); ?> Reportar un incidente</a>
+                <a class="crm-button crm-button--ghost" href="<?php echo h(crm_portal_url('cotizaciones', $activeOpportunityId, ['new' => 1])); ?>"><?php echo bitacora_icon('quote'); ?> Solicitar cotización</a>
+              </div>
             </div>
-            <span class="crm-client-user-pill"><?php echo h($portal['username']); ?></span>
+            <aside class="crm-client-hero__next">
+              <small>Próxima atención</small>
+              <strong><?php echo h($nextServiceDate !== '' ? $nextServiceDate : 'Por programar'); ?></strong>
+              <p><?php echo $nextScheduledRequest ? h($nextScheduledRequest['title']) : ($nextMaintenanceLog ? h($nextMaintenanceLog['title']) : 'No hay una visita o solicitud programada.'); ?></p>
+              <a href="<?php echo h(bitacora_client_url('bitacora', $activeOpportunityId)); ?>">Consultar bitácora</a>
+            </aside>
           </section>
 
-          <section class="crm-kpis crm-client-kpis" aria-label="Resumen del proyecto">
-            <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('check'); ?></span><div><span>Proyecto activo</span><strong><?php echo h($project['opportunity_status'] ?? 'Entregado'); ?></strong></div></article>
-            <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('projects'); ?></span><div><span>Proyectos</span><strong><?php echo count($projects); ?></strong></div></article>
-            <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('logs'); ?></span><div><span>Registros</span><strong><?php echo count($logs); ?></strong></div></article>
-            <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('requests'); ?></span><div><span>Solicitudes</span><strong><?php echo count($requests); ?></strong></div></article>
+          <section class="crm-kpis crm-client-kpis crm-client-kpis--operational" aria-label="Resumen de mantenimiento">
+            <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('requests'); ?></span><div><span>Solicitudes abiertas</span><strong><?php echo count($openRequests); ?></strong><small><?php echo count($urgentOpenRequests); ?> urgente(s)</small></div></article>
+            <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('logs'); ?></span><div><span>Registros publicados</span><strong><?php echo count($logs); ?></strong><small>Del proyecto actual</small></div></article>
+            <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('quote'); ?></span><div><span>Cotizaciones</span><strong><?php echo count($clientQuotes); ?></strong><small>De toda la empresa</small></div></article>
+            <article class="crm-card crm-kpi"><span class="crm-kpi__icon"><?php echo bitacora_icon('bell'); ?></span><div><span>Sin leer</span><strong><?php echo $clientUnreadNotifications; ?></strong><small>Actualizaciones nuevas</small></div></article>
           </section>
 
-          <section class="crm-card crm-client-summary-card">
-            <div class="crm-section-head"><div><h2>Proyecto seleccionado</h2><p>Consulta la bitacora o levanta reportes por proyecto, de forma independiente.</p></div><span class="crm-pill <?php echo h(bitacora_pill_class((string) ($project['opportunity_status'] ?? 'Proyecto entregado'))); ?>"><?php echo h($project['opportunity_status'] ?? 'Proyecto entregado'); ?></span></div>
-            <div class="crm-client-actions-row">
-              <a class="crm-button" href="<?php echo h(bitacora_client_url('proyectos', $activeOpportunityId)); ?>">Ver proyectos</a>
-              <a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('bitacora', $activeOpportunityId)); ?>">Ver bitacora</a>
-              <a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('solicitudes', $activeOpportunityId)); ?>">Crear solicitud</a>
-              <a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('cotizaciones', $activeOpportunityId)); ?>">Solicitar cotizacion</a>
-            </div>
+          <section class="crm-client-overview-grid">
+            <article class="crm-card crm-client-project-card">
+              <div class="crm-section-head"><div><p class="eyebrow">Contexto operativo</p><h2>Proyecto actual</h2><p>Todos los reportes y registros de esta vista corresponden a este servicio.</p></div><a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('proyectos', $activeOpportunityId)); ?>">Cambiar proyecto</a></div>
+              <div class="crm-client-project-detail">
+                <span><small>Servicio</small><strong><?php echo h($project['service']); ?></strong></span>
+                <span><small>Empresa</small><strong><?php echo h($project['company_name']); ?></strong></span>
+                <span><small>Contacto</small><strong><?php echo h($project['contact_name'] ?: 'No especificado'); ?></strong></span>
+                <span><small>Siguiente acción</small><strong><?php echo h($project['next_action_date'] ?: 'Por definir'); ?></strong></span>
+              </div>
+              <div class="crm-client-project-card__footer"><a href="<?php echo h(bitacora_client_url('bitacora', $activeOpportunityId)); ?>">Ver historial de mantenimiento</a><a href="<?php echo h(bitacora_client_url('solicitudes', $activeOpportunityId)); ?>">Dar seguimiento a solicitudes</a></div>
+            </article>
+
+            <article class="crm-card crm-client-activity">
+              <div class="crm-section-head"><div><p class="eyebrow">Seguimiento</p><h2>Actividad reciente</h2><p>Últimos movimientos visibles para tu empresa.</p></div></div>
+              <div class="crm-client-activity__list">
+                <?php if ($latestRequest): ?><a href="<?php echo h(crm_portal_url('solicitudes', $activeOpportunityId, [], 'request-' . (int) $latestRequest['id'])); ?>"><span><?php echo bitacora_icon('requests'); ?></span><div><small>Solicitud · <?php echo h($latestRequest['status'] ?: 'Recibida'); ?></small><strong><?php echo h($latestRequest['title']); ?></strong><p><?php echo h($latestRequest['updated_at'] ?: $latestRequest['created_at']); ?></p></div></a><?php endif; ?>
+                <?php if ($latestLog): ?><a href="<?php echo h(bitacora_client_url('bitacora', $activeOpportunityId)); ?>"><span><?php echo bitacora_icon('logs'); ?></span><div><small>Bitácora · <?php echo h($latestLog['status']); ?></small><strong><?php echo h($latestLog['title']); ?></strong><p><?php echo h($latestLog['scheduled_date'] ?: $latestLog['created_at']); ?></p></div></a><?php endif; ?>
+                <?php if ($latestClientQuote): ?><a href="<?php echo h(crm_portal_url('cotizaciones', $activeOpportunityId, [], 'quote-' . (int) $latestClientQuote['id'])); ?>"><span><?php echo bitacora_icon('quote'); ?></span><div><small>Cotización · <?php echo h($latestClientQuote['status']); ?></small><strong><?php echo h($latestClientQuote['quote_code']); ?> — <?php echo h($latestClientQuote['service']); ?></strong><p><?php echo h($latestClientQuote['created_at']); ?></p></div></a><?php endif; ?>
+                <?php if (!$latestRequest && !$latestLog && !$latestClientQuote): ?><div class="crm-empty-state"><strong>Aún no hay actividad</strong><p>Cuando exista un registro o solicitud aparecerá aquí.</p></div><?php endif; ?>
+              </div>
+            </article>
           </section>
         </section>
       <?php elseif ($activeView === 'proyectos'): ?>
@@ -914,12 +975,13 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
         </section>
       <?php elseif ($activeView === 'cotizaciones'): ?>
         <section class="crm-client-module crm-client-module--cotizaciones">
-          <div class="crm-module-head"><p class="eyebrow">Cotizaciones</p><h1>Solicitudes comerciales</h1><p>Solicita ampliaciones, nuevos servicios o trabajos relacionados con tus proyectos.</p></div>
+          <div class="crm-module-head crm-module-head--actions"><div><p class="eyebrow">Cotizaciones</p><h1>Solicitudes comerciales</h1><p>Solicita ampliaciones, nuevos servicios o trabajos relacionados con tus proyectos.</p></div><button class="crm-button" type="button" data-modal-open="client-quote-modal">Solicitar cotización</button></div>
 
-          <section class="crm-client-workspace crm-client-workspace--quotes">
-            <article class="crm-card crm-quote-intake">
-              <div class="crm-section-head"><div><h2>Nueva solicitud</h2><p>El equipo comercial revisara el alcance antes de publicar una propuesta.</p></div><span class="crm-pill crm-pill--neutral">Respuesta comercial</span></div>
-              <form class="crm-form crm-request-intake" method="post" enctype="multipart/form-data">
+          <section class="crm-client-workspace crm-client-workspace--quotes crm-client-workspace--history">
+            <dialog id="client-quote-modal" class="crm-modal crm-client-modal" aria-labelledby="client-quote-modal-title" <?php echo (($action === '' && isset($_GET['new'])) || ($action === 'create_quote_request' && $notice && ($notice['type'] ?? '') === 'error')) ? 'data-open-on-load' : ''; ?>>
+              <div class="crm-modal__surface">
+                <header class="crm-modal__header"><div><p class="eyebrow">Solicitud comercial</p><h2 id="client-quote-modal-title">Solicitar cotización</h2><p>Comparte el alcance inicial. El equipo comercial validará los datos antes de publicar una propuesta.</p></div><button class="crm-modal__close" type="button" aria-label="Cerrar formulario" data-modal-close><?php echo bitacora_icon('close'); ?></button></header>
+              <form class="crm-form crm-request-intake crm-modal__form" method="post" enctype="multipart/form-data" data-modal-form>
                 <input type="hidden" name="token" value="<?php echo h($token); ?>">
                 <input type="hidden" name="action" value="create_quote_request">
                 <fieldset class="crm-request-form-section">
@@ -932,13 +994,14 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
                           <option value="<?php echo (int) $projectOption['opportunity_id']; ?>" <?php echo (int) ($_POST['related_project_id'] ?? $activeOpportunityId) === (int) $projectOption['opportunity_id'] ? 'selected' : ''; ?>><?php echo h($projectOption['service']); ?></option>
                         <?php endforeach; ?>
                       </select>
+                      <small>Elige un proyecto si la cotización es una ampliación; usa “sin relación” para un servicio nuevo.</small>
                     </label>
                     <label class="crm-field">Servicio<select name="quote_service" required><?php foreach ($quoteServices as $serviceOption): ?><option <?php echo (($_POST['quote_service'] ?? '') === $serviceOption) ? 'selected' : ''; ?>><?php echo h($serviceOption); ?></option><?php endforeach; ?></select></label>
                     <label class="crm-field">Otro servicio<input name="quote_service_other" maxlength="160" value="<?php echo h($_POST['quote_service_other'] ?? ''); ?>" placeholder="Especifica si elegiste Otro"></label>
                     <label class="crm-field">Ubicacion<input name="quote_location" maxlength="190" value="<?php echo h($_POST['quote_location'] ?? ''); ?>" placeholder="Planta, nave, edificio o area" required></label>
                     <label class="crm-field">Prioridad<select name="quote_urgency"><?php foreach ($quoteUrgencies as $urgencyOption): ?><option <?php echo (($_POST['quote_urgency'] ?? 'Normal') === $urgencyOption) ? 'selected' : ''; ?>><?php echo h($urgencyOption); ?></option><?php endforeach; ?></select></label>
-                    <label class="crm-field">Presupuesto estimado<select name="quote_budget"><?php foreach ($quoteBudgets as $budgetOption): ?><option <?php echo (($_POST['quote_budget'] ?? 'Por definir') === $budgetOption) ? 'selected' : ''; ?>><?php echo h($budgetOption); ?></option><?php endforeach; ?></select></label>
-                    <label class="crm-field">Fecha requerida<input type="date" name="quote_requested_date" min="<?php echo h(date('Y-m-d')); ?>" value="<?php echo h($_POST['quote_requested_date'] ?? ''); ?>"></label>
+                    <label class="crm-field">Presupuesto estimado<select name="quote_budget"><?php foreach ($quoteBudgets as $budgetOption): ?><option <?php echo (($_POST['quote_budget'] ?? 'Por definir') === $budgetOption) ? 'selected' : ''; ?>><?php echo h($budgetOption); ?></option><?php endforeach; ?></select><small>Es una referencia para proponer el alcance adecuado; no compromete la compra.</small></label>
+                    <label class="crm-field">Fecha requerida<input type="date" name="quote_requested_date" min="<?php echo h(date('Y-m-d')); ?>" value="<?php echo h($_POST['quote_requested_date'] ?? ''); ?>"><small>Fecha ideal para ejecutar o entregar el servicio, no la vigencia de la propuesta.</small></label>
                   </div>
                 </fieldset>
                 <fieldset class="crm-request-form-section">
@@ -953,9 +1016,10 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
                     <input type="file" name="quote_attachment" accept="application/pdf,image/jpeg,image/png,image/webp">
                   </label>
                 </fieldset>
-                <div class="crm-request-submit"><p>La solicitud quedara asociada a <strong><?php echo h($project['company_name']); ?></strong>.</p><button class="crm-button" type="submit">Enviar solicitud</button></div>
+                <footer class="crm-modal__footer"><p>La solicitud quedará asociada a <strong><?php echo h($project['company_name']); ?></strong>.</p><div><button class="crm-button crm-button--ghost" type="button" data-modal-close>Cancelar</button><button class="crm-button" type="submit">Enviar solicitud</button></div></footer>
               </form>
-            </article>
+              </div>
+            </dialog>
 
             <section class="crm-quote-list" aria-label="Historial de cotizaciones">
               <div class="crm-section-head"><div><h2>Historial</h2><p>Solicitudes enviadas y propuestas publicadas para tu empresa.</p></div><span class="crm-pill crm-pill--neutral"><?php echo count($clientQuotes); ?> registro(s)</span></div>
@@ -1008,37 +1072,58 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
         </section>
       <?php elseif ($activeView === 'bitacora'): ?>
         <section class="crm-client-module crm-client-module--bitacora">
-          <div class="crm-module-head"><p class="eyebrow">Bitacora</p><h1>Bitacora de mantenimiento</h1><p>Historial visible para <?php echo h($project['service']); ?>.</p></div>
-          <article class="crm-card">
-            <div class="crm-section-head"><div><h2><?php echo h($project['service']); ?></h2><p>Registros publicados por ID Industrial para este proyecto.</p></div><a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('proyectos', $activeOpportunityId)); ?>">Cambiar proyecto</a></div>
-            <div class="crm-list">
+          <div class="crm-module-head crm-module-head--actions">
+            <div><p class="eyebrow">Mantenimiento</p><h1>Bitácora del proyecto</h1><p>Consulta servicios programados, trabajos realizados y notas técnicas publicadas para <?php echo h($project['service']); ?>.</p></div>
+            <div class="crm-head__actions"><a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('proyectos', $activeOpportunityId)); ?>">Cambiar proyecto</a><a class="crm-button" href="<?php echo h(crm_portal_url('solicitudes', $activeOpportunityId, ['new' => 1])); ?>">Reportar incidente</a></div>
+          </div>
+
+          <section class="crm-maintenance-overview" aria-label="Resumen de bitácora">
+            <article><small>Proyecto</small><strong><?php echo h($project['service']); ?></strong><span><?php echo h($project['opportunity_status'] ?? 'Activo'); ?></span></article>
+            <article><small>Registros publicados</small><strong><?php echo count($logs); ?></strong><span>Visibles para tu cuenta</span></article>
+            <article><small>Próxima atención</small><strong><?php echo h($nextServiceDate !== '' ? $nextServiceDate : 'Por programar'); ?></strong><span><?php echo $nextServiceDate !== '' ? 'Fecha confirmada o prevista' : 'Sin visita pendiente'; ?></span></article>
+          </section>
+
+          <article class="crm-card crm-maintenance-log">
+            <div class="crm-section-head"><div><h2>Historial técnico</h2><p>Los registros más recientes aparecen primero. Las fechas programadas indican cuándo está previsto el servicio.</p></div><span class="crm-pill crm-pill--neutral"><?php echo count($logs); ?> registro(s)</span></div>
+            <div class="crm-maintenance-timeline">
               <?php foreach ($logs as $log): ?>
-                <div class="crm-list__item"><span class="crm-pill crm-pill--success"><?php echo h($log['status']); ?></span><strong><?php echo h($log['title']); ?></strong><p><?php echo h($log['notes']); ?></p><small><?php echo h($log['type']); ?> - <?php echo h($log['scheduled_date'] ?: $log['created_at']); ?></small></div>
+                <article class="crm-maintenance-entry">
+                  <span class="crm-maintenance-entry__marker"><?php echo bitacora_icon('logs'); ?></span>
+                  <div class="crm-maintenance-entry__body">
+                    <div class="crm-maintenance-entry__head"><div><small><?php echo h($log['type']); ?></small><h3><?php echo h($log['title']); ?></h3></div><span class="crm-pill <?php echo h(bitacora_pill_class((string) $log['status'])); ?>"><?php echo h($log['status']); ?></span></div>
+                    <p><?php echo nl2br(h($log['notes'] ?: 'Sin notas técnicas adicionales.')); ?></p>
+                    <div class="crm-maintenance-entry__meta">
+                      <span><strong>Fecha de servicio</strong><?php echo h($log['scheduled_date'] ?: 'No programada'); ?></span>
+                      <span><strong>Publicado</strong><?php echo h($log['created_at']); ?></span>
+                    </div>
+                  </div>
+                </article>
               <?php endforeach; ?>
-              <?php if (!$logs): ?><p>Aun no hay registros publicados para este proyecto.</p><?php endif; ?>
+              <?php if (!$logs): ?><div class="crm-empty-state crm-empty-state--maintenance"><span><?php echo bitacora_icon('logs'); ?></span><strong>Aún no hay registros publicados</strong><p>Cuando ID Industrial publique una visita o servicio aparecerá aquí con su fecha y notas técnicas.</p><a class="crm-button crm-button--ghost" href="<?php echo h(crm_portal_url('solicitudes', $activeOpportunityId, ['new' => 1])); ?>">Crear una solicitud</a></div><?php endif; ?>
             </div>
           </article>
         </section>
       <?php elseif ($activeView === 'solicitudes'): ?>
         <section class="crm-client-module crm-client-module--solicitudes">
-          <div class="crm-module-head"><p class="eyebrow">Solicitudes</p><h1>Reportes de mantenimiento</h1><p>Levanta y consulta reportes ligados solamente a <?php echo h($project['service']); ?>.</p></div>
-          <section class="crm-client-workspace crm-client-workspace--requests">
-            <article class="crm-card">
-              <div class="crm-section-head"><div><h2>Nueva solicitud</h2><p>Describe el requerimiento para que el equipo lo pueda programar.</p></div><a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('proyectos', $activeOpportunityId)); ?>">Cambiar proyecto</a></div>
-              <form class="crm-form crm-request-intake" method="post" enctype="multipart/form-data" data-request-form>
+          <div class="crm-module-head crm-module-head--actions"><div><p class="eyebrow">Solicitudes</p><h1>Reportes de mantenimiento</h1><p>Levanta y consulta reportes ligados solamente a <?php echo h($project['service']); ?>.</p></div><div class="crm-head__actions"><a class="crm-button crm-button--ghost" href="<?php echo h(bitacora_client_url('proyectos', $activeOpportunityId)); ?>">Cambiar proyecto</a><button class="crm-button" type="button" data-modal-open="client-request-modal">Nueva solicitud</button></div></div>
+          <section class="crm-client-workspace crm-client-workspace--requests crm-client-workspace--history">
+            <dialog id="client-request-modal" class="crm-modal crm-client-modal" aria-labelledby="client-request-modal-title" <?php echo (($action === '' && isset($_GET['new'])) || ($action === 'create_request' && $notice && ($notice['type'] ?? '') === 'error')) ? 'data-open-on-load' : ''; ?>>
+              <div class="crm-modal__surface">
+                <header class="crm-modal__header"><div><p class="eyebrow">Mantenimiento · <?php echo h($project['service']); ?></p><h2 id="client-request-modal-title">Nueva solicitud</h2><p>Describe el incidente con suficiente detalle para que el equipo pueda evaluarlo y programarlo.</p></div><button class="crm-modal__close" type="button" aria-label="Cerrar formulario" data-modal-close><?php echo bitacora_icon('close'); ?></button></header>
+              <form class="crm-form crm-request-intake crm-modal__form" method="post" enctype="multipart/form-data" data-request-form data-modal-form>
                 <input type="hidden" name="token" value="<?php echo h($token); ?>">
                 <input type="hidden" name="action" value="create_request">
                 <input type="hidden" name="project_id" value="<?php echo (int) $activeOpportunityId; ?>">
                 <fieldset class="crm-request-form-section">
                   <legend>Identificacion del reporte</legend>
                   <div class="crm-request-form-grid">
-                    <label class="crm-field crm-field--wide">Asunto<input name="title" maxlength="160" value="<?php echo h($_POST['title'] ?? ''); ?>" placeholder="Ej. Falla en unidad manejadora de aire" required></label>
+                    <label class="crm-field crm-field--wide">Asunto<input name="title" maxlength="160" value="<?php echo h($_POST['title'] ?? ''); ?>" placeholder="Ej. Falla en unidad manejadora de aire" required><small>Resume el problema en una frase clara; será el título del seguimiento.</small></label>
                     <label class="crm-field">Categoria<select name="category" required><?php foreach ($requestCategories as $category): ?><option <?php echo (($_POST['category'] ?? '') === $category) ? 'selected' : ''; ?>><?php echo h($category); ?></option><?php endforeach; ?></select></label>
-                    <label class="crm-field">Prioridad<select name="priority" required><?php foreach ($requestPriorities as $priority): ?><option <?php echo (($_POST['priority'] ?? 'Media') === $priority) ? 'selected' : ''; ?>><?php echo h($priority); ?></option><?php endforeach; ?></select></label>
+                    <label class="crm-field">Prioridad<select name="priority" required><?php foreach ($requestPriorities as $priority): ?><option <?php echo (($_POST['priority'] ?? 'Media') === $priority) ? 'selected' : ''; ?>><?php echo h($priority); ?></option><?php endforeach; ?></select><small>Urgente: paro total o riesgo. Alta: afecta la operación. Media/Baja: puede programarse.</small></label>
                     <label class="crm-field">Ubicacion exacta<input name="location" maxlength="190" value="<?php echo h($_POST['location'] ?? ''); ?>" placeholder="Area, nivel o linea" required></label>
                     <label class="crm-field">Equipo afectado<input name="equipment" maxlength="190" value="<?php echo h($_POST['equipment'] ?? ''); ?>" placeholder="Nombre, modelo o identificador"></label>
                     <label class="crm-field">Impacto operativo<select name="impact" required><?php foreach ($requestImpacts as $impact): ?><option <?php echo (($_POST['impact'] ?? 'Sin paro') === $impact) ? 'selected' : ''; ?>><?php echo h($impact); ?></option><?php endforeach; ?></select></label>
-                    <label class="crm-field">Fecha del incidente<input type="datetime-local" name="occurred_at" max="<?php echo h(date('Y-m-d\TH:i')); ?>" value="<?php echo h($_POST['occurred_at'] ?? date('Y-m-d\TH:i')); ?>"></label>
+                    <label class="crm-field">Fecha del incidente<input type="datetime-local" name="occurred_at" max="<?php echo h(date('Y-m-d\TH:i')); ?>" value="<?php echo h($_POST['occurred_at'] ?? date('Y-m-d\TH:i')); ?>"><small>Momento real en que comenzó o se detectó la falla; no es la fecha programada de atención.</small></label>
                   </div>
                 </fieldset>
                 <fieldset class="crm-request-form-section">
@@ -1056,10 +1141,11 @@ $clientNotifications = crm_recent_notifications($pdo, 'client', $activePortalUse
                   <p class="crm-field-error" hidden data-evidence-error role="alert"></p>
                   <div class="crm-evidence-preview" hidden data-evidence-preview><img alt="Vista previa de evidencia"><div><strong data-evidence-name></strong><small data-evidence-size></small></div><button type="button" data-evidence-remove>Quitar</button></div>
                 </fieldset>
-                <div class="crm-request-submit"><p>El reporte quedara ligado a <strong><?php echo h($project['service']); ?></strong>.</p><button class="crm-button" type="submit">Enviar reporte</button></div>
+                <footer class="crm-modal__footer"><p>El reporte quedará ligado a <strong><?php echo h($project['service']); ?></strong>.</p><div><button class="crm-button crm-button--ghost" type="button" data-modal-close>Cancelar</button><button class="crm-button" type="submit">Enviar reporte</button></div></footer>
               </form>
-            </article>
-            <article class="crm-card">
+              </div>
+            </dialog>
+            <article class="crm-card crm-client-history-card">
               <div class="crm-section-head"><div><h2>Seguimiento</h2><p>Estado y respuesta de ID Industrial.</p></div></div>
               <div class="crm-list crm-list--compact">
                 <?php foreach ($requests as $request): ?>

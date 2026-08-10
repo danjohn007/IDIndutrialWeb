@@ -601,7 +601,14 @@ include __DIR__ . '/includes/navbar.php';
             </article>
           <?php endforeach; ?>
         </div>
-        <a class="button button--primary" href="#cotizacion" data-quote-open data-quote-service="Soporte técnico / Bitácora ID" aria-controls="cotizacion">Solicitar acceso al soporte</a>
+        <div class="bitacora-id__actions">
+          <a class="button button--primary" href="#cotizacion" data-quote-open data-quote-service="Soporte técnico / Bitácora ID" aria-controls="cotizacion">Solicitar acceso al soporte</a>
+          <a class="button button--portal" href="<?php echo htmlspecialchars(crm_portal_url()); ?>">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11V8a7 7 0 0 1 14 0v3"/><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 15v2"/></svg>
+            Ya soy cliente
+          </a>
+        </div>
+        <p class="bitacora-id__access-help">Si ya recibiste tus credenciales, entra para consultar proyectos, mantenimientos, solicitudes y cotizaciones.</p>
       </div>
       <aside class="bitacora-id__panel reveal reveal--delay" aria-label="Flujo de seguimiento en Bitácora ID">
         <div class="bitacora-id__panel-head">
