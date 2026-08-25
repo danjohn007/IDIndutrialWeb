@@ -687,6 +687,36 @@ if (($_POST['action'] ?? '') === 'update_opportunity') {
   exit;
 }
 
+if (($_POST['action'] ?? '') === 'toggle_client_public') {
+  crm_check_token();
+  $clientId = max(0, (int) ($_POST['client_id'] ?? 0));
+  $makePublic = ($_POST['make_public'] ?? '') === '1';
+  $clientStmt = $pdo->prepare('SELECT id, name FROM clients WHERE id = ? LIMIT 1');
+  $clientStmt->execute([$clientId]);
+  $client = $clientStmt->fetch();
+
+  if (!$client) {
+    $_SESSION['crm_flash'] = [
+      'type' => 'error',
+      'title' => 'Cliente no encontrado',
+      'text' => 'No fue posible localizar el registro que intentas actualizar.',
+    ];
+  } else {
+    $update = $pdo->prepare('UPDATE clients SET is_public = ? WHERE id = ?');
+    $update->execute([$makePublic ? 1 : 0, $clientId]);
+    $_SESSION['crm_flash'] = [
+      'type' => 'success',
+      'title' => $makePublic ? 'Cliente visible en el sitio' : 'Cliente oculto del sitio',
+      'text' => $makePublic
+        ? $client['name'] . ' ahora aparece en la seccion de referencias publicas.'
+        : $client['name'] . ' ya no aparece en la seccion de referencias publicas.',
+    ];
+  }
+
+  header('Location: ' . crm_admin_url('clients'));
+  exit;
+}
+
 if (($_POST['action'] ?? '') === 'convert_client') {
   crm_check_token();
   $clientId = max(0, (int) ($_POST['client_id'] ?? 0));
@@ -2256,11 +2286,11 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
             <?php if ($clients): ?>
               <div class="crm-table-wrap">
                 <table class="crm-table crm-table--compact">
-                  <thead><tr><th>Cliente</th><th>Contacto</th><th>Ciudad</th><th>Proyectos</th><th>Ultima actividad</th><th>Bitacora ID</th></tr></thead>
+                  <thead><tr><th>Cliente</th><th>Contacto</th><th>Ciudad</th><th>Proyectos</th><th>Ultima actividad</th><th>Bitacora ID</th><th>Sitio publico</th></tr></thead>
                   <tbody>
                     <?php foreach ($clients as $client): ?>
                       <tr>
-                        <td><strong><?php echo h($client['name']); ?></strong><br><small><?php echo h($client['segment'] ?: 'Industrial'); ?><?php echo $client['is_public'] ? ' - Referencia publica' : ''; ?></small></td>
+                        <td><strong><?php echo h($client['name']); ?></strong><br><small><?php echo h($client['segment'] ?: 'Industrial'); ?></small></td>
                         <td><?php echo h($client['contact_name'] ?: 'Sin contacto'); ?><br><small><?php echo h($client['contact_email'] ?: $client['contact_phone'] ?: 'Sin datos de contacto'); ?></small></td>
                         <td><?php echo h($client['city'] ?: 'Sin ciudad'); ?></td>
                         <td><strong><?php echo (int) $client['started_projects']; ?></strong> iniciados<br><small><?php echo (int) $client['delivered_projects']; ?> entregados</small></td>
@@ -2279,6 +2309,22 @@ $services = ['Cableado estructurado', 'CCTV industrial', 'Control de accesos', '
                           <?php else: ?>
                             <span class="crm-pill crm-pill--neutral">Requiere proyecto entregado</span>
                           <?php endif; ?>
+                        </td>
+                        <td>
+                          <form class="crm-inline-form" method="post">
+                            <input type="hidden" name="token" value="<?php echo h($token); ?>">
+                            <input type="hidden" name="action" value="toggle_client_public">
+                            <input type="hidden" name="client_id" value="<?php echo (int) $client['id']; ?>">
+                            <?php if ($client['is_public']): ?>
+                              <input type="hidden" name="make_public" value="0">
+                              <span class="crm-pill crm-pill--success">Visible</span>
+                              <button class="crm-button crm-button--ghost" type="submit">Ocultar del sitio</button>
+                            <?php else: ?>
+                              <input type="hidden" name="make_public" value="1">
+                              <span class="crm-pill crm-pill--neutral">Oculto</span>
+                              <button class="crm-button crm-button--ghost" type="submit">Mostrar en el sitio</button>
+                            <?php endif; ?>
+                          </form>
                         </td>
                       </tr>
                     <?php endforeach; ?>
