@@ -6,6 +6,7 @@ SET NAMES utf8mb4;
 CREATE TABLE IF NOT EXISTS usuarios (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   cliente_id INT UNSIGNED NOT NULL,
+  crm_portal_user_id INT UNSIGNED NULL,
   nombre VARCHAR(100) NOT NULL,
   email VARCHAR(160) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_usuarios_email (email),
+  UNIQUE KEY uq_usuarios_crm_portal_user (crm_portal_user_id),
   INDEX idx_usuarios_cliente_estado (cliente_id, estado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

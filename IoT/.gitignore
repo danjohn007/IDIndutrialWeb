@@ -5,8 +5,12 @@ firmware/**/secrets.h
 .DS_Store
 Thumbs.db
 .preview/
+deploy/
 *.zip
 *.log
 *.ipa
 *.apk
 *.aab
+node_modules/
+integrations/hikvision-bridge/config.json
+integrations/zkteco-bridge/config.json

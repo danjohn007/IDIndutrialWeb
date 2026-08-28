@@ -266,6 +266,7 @@ function crm_portal_url(string $view = 'resumen', int $projectId = 0, array $que
     'cotizaciones' => 'portal/cotizaciones',
     'notificaciones' => 'portal/notificaciones',
     'perfil' => 'portal/perfil',
+    'iot' => 'portal/iot',
     'logout' => 'portal/salir',
     'notification_poll' => 'portal/notificaciones/estado',
   ];

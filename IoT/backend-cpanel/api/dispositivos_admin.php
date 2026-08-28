@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/lib/hikvision.php';
+require_once __DIR__ . '/lib/zkteco.php';
 
 $usuarioActual = requerirSesion(['ADMIN']);
 $clienteId = (int) $usuarioActual['cliente_id'];
@@ -40,7 +42,7 @@ function dispositivoEstadoValido(string $estado): string
 function dispositivoTipoValido(string $tipo): string
 {
     $tipo = strtoupper(trim($tipo));
-    if (!in_array($tipo, ['ESP32', 'SHELLY'], true)) {
+    if (!in_array($tipo, ['ESP32', 'SHELLY', 'HIKVISION', 'ZKTECO'], true)) {
         responderJson(422, ['ok' => false, 'error' => 'Tipo de dispositivo invalido']);
     }
     return $tipo;
@@ -53,6 +55,19 @@ function valorEnumShelly(string $valor, array $permitidos, string $campo): strin
         responderJson(422, ['ok' => false, 'error' => $campo . ' de Shelly invalido']);
     }
     return $valor;
+}
+
+function valorBooleanoShelly($valor, bool $predeterminado = false): int
+{
+    if ($valor === null || $valor === '') {
+        return $predeterminado ? 1 : 0;
+    }
+    if (is_bool($valor)) {
+        return $valor ? 1 : 0;
+    }
+    return in_array(strtolower(trim((string) $valor)), ['1', 'true', 'si', 'on'], true)
+        ? 1
+        : 0;
 }
 
 function textoShellyValido(string $valor, string $campo, int $minimo, int $maximo): string
@@ -113,12 +128,31 @@ function obtenerShellyCliente(PDO $pdo, string $id, int $clienteId): ?array
         return null;
     }
     $stmt = $pdo->prepare(
-        'SELECT id, cliente_id, ubicacion, dispositivo_vinculado_id,
+        'SELECT id, cliente_id, nombre, ubicacion, dispositivo_vinculado_id,
                 shelly_device_id, modelo, generacion, ip_local, canal, funcion,
+                categoria, tipo_carga, corriente_max_a, potencia_max_w,
+                tiempo_max_encendido_s, apagado_automatico, permite_rutinas,
+                requiere_confirmacion, notificar_cambios_externos, descripcion,
                 modo_control, estado, estado_salida, ultima_conexion, creado_en
          FROM actuadores_shelly
          WHERE id = :id AND cliente_id = :cliente_id LIMIT 1'
     );
+    $stmt->execute(['id' => $id, 'cliente_id' => $clienteId]);
+    return $stmt->fetch() ?: null;
+}
+
+function obtenerHikvisionClienteAdmin(PDO $pdo, string $id, int $clienteId): ?array
+{
+    if (!idindHikvisionDisponible($pdo)) return null;
+    $stmt = $pdo->prepare('SELECT * FROM equipos_hikvision WHERE id = :id AND cliente_id = :cliente_id LIMIT 1');
+    $stmt->execute(['id' => $id, 'cliente_id' => $clienteId]);
+    return $stmt->fetch() ?: null;
+}
+
+function obtenerZktecoClienteAdmin(PDO $pdo, string $id, int $clienteId): ?array
+{
+    if (!idindZktecoDisponible($pdo)) return null;
+    $stmt = $pdo->prepare('SELECT * FROM equipos_zkteco WHERE id = :id AND cliente_id = :cliente_id LIMIT 1');
     $stmt->execute(['id' => $id, 'cliente_id' => $clienteId]);
     return $stmt->fetch() ?: null;
 }
@@ -140,6 +174,7 @@ function shellyPublico(array $dispositivo): array
     return [
         'tipo' => 'SHELLY',
         'id' => (string) $dispositivo['id'],
+        'nombre' => $dispositivo['nombre'] ?? null,
         'ubicacion' => (string) $dispositivo['ubicacion'],
         'estado' => (string) $dispositivo['estado'],
         'ultima_conexion' => $dispositivo['ultima_conexion'],
@@ -151,6 +186,16 @@ function shellyPublico(array $dispositivo): array
         'ip_local' => $dispositivo['ip_local'],
         'canal' => (int) $dispositivo['canal'],
         'funcion' => (string) $dispositivo['funcion'],
+        'categoria' => (string) ($dispositivo['categoria'] ?? 'SEGURIDAD'),
+        'tipo_carga' => (string) ($dispositivo['tipo_carga'] ?? 'DESCONOCIDA'),
+        'corriente_max_a' => $dispositivo['corriente_max_a'] ?? null,
+        'potencia_max_w' => $dispositivo['potencia_max_w'] ?? null,
+        'tiempo_max_encendido_s' => $dispositivo['tiempo_max_encendido_s'] ?? null,
+        'apagado_automatico' => (int) ($dispositivo['apagado_automatico'] ?? 0),
+        'permite_rutinas' => (int) ($dispositivo['permite_rutinas'] ?? 0),
+        'requiere_confirmacion' => (int) ($dispositivo['requiere_confirmacion'] ?? 1),
+        'notificar_cambios_externos' => (int) ($dispositivo['notificar_cambios_externos'] ?? 1),
+        'descripcion' => $dispositivo['descripcion'] ?? null,
         'modo_control' => (string) $dispositivo['modo_control'],
         'estado_salida' => $dispositivo['estado_salida'] === null ? null : (bool) $dispositivo['estado_salida'],
         'conexion' => (string) ($dispositivo['conexion'] ?? 'SIN_DATOS'),
@@ -180,6 +225,16 @@ function idEquipoDisponible(PDO $pdo, string $id): bool
         if ($stmt->fetchColumn()) {
             return false;
         }
+    }
+    if (idindHikvisionDisponible($pdo)) {
+        $stmt = $pdo->prepare('SELECT id FROM equipos_hikvision WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $id]);
+        if ($stmt->fetchColumn()) return false;
+    }
+    if (idindZktecoDisponible($pdo)) {
+        $stmt = $pdo->prepare('SELECT id FROM equipos_zkteco WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $id]);
+        if ($stmt->fetchColumn()) return false;
     }
     return true;
 }
@@ -215,10 +270,27 @@ function configuracionShellyValida(PDO $pdo, array $data, int $clienteId, array 
         (string) ($data['funcion'] ?? ($actual['funcion'] ?? 'SIRENA')),
         ['SIRENA', 'BALIZA', 'VENTILACION', 'CONTACTOR', 'OTRO'], 'Funcion'
     );
+    $categoria = valorEnumShelly(
+        (string) ($data['categoria'] ?? ($actual['categoria'] ?? 'SEGURIDAD')),
+        ['SEGURIDAD', 'AUTOMATIZACION', 'MONITOREO'], 'Categoria'
+    );
     $modoControl = valorEnumShelly(
         (string) ($data['modo_control'] ?? ($actual['modo_control'] ?? 'HIBRIDO')),
         ['LOCAL', 'CLOUD', 'HIBRIDO'], 'Modo de control'
     );
+    $permiteRutinas = valorBooleanoShelly(
+        $data['permite_rutinas'] ?? ($actual['permite_rutinas'] ?? 0)
+    );
+    $requiereConfirmacion = valorBooleanoShelly(
+        $data['requiere_confirmacion'] ?? ($actual['requiere_confirmacion'] ?? 1),
+        true
+    );
+    if ($categoria === 'SEGURIDAD') {
+        $permiteRutinas = 0;
+    }
+    if ($categoria === 'MONITOREO' && $funcion !== 'OTRO') {
+        responderJson(422, ['ok' => false, 'error' => 'Los equipos de monitoreo deben usar la funcion OTRO']);
+    }
     $ipLocal = trim((string) ($data['ip_local'] ?? ($actual['ip_local'] ?? '')));
     if (strlen($ipLocal) > 255 || ($ipLocal !== '' && !preg_match('/^[A-Za-z0-9.:-]+$/', $ipLocal))) {
         responderJson(422, ['ok' => false, 'error' => 'La IP o host local de Shelly no es valido']);
@@ -239,6 +311,9 @@ function configuracionShellyValida(PDO $pdo, array $data, int $clienteId, array 
         'ip_local' => $ipLocal === '' ? null : $ipLocal,
         'canal' => (int) $canalTexto,
         'funcion' => $funcion,
+        'categoria' => $categoria,
+        'permite_rutinas' => $permiteRutinas,
+        'requiere_confirmacion' => $requiereConfirmacion,
         'modo_control' => $modoControl,
         'dispositivo_vinculado_id' => $vinculado,
     ];
@@ -274,8 +349,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     $shellyOperacionDisponible = $shellyDisponible && tablaEstadoShellyDisponible($pdo);
     if ($shellyDisponible) {
         $stmt = $pdo->prepare(
-            "SELECT id, cliente_id, ubicacion, dispositivo_vinculado_id,
+            "SELECT id, cliente_id, nombre, ubicacion, dispositivo_vinculado_id,
                     shelly_device_id, modelo, generacion, ip_local, canal, funcion,
+                    categoria, tipo_carga, corriente_max_a, potencia_max_w,
+                    tiempo_max_encendido_s, apagado_automatico, permite_rutinas,
+                    requiere_confirmacion, notificar_cambios_externos, descripcion,
                     modo_control, estado, estado_salida, ultima_conexion, creado_en
              FROM actuadores_shelly WHERE cliente_id = :cliente_id
              ORDER BY FIELD(estado, 'Activo', 'Mantenimiento', 'Inactivo'), ubicacion, id"
@@ -314,6 +392,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         }
         $equipos = array_merge($equipos, array_map('shellyPublico', $filasShelly));
     }
+    $hikvisionDisponible = idindHikvisionDisponible($pdo);
+    if ($hikvisionDisponible) {
+        $equipos = array_merge($equipos, idindHikvisionCliente($pdo, $clienteId));
+    }
+    $zktecoDisponible = idindZktecoDisponible($pdo);
+    if ($zktecoDisponible) {
+        $equipos = array_merge($equipos, idindZktecoCliente($pdo, $clienteId));
+    }
     usort($equipos, static function (array $a, array $b): int {
         return [$a['ubicacion'], $a['tipo'], $a['id']] <=> [$b['ubicacion'], $b['tipo'], $b['id']];
     });
@@ -323,6 +409,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
             'dispositivos' => $equipos,
             'shelly_disponible' => $shellyDisponible,
             'shelly_operacion_disponible' => $shellyOperacionDisponible,
+            'hikvision_disponible' => $hikvisionDisponible,
+            'zkteco_disponible' => $zktecoDisponible,
         ],
     ]);
 }
@@ -348,16 +436,63 @@ if ($accion === 'crear') {
         $stmt->execute(['id' => $id, 'cliente_id' => $clienteId, 'ubicacion' => $ubicacion, 'estado' => $estado]);
         responderJson(201, ['ok' => true, 'data' => ['dispositivo' => esp32Publico(obtenerEsp32Cliente($pdo, $id, $clienteId) ?: [])]]);
     }
+    if ($tipo === 'HIKVISION') {
+        idindHikvisionRequerirTablas($pdo);
+        $configHik = idindHikvisionConfiguracion($data);
+        $stmt = $pdo->prepare(
+            'INSERT INTO equipos_hikvision (
+               id, cliente_id, nombre, ubicacion, categoria, modelo, numero_serie,
+               ip_local, puerto, protocolo, estado
+             ) VALUES (
+               :id, :cliente_id, :nombre, :ubicacion, :categoria, :modelo, :serial,
+               :ip, :puerto, :protocolo, :estado
+             )'
+        );
+        $stmt->execute([
+            'id' => $id, 'cliente_id' => $clienteId, 'nombre' => $configHik['nombre'],
+            'ubicacion' => $ubicacion, 'categoria' => $configHik['categoria'],
+            'modelo' => $configHik['modelo'], 'serial' => $configHik['numero_serie'],
+            'ip' => $configHik['ip_local'], 'puerto' => $configHik['puerto'],
+            'protocolo' => $configHik['protocolo'], 'estado' => $estado,
+        ]);
+        $equipo = idindHikvisionCliente($pdo, $clienteId, $id);
+        responderJson(201, ['ok' => true, 'data' => ['dispositivo' => $equipo[0] ?? null]]);
+    }
+    if ($tipo === 'ZKTECO') {
+        idindZktecoRequerirTablas($pdo);
+        $configZk = idindZktecoConfiguracion($data);
+        $stmt = $pdo->prepare(
+            'INSERT INTO equipos_zkteco (
+               id, cliente_id, nombre, ubicacion, categoria, modelo, numero_serie,
+               ip_local, puerto, protocolo, numero_maquina, estado
+             ) VALUES (
+               :id, :cliente_id, :nombre, :ubicacion, :categoria, :modelo, :serial,
+               :ip, :puerto, :protocolo, :numero_maquina, :estado
+             )'
+        );
+        $stmt->execute([
+            'id' => $id, 'cliente_id' => $clienteId, 'nombre' => $configZk['nombre'],
+            'ubicacion' => $ubicacion, 'categoria' => $configZk['categoria'],
+            'modelo' => $configZk['modelo'], 'serial' => $configZk['numero_serie'],
+            'ip' => $configZk['ip_local'], 'puerto' => $configZk['puerto'],
+            'protocolo' => $configZk['protocolo'], 'numero_maquina' => $configZk['numero_maquina'],
+            'estado' => $estado,
+        ]);
+        $equipo = idindZktecoCliente($pdo, $clienteId, $id);
+        responderJson(201, ['ok' => true, 'data' => ['dispositivo' => $equipo[0] ?? null]]);
+    }
     requerirTablaShelly($pdo);
     $config = configuracionShellyValida($pdo, $data, $clienteId);
     validarCanalShellyUnico($pdo, $clienteId, $config['shelly_device_id'], $config['canal']);
     $stmt = $pdo->prepare(
         'INSERT INTO actuadores_shelly (
            id, cliente_id, ubicacion, dispositivo_vinculado_id, shelly_device_id,
-           modelo, generacion, ip_local, canal, funcion, modo_control, estado
+           modelo, generacion, ip_local, canal, funcion, categoria,
+           permite_rutinas, requiere_confirmacion, modo_control, estado
          ) VALUES (
            :id, :cliente_id, :ubicacion, :vinculado, :device_id,
-           :modelo, :generacion, :ip_local, :canal, :funcion, :modo_control, :estado
+           :modelo, :generacion, :ip_local, :canal, :funcion, :categoria,
+           :permite_rutinas, :requiere_confirmacion, :modo_control, :estado
          )'
     );
     $stmt->execute([
@@ -365,7 +500,10 @@ if ($accion === 'crear') {
         'vinculado' => $config['dispositivo_vinculado_id'], 'device_id' => $config['shelly_device_id'],
         'modelo' => $config['modelo'], 'generacion' => $config['generacion'],
         'ip_local' => $config['ip_local'], 'canal' => $config['canal'],
-        'funcion' => $config['funcion'], 'modo_control' => $config['modo_control'], 'estado' => $estado,
+        'funcion' => $config['funcion'], 'categoria' => $config['categoria'],
+        'permite_rutinas' => $config['permite_rutinas'],
+        'requiere_confirmacion' => $config['requiere_confirmacion'],
+        'modo_control' => $config['modo_control'], 'estado' => $estado,
     ]);
     responderJson(201, ['ok' => true, 'data' => ['dispositivo' => shellyPublico(obtenerShellyCliente($pdo, $id, $clienteId) ?: [])]]);
 }
@@ -385,6 +523,54 @@ if ($accion === 'actualizar') {
         $stmt->execute(['ubicacion' => $ubicacion, 'estado' => $estado, 'id' => $id, 'cliente_id' => $clienteId]);
         responderJson(200, ['ok' => true, 'data' => ['dispositivo' => esp32Publico(obtenerEsp32Cliente($pdo, $id, $clienteId) ?: [])]]);
     }
+    if ($tipo === 'HIKVISION') {
+        idindHikvisionRequerirTablas($pdo);
+        $actual = obtenerHikvisionClienteAdmin($pdo, $id, $clienteId);
+        if (!$actual) responderJson(404, ['ok' => false, 'error' => 'Equipo Hikvision no encontrado']);
+        $ubicacion = dispositivoUbicacionValida((string) ($data['ubicacion'] ?? $actual['ubicacion']));
+        $estado = dispositivoEstadoValido((string) ($data['estado'] ?? $actual['estado']));
+        $configHik = idindHikvisionConfiguracion($data, $actual);
+        $stmt = $pdo->prepare(
+            'UPDATE equipos_hikvision SET nombre = :nombre, ubicacion = :ubicacion,
+             categoria = :categoria, modelo = :modelo, numero_serie = :serial,
+             ip_local = :ip, puerto = :puerto, protocolo = :protocolo, estado = :estado
+             WHERE id = :id AND cliente_id = :cliente_id'
+        );
+        $stmt->execute([
+            'nombre' => $configHik['nombre'], 'ubicacion' => $ubicacion,
+            'categoria' => $configHik['categoria'], 'modelo' => $configHik['modelo'],
+            'serial' => $configHik['numero_serie'], 'ip' => $configHik['ip_local'],
+            'puerto' => $configHik['puerto'], 'protocolo' => $configHik['protocolo'],
+            'estado' => $estado, 'id' => $id, 'cliente_id' => $clienteId,
+        ]);
+        $equipo = idindHikvisionCliente($pdo, $clienteId, $id);
+        responderJson(200, ['ok' => true, 'data' => ['dispositivo' => $equipo[0] ?? null]]);
+    }
+    if ($tipo === 'ZKTECO') {
+        idindZktecoRequerirTablas($pdo);
+        $actual = obtenerZktecoClienteAdmin($pdo, $id, $clienteId);
+        if (!$actual) responderJson(404, ['ok' => false, 'error' => 'Equipo ZKTeco no encontrado']);
+        $ubicacion = dispositivoUbicacionValida((string) ($data['ubicacion'] ?? $actual['ubicacion']));
+        $estado = dispositivoEstadoValido((string) ($data['estado'] ?? $actual['estado']));
+        $configZk = idindZktecoConfiguracion($data, $actual);
+        $stmt = $pdo->prepare(
+            'UPDATE equipos_zkteco SET nombre = :nombre, ubicacion = :ubicacion,
+             categoria = :categoria, modelo = :modelo, numero_serie = :serial,
+             ip_local = :ip, puerto = :puerto, protocolo = :protocolo,
+             numero_maquina = :numero_maquina, estado = :estado
+             WHERE id = :id AND cliente_id = :cliente_id'
+        );
+        $stmt->execute([
+            'nombre' => $configZk['nombre'], 'ubicacion' => $ubicacion,
+            'categoria' => $configZk['categoria'], 'modelo' => $configZk['modelo'],
+            'serial' => $configZk['numero_serie'], 'ip' => $configZk['ip_local'],
+            'puerto' => $configZk['puerto'], 'protocolo' => $configZk['protocolo'],
+            'numero_maquina' => $configZk['numero_maquina'], 'estado' => $estado,
+            'id' => $id, 'cliente_id' => $clienteId,
+        ]);
+        $equipo = idindZktecoCliente($pdo, $clienteId, $id);
+        responderJson(200, ['ok' => true, 'data' => ['dispositivo' => $equipo[0] ?? null]]);
+    }
     requerirTablaShelly($pdo);
     $actual = obtenerShellyCliente($pdo, $id, $clienteId);
     if (!$actual) {
@@ -399,6 +585,8 @@ if ($accion === 'actualizar') {
          SET ubicacion = :ubicacion, dispositivo_vinculado_id = :vinculado,
              shelly_device_id = :device_id, modelo = :modelo, generacion = :generacion,
              ip_local = :ip_local, canal = :canal, funcion = :funcion,
+             categoria = :categoria, permite_rutinas = :permite_rutinas,
+             requiere_confirmacion = :requiere_confirmacion,
              modo_control = :modo_control, estado = :estado
          WHERE id = :id AND cliente_id = :cliente_id'
     );
@@ -407,6 +595,9 @@ if ($accion === 'actualizar') {
         'device_id' => $config['shelly_device_id'], 'modelo' => $config['modelo'],
         'generacion' => $config['generacion'], 'ip_local' => $config['ip_local'],
         'canal' => $config['canal'], 'funcion' => $config['funcion'],
+        'categoria' => $config['categoria'],
+        'permite_rutinas' => $config['permite_rutinas'],
+        'requiere_confirmacion' => $config['requiere_confirmacion'],
         'modo_control' => $config['modo_control'], 'estado' => $estado,
         'id' => $id, 'cliente_id' => $clienteId,
     ]);

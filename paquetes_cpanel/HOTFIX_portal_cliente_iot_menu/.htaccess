@@ -1,0 +1,107 @@
+Options -Indexes
+DirectoryIndex index.php index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Redirect the previous /sistema deployment to the public root.
+  RewriteCond %{THE_REQUEST} \s/+sistema(?:[/?\s]) [NC]
+  RewriteRule ^sistema/?$ ./ [R=301,L,NE]
+  RewriteRule ^sistema/(.+)$ $1 [R=301,L,NE]
+
+  # Canonical host and protocol in production.
+  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  RewriteCond %{HTTP_HOST} ^www\.idindustrial\.com\.mx$ [NC]
+  RewriteRule ^ https://idindustrial.com.mx%{REQUEST_URI} [R=301,L]
+
+  # Public legacy files now use directory URLs.
+  RewriteRule ^instalacion-camaras-seguridad-industrial-queretaro\.php$ instalacion-camaras-seguridad-industrial-queretaro/ [R=301,L,NE]
+
+  RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.php(?:[?\s]) [NC]
+  RewriteCond %{REQUEST_URI} !/crm/ [NC]
+  RewriteRule ^(.+)/index\.php$ $1/ [R=301,L,NE]
+
+  RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.php(?:[?\s]) [NC]
+  RewriteRule ^index\.php$ ./ [R=301,L,NE]
+
+  # Client portal routes.
+  RewriteRule ^crm/portal/notificaciones/estado/?$ crm/cliente.php?notification_poll=1 [QSA,L]
+  RewriteRule ^crm/portal/salir/?$ crm/cliente.php?logout=1 [QSA,L]
+  RewriteRule ^crm/portal/proyectos/?$ crm/cliente.php?view=proyectos [QSA,L]
+  RewriteRule ^crm/portal/bitacora/?$ crm/cliente.php?view=bitacora [QSA,L]
+  RewriteRule ^crm/portal/solicitudes/?$ crm/cliente.php?view=solicitudes [QSA,L]
+  RewriteRule ^crm/portal/cotizaciones/?$ crm/cliente.php?view=cotizaciones [QSA,L]
+  RewriteRule ^crm/portal/notificaciones/?$ crm/cliente.php?view=notificaciones [QSA,L]
+  RewriteRule ^crm/portal/perfil/?$ crm/cliente.php?view=perfil [QSA,L]
+  RewriteRule ^crm/portal/iot/?$ crm/iot-sso.php [QSA,L]
+  RewriteRule ^crm/portal/?$ crm/cliente.php?view=resumen [QSA,L]
+
+  # CRM administration and protected evidence.
+  RewriteRule ^crm/data/ - [F,L]
+  RewriteRule ^crm/archivos-cotizacion/([0-9]+)/?$ crm/quote-file.php?id=$1 [QSA,L]
+  RewriteRule ^crm/archivos-oportunidad/([0-9]+)/?$ crm/opportunity-file.php?id=$1 [QSA,L]
+  RewriteRule ^crm/evidencias/([0-9]+)/?$ crm/evidence.php?id=$1 [QSA,L]
+  RewriteRule ^crm/notificaciones/estado/?$ crm/index.php?notification_poll=1 [QSA,L]
+  RewriteRule ^crm/salir/?$ crm/index.php?logout=1 [QSA,L]
+  RewriteRule ^crm/oportunidades/([0-9]+)/?$ crm/index.php?view=opportunity&id=$1 [QSA,L]
+  RewriteRule ^crm/oportunidades/?$ crm/index.php?view=opportunities [QSA,L]
+  RewriteRule ^crm/cotizaciones/([0-9]+)/?$ crm/index.php?view=quote&id=$1 [QSA,L]
+  RewriteRule ^crm/cotizaciones/?$ crm/index.php?view=quotes [QSA,L]
+  RewriteRule ^crm/calendario/?$ crm/index.php?view=calendar [QSA,L]
+  RewriteRule ^crm/clientes/?$ crm/index.php?view=clients [QSA,L]
+  RewriteRule ^crm/prospectos/?$ crm/index.php?view=prospects [QSA,L]
+  RewriteRule ^crm/notificaciones/?$ crm/index.php?view=bitacora&notifications=1 [QSA,L]
+  RewriteRule ^crm/bitacora/?$ crm/index.php?view=bitacora [QSA,L]
+  RewriteRule ^crm/perfil/?$ crm/index.php?view=profile [QSA,L]
+  RewriteRule ^crm/configuracion/?$ crm/index.php?view=settings [QSA,L]
+  RewriteRule ^crm/iot/?$ crm/iot-sso.php [QSA,L]
+  RewriteRule ^crm/?$ crm/index.php?view=dashboard [QSA,L]
+
+  # Modulo IoT: panel web en /iot/ y API en /iot/api/
+  # Keep the trailing slash so relative CSS, JS, image and API URLs resolve
+  # below /iot/ instead of from the public deployment directory.
+  RewriteRule ^iot$ iot/ [R=301,L,NE]
+  RewriteRule ^iot/login\.html$ crm/ [R=302,L,NE]
+  RewriteRule ^iot/api/(.+)$ IoT/api/$1 [QSA,L]
+  RewriteRule ^iot/?$ IoT/web/index.html [L]
+  RewriteRule ^iot/(.+)$ IoT/web/$1 [L]
+
+  # Preserve service preselection on the public quote form.
+  RewriteCond %{QUERY_STRING} (^|&)servicio= [NC]
+  RewriteRule ^$ index.php [L]
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  <FilesMatch "\.(css|js|jpg|jpeg|png|webp|svg|woff2?)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+<FilesMatch "(^error_log$|^config(?:\.(?:sample|example))?\.php$|^DEPLOY_PUBLIC_HTML\.md$|\.(?:sqlite|db|sql|log|bak|ini)$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

@@ -31,6 +31,17 @@ try {
   ]);
   throw $error;
 }
+
+if (
+  empty($_SESSION['crm_user'])
+  && !empty($_SESSION['bitacora_user'])
+  && (string) ($_SESSION['crm_iot_return_area'] ?? '') === 'portal'
+) {
+  unset($_SESSION['crm_iot_return_area']);
+  header('Location: ' . crm_portal_url());
+  exit;
+}
+
 $statuses = [
   'Nueva solicitud',
   'Contacto realizado',

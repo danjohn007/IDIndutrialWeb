@@ -16,10 +16,12 @@ CREATE TABLE IF NOT EXISTS estado_shelly (
   fuente ENUM('CLOUD', 'WEBHOOK', 'LOCAL') NOT NULL DEFAULT 'CLOUD',
   ultimo_error VARCHAR(500) NULL,
   sincronizado_en DATETIME NULL,
+  apagado_programado_en DATETIME NULL,
   actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (actuador_id),
-  INDEX idx_estado_shelly_online (online, sincronizado_en)
+  INDEX idx_estado_shelly_online (online, sincronizado_en),
+  INDEX idx_estado_shelly_apagado (apagado_programado_en)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS comandos_shelly (
@@ -60,4 +62,3 @@ CREATE TABLE IF NOT EXISTS eventos_shelly (
   INDEX idx_eventos_shelly_actuador_fecha (actuador_id, fecha_hora, id),
   INDEX idx_eventos_shelly_comando (comando_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-

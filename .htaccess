@@ -43,6 +43,7 @@ DirectoryIndex index.php index.html
   RewriteRule ^crm/portal/cotizaciones/?$ crm/cliente.php?view=cotizaciones [QSA,L]
   RewriteRule ^crm/portal/notificaciones/?$ crm/cliente.php?view=notificaciones [QSA,L]
   RewriteRule ^crm/portal/perfil/?$ crm/cliente.php?view=perfil [QSA,L]
+  RewriteRule ^crm/portal/iot/?$ crm/iot-sso.php [QSA,L]
   RewriteRule ^crm/portal/?$ crm/cliente.php?view=resumen [QSA,L]
 
   # CRM administration and protected evidence.

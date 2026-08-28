@@ -1,5 +1,5 @@
 -- Notificaciones push de la app para MySQL 5.7.
--- Ejecuta este archivo una sola vez con idactivo_idindustrial seleccionada.
+-- Ejecuta este archivo una sola vez con la base de ID Industrial seleccionada.
 
 SET NAMES utf8mb4;
 
@@ -25,7 +25,10 @@ CREATE TABLE IF NOT EXISTS moviles_push (
 
 CREATE TABLE IF NOT EXISTS notificaciones_push (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  alerta_id BIGINT UNSIGNED NOT NULL,
+  alerta_id BIGINT UNSIGNED NULL,
+  origen_tipo ENUM('ALERTA', 'SHELLY', 'COTIZACION') NOT NULL DEFAULT 'ALERTA',
+  evento_shelly_id BIGINT UNSIGNED NULL,
+  dedupe_key CHAR(64) NULL,
   push_token_id BIGINT UNSIGNED NOT NULL,
   cliente_id INT UNSIGNED NOT NULL,
   titulo VARCHAR(120) NOT NULL,
@@ -44,7 +47,9 @@ CREATE TABLE IF NOT EXISTS notificaciones_push (
     ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_notificacion_alerta_token (alerta_id, push_token_id),
+  UNIQUE KEY uq_notificacion_dedupe_token (dedupe_key, push_token_id),
   INDEX idx_notificaciones_estado_disponible (estado, disponible_en, id),
+  INDEX idx_notificaciones_origen (origen_tipo, evento_shelly_id),
   INDEX idx_notificaciones_cliente (cliente_id, creado_en),
   INDEX idx_notificaciones_ticket (ticket_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

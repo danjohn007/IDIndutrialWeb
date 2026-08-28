@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/alexa_events.php';
+require_once __DIR__ . '/shelly_notificaciones.php';
 
 final class IdindShellyException extends RuntimeException
 {
@@ -20,7 +21,7 @@ function idindShellyCredenciales(array $config): array
 
     if ($server === '' || $authKey === '') {
         throw new IdindShellyException(
-            'Shelly Cloud no esta configurado en crm/config.php (seccion iot)'
+            'Shelly Cloud no esta configurado en crm/config.php (seccion iot) ni api/config.local.php'
         );
     }
     if (!preg_match('#^https://#i', $server)) {
@@ -227,6 +228,151 @@ function idindShellyEstadoCanal(array $dispositivo, int $canal): array
     ];
 }
 
+function idindShellyBaseLocal(array $actuador): string
+{
+    $host = trim((string) ($actuador['ip_local'] ?? ''));
+    if ($host === '') {
+        throw new IdindShellyException('Configura la IP local del Shelly para usar RPC local');
+    }
+    if (!preg_match('/^[A-Za-z0-9.:-]+$/', $host)) {
+        throw new IdindShellyException('La IP local del Shelly no es valida');
+    }
+    return 'http://' . trim($host, '/') . '/rpc/';
+}
+
+function idindShellyPeticionLocal(array $actuador, string $metodo, array $parametros = []): array
+{
+    if (!function_exists('curl_init')) {
+        throw new IdindShellyException('La extension cURL no esta habilitada en PHP');
+    }
+    if (!preg_match('/^[A-Za-z0-9.]+$/', $metodo)) {
+        throw new IdindShellyException('Metodo RPC local no valido');
+    }
+
+    $url = idindShellyBaseLocal($actuador) . $metodo;
+    $curl = curl_init($url);
+    curl_setopt_array($curl, [
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            'Accept: application/json',
+            'Content-Type: application/json',
+        ],
+        CURLOPT_POSTFIELDS => json_encode(
+            $parametros,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        ),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 2,
+        CURLOPT_TIMEOUT => 4,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0,
+        CURLOPT_USERAGENT => 'ID-Industrial/1.0 ShellyLocalRpc',
+    ]);
+    $respuesta = curl_exec($curl);
+    $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    $errorCurl = curl_error($curl);
+    curl_close($curl);
+
+    if ($respuesta === false) {
+        throw new IdindShellyException(
+            $errorCurl !== '' ? 'Error RPC local Shelly: ' . $errorCurl : 'Shelly local no respondio'
+        );
+    }
+    $json = json_decode((string) $respuesta, true);
+    if ($status < 200 || $status >= 300) {
+        $detalle = is_array($json)
+            ? (string) ($json['error'] ?? $json['message'] ?? '')
+            : '';
+        throw new IdindShellyException(
+            trim('Shelly local respondio HTTP ' . $status . ' ' . $detalle)
+        );
+    }
+    if (!is_array($json)) {
+        throw new IdindShellyException('Shelly local devolvio una respuesta no JSON');
+    }
+    return $json;
+}
+
+function idindShellyEstadoCanalLocal(array $status): array
+{
+    $temperatura = null;
+    if (is_array($status['temperature'] ?? null)) {
+        $temperatura = idindShellyNumero(
+            $status['temperature']['tC'] ?? $status['temperature']['celsius'] ?? null
+        );
+    } else {
+        $temperatura = idindShellyNumero($status['temperature'] ?? null);
+    }
+    $salida = $status['output'] ?? null;
+    if ($salida !== null) {
+        $salida = in_array($salida, [1, '1', true, 'true', 'on'], true);
+    }
+    return [
+        'online' => true,
+        'salida_encendida' => $salida,
+        'potencia_w' => idindShellyNumero($status['apower'] ?? $status['power'] ?? null),
+        'voltaje_v' => idindShellyNumero($status['voltage'] ?? null),
+        'corriente_a' => idindShellyNumero($status['current'] ?? null),
+        'temperatura_c' => $temperatura,
+        'errores' => is_array($status['errors'] ?? null) ? $status['errors'] : [],
+        'raw' => $status,
+    ];
+}
+
+function idindShellyLeerEstadoLocal(array $actuador): array
+{
+    $status = idindShellyPeticionLocal(
+        $actuador,
+        'Switch.GetStatus',
+        ['id' => (int) $actuador['canal']]
+    );
+    return idindShellyEstadoCanalLocal($status);
+}
+
+function idindShellySincronizarLocal(
+    PDO $pdo,
+    int $clienteId,
+    ?string $actuadorId = null
+): array {
+    $sql =
+        'SELECT id, cliente_id, ubicacion, dispositivo_vinculado_id,
+                shelly_device_id, modelo, generacion, ip_local, canal,
+                funcion, modo_control, estado
+         FROM actuadores_shelly
+         WHERE cliente_id = :cliente_id AND estado <> \'Inactivo\'
+           AND modo_control IN (\'LOCAL\', \'HIBRIDO\')';
+    $parametros = ['cliente_id' => $clienteId];
+    if ($actuadorId !== null) {
+        $sql .= ' AND id = :id';
+        $parametros['id'] = $actuadorId;
+    }
+    $sql .= ' ORDER BY ubicacion, shelly_device_id, canal, id';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($parametros);
+
+    $consultados = 0;
+    $online = 0;
+    $offline = 0;
+    $errores = [];
+    foreach ($stmt->fetchAll() as $actuador) {
+        $consultados++;
+        try {
+            $estado = idindShellyLeerEstadoLocal($actuador);
+            idindShellyGuardarEstado($pdo, $actuador, $estado, 'LOCAL');
+            !empty($estado['online']) ? $online++ : $offline++;
+        } catch (Throwable $error) {
+            $offline++;
+            idindShellyGuardarError($pdo, $actuador, $error->getMessage(), 'LOCAL');
+            $errores[] = $actuador['id'] . ': ' . $error->getMessage();
+        }
+    }
+    if ($consultados === 0 && $actuadorId !== null) {
+        throw new IdindShellyException('Actuador Shelly local no encontrado');
+    }
+    return compact('consultados', 'online', 'offline', 'errores');
+}
+
 function idindShellyGuardarEstado(
     PDO $pdo,
     array $actuador,
@@ -235,7 +381,7 @@ function idindShellyGuardarEstado(
     ?string $error = null,
     ?array $config = null,
     ?string $causaAlexa = null
-): void {
+): array {
     $online = !empty($estado['online']) ? 1 : 0;
     $salida = $estado['salida_encendida'] ?? null;
     $salidaDb = $salida === null ? null : ($salida ? 1 : 0);
@@ -256,11 +402,11 @@ function idindShellyGuardarEstado(
         'INSERT INTO estado_shelly (
             actuador_id, online, salida_encendida, potencia_w, voltaje_v,
             corriente_a, temperatura_c, errores_json, fuente, ultimo_error,
-            sincronizado_en
+            sincronizado_en, apagado_programado_en
          ) VALUES (
             :actuador_id, :online, :salida, :potencia, :voltaje,
             :corriente, :temperatura, :errores, :fuente, :ultimo_error,
-            UTC_TIMESTAMP()
+            UTC_TIMESTAMP(), NULL
          )
          ON DUPLICATE KEY UPDATE
             online = VALUES(online), salida_encendida = VALUES(salida_encendida),
@@ -269,7 +415,11 @@ function idindShellyGuardarEstado(
             corriente_a = COALESCE(VALUES(corriente_a), corriente_a),
             temperatura_c = COALESCE(VALUES(temperatura_c), temperatura_c),
             errores_json = VALUES(errores_json), fuente = VALUES(fuente),
-            ultimo_error = VALUES(ultimo_error), sincronizado_en = UTC_TIMESTAMP()'
+            ultimo_error = VALUES(ultimo_error), sincronizado_en = UTC_TIMESTAMP(),
+            apagado_programado_en = CASE
+                WHEN VALUES(salida_encendida) = 0 THEN NULL
+                ELSE apagado_programado_en
+            END'
     );
     $stmt->execute([
         'actuador_id' => (string) $actuador['id'],
@@ -296,14 +446,16 @@ function idindShellyGuardarEstado(
         'id' => (string) $actuador['id'],
     ]);
 
+    $alexa = ['enviados' => 0, 'errores' => []];
+    $cambioSalida = $salidaDb !== null
+        && $teniaSalidaAnterior
+        && $salidaAnterior !== $salidaDb;
     if (
         $config !== null
         && $causaAlexa !== null
-        && $salidaDb !== null
-        && $teniaSalidaAnterior
-        && $salidaAnterior !== $salidaDb
+        && $cambioSalida
     ) {
-        idindAlexaNotificarCambioShelly(
+        $alexa = idindAlexaNotificarCambioShelly(
             $pdo,
             $config,
             (string) $actuador['id'],
@@ -312,19 +464,53 @@ function idindShellyGuardarEstado(
             $causaAlexa
         );
     }
+    return [
+        'cambio_salida' => $cambioSalida,
+        'salida_anterior' => $teniaSalidaAnterior ? $salidaAnterior : null,
+        'salida_actual' => $salidaDb,
+        'alexa' => $alexa,
+    ];
 }
 
-function idindShellyGuardarError(PDO $pdo, array $actuador, string $mensaje): void
+function idindShellyEsConfirmacionComandoReciente(
+    PDO $pdo,
+    string $actuadorId,
+    bool $encendida
+): bool {
+    $stmt = $pdo->prepare(
+        "SELECT id FROM comandos_shelly
+         WHERE actuador_id = :actuador_id
+           AND accion = :accion
+           AND creado_en >= UTC_TIMESTAMP() - INTERVAL 15 SECOND
+           AND estado IN ('PENDIENTE', 'PROCESANDO', 'APLICADO', 'REINTENTAR')
+         ORDER BY id DESC LIMIT 1"
+    );
+    $stmt->execute([
+        'actuador_id' => $actuadorId,
+        'accion' => $encendida ? 'ENCENDER' : 'APAGAR',
+    ]);
+    return $stmt->fetchColumn() !== false;
+}
+
+function idindShellyGuardarError(
+    PDO $pdo,
+    array $actuador,
+    string $mensaje,
+    string $fuente = 'CLOUD'
+): void
 {
+    $fuente = in_array($fuente, ['CLOUD', 'WEBHOOK', 'LOCAL'], true) ? $fuente : 'CLOUD';
     $stmt = $pdo->prepare(
         'INSERT INTO estado_shelly (
             actuador_id, online, fuente, ultimo_error, sincronizado_en
-         ) VALUES (:id, 0, \'CLOUD\', :error, UTC_TIMESTAMP())
+         ) VALUES (:id, 0, :fuente, :error, UTC_TIMESTAMP())
          ON DUPLICATE KEY UPDATE
+            fuente = VALUES(fuente),
             ultimo_error = VALUES(ultimo_error), sincronizado_en = UTC_TIMESTAMP()'
     );
     $stmt->execute([
         'id' => (string) $actuador['id'],
+        'fuente' => $fuente,
         'error' => substr($mensaje, 0, 500),
     ]);
 }
@@ -450,6 +636,8 @@ function idindShellySincronizar(
                                 'canal' => (int) $actuador['canal'],
                             ]),
                         ]);
+                        $eventoId = (int) $pdo->lastInsertId();
+                        idindShellyEncolarNotificacionEvento($pdo, $eventoId, $config);
                     }
                     $estadosPrevios[$idActuador] = $salidaActual === null
                         ? null
@@ -533,6 +721,7 @@ function idindShellyProcesarComando(PDO $pdo, array $config, int $comandoId): ar
     $stmt = $pdo->prepare(
         "SELECT c.*, a.cliente_id, a.shelly_device_id, a.canal,
                 a.categoria, a.apagado_automatico, a.tiempo_max_encendido_s,
+                a.ip_local, a.modo_control,
                 TIMESTAMPDIFF(SECOND, c.actualizado_en, UTC_TIMESTAMP()) AS segundos_procesando,
                 a.estado AS estado_actuador, a.id AS actuador_id_real
          FROM comandos_shelly c
@@ -592,69 +781,95 @@ function idindShellyProcesarComando(PDO $pdo, array $config, int $comandoId): ar
     $pdo->commit();
 
     $encender = $comando['accion'] === 'ENCENDER';
+    $fuenteEstado = 'CLOUD';
     try {
-        $parametrosComando = [
-            'id' => (string) $comando['shelly_device_id'],
-            'channel' => (int) $comando['canal'],
-            'on' => $encender,
-        ];
-        if (
-            $encender
-            && !empty($comando['apagado_automatico'])
-            && (int) ($comando['tiempo_max_encendido_s'] ?? 0) > 0
-        ) {
-            $parametrosComando['toggle_after'] = (int) $comando['tiempo_max_encendido_s'];
-        }
-        $respuesta = idindShellyPeticionCloud(
-            $pdo,
-            $config,
-            (int) $comando['cliente_id'],
-            '/v2/devices/api/set/switch',
-            $parametrosComando
-        );
-        $verificacion = idindShellyPeticionCloud(
-            $pdo,
-            $config,
-            (int) $comando['cliente_id'],
-            '/v2/devices/api/get',
-            [
-                'ids' => [(string) $comando['shelly_device_id']],
-                'select' => ['status', 'settings'],
-            ]
-        );
-        $dispositivoVerificado = null;
-        foreach (idindShellyListaRespuesta($verificacion) as $item) {
+        $modoControl = (string) ($comando['modo_control'] ?? 'CLOUD');
+        $usarCloud = $modoControl !== 'LOCAL' && idindShellyConfigurado($config);
+        $usarLocal = !$usarCloud && in_array($modoControl, ['LOCAL', 'HIBRIDO'], true);
+        if ($usarLocal) {
+            $fuenteEstado = 'LOCAL';
+            $parametrosLocal = [
+                'id' => (int) $comando['canal'],
+                'on' => $encender,
+            ];
             if (
-                strtolower((string) ($item['id'] ?? ''))
-                === strtolower((string) $comando['shelly_device_id'])
+                $encender
+                && !empty($comando['apagado_automatico'])
+                && (int) ($comando['tiempo_max_encendido_s'] ?? 0) > 0
             ) {
-                $dispositivoVerificado = $item;
-                break;
+                $parametrosLocal['toggle_after'] = (int) $comando['tiempo_max_encendido_s'];
             }
-        }
-        if ($dispositivoVerificado === null) {
-            throw new IdindShellyException(
-                'Shelly Cloud acepto la orden, pero no devolvio el dispositivo al verificar'
+            $respuesta = idindShellyPeticionLocal($comando, 'Switch.Set', $parametrosLocal);
+            $verificacion = idindShellyPeticionLocal(
+                $comando,
+                'Switch.GetStatus',
+                ['id' => (int) $comando['canal']]
+            );
+            $estado = idindShellyEstadoCanalLocal($verificacion);
+        } else {
+            $parametrosComando = [
+                'id' => (string) $comando['shelly_device_id'],
+                'channel' => (int) $comando['canal'],
+                'on' => $encender,
+            ];
+            if (
+                $encender
+                && !empty($comando['apagado_automatico'])
+                && (int) ($comando['tiempo_max_encendido_s'] ?? 0) > 0
+            ) {
+                $parametrosComando['toggle_after'] = (int) $comando['tiempo_max_encendido_s'];
+            }
+            $respuesta = idindShellyPeticionCloud(
+                $pdo,
+                $config,
+                (int) $comando['cliente_id'],
+                '/v2/devices/api/set/switch',
+                $parametrosComando
+            );
+            $verificacion = idindShellyPeticionCloud(
+                $pdo,
+                $config,
+                (int) $comando['cliente_id'],
+                '/v2/devices/api/get',
+                [
+                    'ids' => [(string) $comando['shelly_device_id']],
+                    'select' => ['status', 'settings'],
+                ]
+            );
+            $dispositivoVerificado = null;
+            foreach (idindShellyListaRespuesta($verificacion) as $item) {
+                if (
+                    strtolower((string) ($item['id'] ?? ''))
+                    === strtolower((string) $comando['shelly_device_id'])
+                ) {
+                    $dispositivoVerificado = $item;
+                    break;
+                }
+            }
+            if ($dispositivoVerificado === null) {
+                throw new IdindShellyException(
+                    'Shelly Cloud acepto la orden, pero no devolvio el dispositivo al verificar'
+                );
+            }
+            $estado = idindShellyEstadoCanal(
+                $dispositivoVerificado,
+                (int) $comando['canal']
             );
         }
-        $estado = idindShellyEstadoCanal(
-            $dispositivoVerificado,
-            (int) $comando['canal']
-        );
         if (empty($estado['online'])) {
             throw new IdindShellyException(
-                'Shelly Cloud reporta el dispositivo offline despues de la orden'
+                'Shelly reporta el dispositivo offline despues de la orden'
             );
         }
         if ($estado['salida_encendida'] === null) {
             throw new IdindShellyException(
-                'Shelly Cloud no devolvio switch:' . (int) $comando['canal']
+                'Shelly no devolvio switch:' . (int) $comando['canal']
                 . '; revisa el canal y el Device ID'
             );
         }
         if ((bool) $estado['salida_encendida'] !== $encender) {
             throw new IdindShellyException(
-                'Shelly Cloud acepto la orden, pero el canal '
+                'Shelly acepto la orden, pero el canal '
                 . (int) $comando['canal'] . ' no cambio fisicamente'
             );
         }
@@ -662,7 +877,7 @@ function idindShellyProcesarComando(PDO $pdo, array $config, int $comandoId): ar
             $pdo,
             ['id' => (string) $comando['actuador_id']],
             $estado,
-            'CLOUD',
+            $fuenteEstado,
             null,
             $config,
             $comando['origen'] === 'ALEXA'
@@ -671,6 +886,25 @@ function idindShellyProcesarComando(PDO $pdo, array $config, int $comandoId): ar
                     ? 'PERIODIC_POLL'
                     : 'APP_INTERACTION')
         );
+        $apagadoProgramado = null;
+        if (
+            $encender
+            && !empty($comando['apagado_automatico'])
+            && (int) ($comando['tiempo_max_encendido_s'] ?? 0) > 0
+        ) {
+            $apagadoProgramado = gmdate(
+                'Y-m-d H:i:s',
+                time() + (int) $comando['tiempo_max_encendido_s']
+            );
+        }
+        $pdo->prepare(
+            'UPDATE estado_shelly
+             SET apagado_programado_en = :apagado_programado_en
+             WHERE actuador_id = :actuador_id'
+        )->execute([
+            'apagado_programado_en' => $apagadoProgramado,
+            'actuador_id' => (string) $comando['actuador_id'],
+        ]);
         $pdo->prepare(
             "UPDATE comandos_shelly SET estado = 'APLICADO', respuesta_json = :respuesta,
              ultimo_error = NULL, procesado_en = UTC_TIMESTAMP() WHERE id = :id"
@@ -703,7 +937,8 @@ function idindShellyProcesarComando(PDO $pdo, array $config, int $comandoId): ar
             idindShellyGuardarError(
                 $pdo,
                 ['id' => (string) $comando['actuador_id']],
-                $error->getMessage()
+                $error->getMessage(),
+                $fuenteEstado
             );
         } catch (Throwable $errorEstado) {
             error_log('ID Industrial estado Shelly: ' . $errorEstado->getMessage());
@@ -748,7 +983,7 @@ function idindShellyComandarVinculados(
         "SELECT id FROM actuadores_shelly
          WHERE dispositivo_vinculado_id = :esp32_id
            AND estado = 'Activo'
-           AND modo_control IN ('CLOUD', 'HIBRIDO')
+           AND modo_control IN ('LOCAL', 'CLOUD', 'HIBRIDO')
            AND funcion IN ('SIRENA', 'BALIZA')
          ORDER BY FIELD(funcion, 'SIRENA', 'BALIZA'), canal, id"
     );
@@ -800,11 +1035,13 @@ function idindShellyEstadoCliente(PDO $pdo, int $clienteId): array
             a.canal, a.funcion, a.categoria, a.tipo_carga,
             a.corriente_max_a, a.potencia_max_w, a.tiempo_max_encendido_s,
             a.apagado_automatico, a.permite_rutinas, a.requiere_confirmacion,
+            a.notificar_cambios_externos,
             a.descripcion, a.modo_control, a.estado,
             a.ultima_conexion,
             es.online, es.salida_encendida, es.potencia_w, es.voltaje_v,
             es.corriente_a, es.temperatura_c, es.errores_json,
             es.fuente, es.ultimo_error, es.sincronizado_en,
+            es.apagado_programado_en,
             CASE
               WHEN es.sincronizado_en IS NULL THEN 'SIN_DATOS'
               WHEN es.sincronizado_en < UTC_TIMESTAMP() - INTERVAL 3 MINUTE
@@ -827,7 +1064,7 @@ function idindShellyEstadoCliente(PDO $pdo, int $clienteId): array
         $fila['salida_encendida'] = $fila['salida_encendida'] === null
             ? null
             : (int) $fila['salida_encendida'];
-        foreach (['apagado_automatico', 'permite_rutinas', 'requiere_confirmacion'] as $campo) {
+        foreach (['apagado_automatico', 'permite_rutinas', 'requiere_confirmacion', 'notificar_cambios_externos'] as $campo) {
             $fila[$campo] = (int) ($fila[$campo] ?? 0);
         }
     }

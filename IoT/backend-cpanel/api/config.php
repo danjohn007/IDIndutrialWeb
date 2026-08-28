@@ -11,7 +11,7 @@ if (
     && hash_equals($allowedOrigin, (string) $_SERVER['HTTP_ORIGIN'])
 ) {
     header('Access-Control-Allow-Origin: ' . $allowedOrigin);
-    header('Access-Control-Allow-Headers: Authorization, Content-Type, X-API-TOKEN, X-CSRF-TOKEN, X-Requested-With');
+    header('Access-Control-Allow-Headers: Authorization, Content-Type, X-API-TOKEN, X-CSRF-TOKEN, X-Requested-With, X-HIKVISION-BRIDGE-TOKEN, X-ZKTECO-BRIDGE-TOKEN');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Vary: Origin');
 }
@@ -38,24 +38,40 @@ foreach ($sharedConfigPaths as $sharedConfigPath) {
     }
     break;
 }
-if ($sharedConfig === []) {
-    error_log('ID Industrial: no se encontro crm/config.php compartido');
-}
 
 $configLocal = is_array($sharedConfig['iot'] ?? null)
     ? $sharedConfig['iot']
     : [];
-$dbHost = getenv('IDIND_DB_HOST') ?: ($sharedConfig['host'] ?? 'localhost');
-$dbName = getenv('IDIND_DB_NAME') ?: ($sharedConfig['database'] ?? 'TU_BASE_DE_DATOS');
-$dbUser = getenv('IDIND_DB_USER') ?: ($sharedConfig['username'] ?? 'TU_USUARIO');
-$dbPass = getenv('IDIND_DB_PASS') ?: ($sharedConfig['password'] ?? 'TU_PASSWORD');
+$configLocalSource = $configLocal !== [] ? 'crm/config.php: iot' : '';
+
+$rutaConfigLocal = __DIR__ . '/config.local.php';
+if ($configLocal === [] && is_file($rutaConfigLocal)) {
+    $configCargada = require $rutaConfigLocal;
+    if (is_array($configCargada)) {
+        $configLocal = $configCargada;
+        $configLocalSource = 'api/config.local.php';
+    }
+}
+
+if ($sharedConfig === [] && $configLocal === []) {
+    error_log('ID Industrial: no se encontro crm/config.php compartido ni api/config.local.php');
+}
+
+$dbHost = getenv('IDIND_DB_HOST')
+    ?: ($sharedConfig['host'] ?? ($configLocal['db_host'] ?? 'localhost'));
+$dbName = getenv('IDIND_DB_NAME')
+    ?: ($sharedConfig['database'] ?? ($configLocal['db_name'] ?? 'TU_BASE_DE_DATOS'));
+$dbUser = getenv('IDIND_DB_USER')
+    ?: ($sharedConfig['username'] ?? ($configLocal['db_user'] ?? 'TU_USUARIO'));
+$dbPass = getenv('IDIND_DB_PASS')
+    ?: ($sharedConfig['password'] ?? ($configLocal['db_pass'] ?? 'TU_PASSWORD'));
 $apiToken = getenv('IDIND_API_TOKEN')
     ?: ($configLocal['api_token'] ?? 'CAMBIA_ESTE_TOKEN_SECRETO');
 $setupTokenLocal = trim((string) ($configLocal['setup_token'] ?? ''));
 $setupTokenEntorno = trim((string) (getenv('IDIND_SETUP_TOKEN') ?: ''));
 if ($setupTokenLocal !== '') {
     $setupToken = $setupTokenLocal;
-    $setupTokenOrigen = 'crm/config.php: iot';
+    $setupTokenOrigen = $configLocalSource !== '' ? $configLocalSource : 'configuracion_local';
 } elseif ($setupTokenEntorno !== '') {
     $setupToken = $setupTokenEntorno;
     $setupTokenOrigen = 'variable_de_entorno';

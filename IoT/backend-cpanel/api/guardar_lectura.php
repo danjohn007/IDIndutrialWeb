@@ -119,7 +119,9 @@ function encolarNotificacionesCriticas(PDO $pdo, array $alertaIds): void
         $valor = $alerta['valor_sensor'];
         $titulo = 'Alerta critica: ' . $tipo;
 
-        if (stripos($tipo, 'Flama') !== false) {
+        if (stripos($tipo, 'Estacion manual') !== false || stripos($tipo, 'Pulsador') !== false) {
+            $cuerpo = "Estacion manual activada en {$ubicacion} ({$dispositivo}).";
+        } elseif (stripos($tipo, 'Flama') !== false) {
             $cuerpo = "Flama detectada en {$ubicacion} ({$dispositivo}).";
         } elseif (stripos($tipo, 'Gas') !== false || stripos($tipo, 'Humo') !== false) {
             $lectura = $valor === null ? 'sin lectura' : number_format((float) $valor, 0) . ' ADC';
@@ -204,6 +206,7 @@ if ($gasPorcentaje === null && $gasRaw !== null) {
 }
 
 $flamaDetectada = booleanoBinario($data, 'flama_detectada', 0) ?? 0;
+$estacionManualActivada = booleanoBinario($data, 'estacion_manual_activada', 0) ?? 0;
 $gasDetectadoRecibido = booleanoBinario($data, 'gas_detectado');
 $gasDetectado = $gasDetectadoRecibido
     ?? (int) ($gasRaw !== null && $gasRaw >= $gasUmbral);
@@ -262,7 +265,8 @@ try {
     $stmtAnterior = $pdo->prepare(
         'SELECT
             estado_general, temperatura, gas_raw, gas_detectado,
-            flama_detectada, salud_dht, salud_mq2, salud_flama,
+            flama_detectada, estacion_manual_activada,
+            salud_dht, salud_mq2, salud_flama,
             alarma_silenciada, contador_alarmas, contador_silencios_en_linea,
             contador_silencios_fisicos, contador_resets_fisicos
          FROM estado_sensores
@@ -276,11 +280,13 @@ try {
     $alarmaSilenciadaAnterior = (int) ($lecturaAnterior['alarma_silenciada'] ?? 0);
     $gasDetectadoAnterior = (int) ($lecturaAnterior['gas_detectado'] ?? 0);
     $flamaDetectadaAnterior = (int) ($lecturaAnterior['flama_detectada'] ?? 0);
+    $estacionManualAnterior = (int) ($lecturaAnterior['estacion_manual_activada'] ?? 0);
 
     $stmtEstado = $pdo->prepare(
         'INSERT INTO estado_sensores (
             dispositivo_id, temperatura, humedad, indice_calor,
             gas_raw, gas_porcentaje, gas_detectado, flama_detectada,
+            estacion_manual_activada,
             estado_general, peligro_activo, alarma_enclavada,
             alarma_silenciada, revision_fisica_pendiente, buzzer_encendido,
             modo_operacion, silenciada_por,
@@ -291,6 +297,7 @@ try {
         ) VALUES (
             :dispositivo_id, :temperatura, :humedad, :indice_calor,
             :gas_raw, :gas_porcentaje, :gas_detectado, :flama_detectada,
+            :estacion_manual_activada,
             :estado_general, :peligro_activo, :alarma_enclavada,
             :alarma_silenciada, :revision_fisica_pendiente, :buzzer_encendido,
             :modo_operacion, :silenciada_por,
@@ -307,6 +314,7 @@ try {
             gas_porcentaje = VALUES(gas_porcentaje),
             gas_detectado = VALUES(gas_detectado),
             flama_detectada = VALUES(flama_detectada),
+            estacion_manual_activada = VALUES(estacion_manual_activada),
             estado_general = VALUES(estado_general),
             peligro_activo = VALUES(peligro_activo),
             alarma_enclavada = VALUES(alarma_enclavada),
@@ -335,6 +343,7 @@ try {
         'gas_porcentaje' => $gasPorcentaje,
         'gas_detectado' => $gasDetectado,
         'flama_detectada' => $flamaDetectada,
+        'estacion_manual_activada' => $estacionManualActivada,
         'estado_general' => $estadoGeneral,
         'peligro_activo' => $peligroActivo,
         'alarma_enclavada' => $alarmaEnclavada,
@@ -415,6 +424,10 @@ try {
         $agregarAlerta('Flama', 1.0, 'CRITICO');
     }
 
+    if ($estacionManualActivada === 1 && $estacionManualAnterior === 0) {
+        $agregarAlerta('Estacion manual', 1.0, 'CRITICO');
+    }
+
     $temperaturaAnterior = isset($lecturaAnterior['temperatura'])
         ? (float) $lecturaAnterior['temperatura']
         : null;
@@ -448,7 +461,8 @@ try {
         && $estadoGeneral !== 'NORMAL'
         && $estadoGeneral !== $estadoAnterior
         && $gasDetectado === 0
-        && $flamaDetectada === 0;
+        && $flamaDetectada === 0
+        && $estacionManualActivada === 0;
 
     if ($esAlertaSecundaria) {
         $tipoSecundario = $tipoAlerta !== ''
@@ -473,13 +487,20 @@ try {
             || $estadoAnterior !== 'ALARMA'
             || $gasDetectado !== $gasDetectadoAnterior
             || $flamaDetectada !== $flamaDetectadaAnterior
+            || $estacionManualActivada !== $estacionManualAnterior
             || $contadorAlarmas !== (int) ($lecturaAnterior['contador_alarmas'] ?? 0)
         );
 
     $pdo->commit();
     $shellyComandos = [];
     try {
-        if ($estadoGeneral === 'ALARMA' && $estadoAnterior !== 'ALARMA') {
+        if (
+            $estadoGeneral === 'ALARMA'
+            && (
+                $estadoAnterior !== 'ALARMA'
+                || ($alarmaSilenciadaAnterior === 1 && $alarmaSilenciada === 0)
+            )
+        ) {
             $shellyComandos = idindShellyComandarVinculados(
                 $pdo,
                 $configLocal,
@@ -488,7 +509,7 @@ try {
                 'AUTOMATICO',
                 null,
                 $alertaIds[0] ?? null,
-                'Alarma iniciada por el ESP32'
+                'Alarma iniciada o rearmada por el ESP32'
             );
         } elseif ($alarmaSilenciada === 1 && $alarmaSilenciadaAnterior === 0) {
             $shellyComandos = idindShellyComandarVinculados(
@@ -522,6 +543,7 @@ try {
         'alerta_ids' => $alertaIds,
         'gas_detectado' => $gasDetectado,
         'flama_detectada' => $flamaDetectada,
+        'estacion_manual_activada' => $estacionManualActivada,
         'estado_anterior' => $estadoAnterior,
         'estado_actual' => $estadoGeneral,
         'shelly_comandos' => $shellyComandos,

@@ -14,12 +14,26 @@ if ($actuadorId === '' || strlen($actuadorId) > 64) {
 }
 
 try {
-    $resultado = idindShellySincronizar(
-        $pdo,
-        $configLocal,
-        (int) $usuario['cliente_id'],
-        $actuadorId
-    );
+    $estadoActual = array_values(array_filter(
+        idindShellyEstadoCliente($pdo, (int) $usuario['cliente_id']),
+        static function (array $fila) use ($actuadorId): bool {
+            return (string) $fila['id'] === $actuadorId;
+        }
+    ));
+    $actuadorActual = $estadoActual[0] ?? null;
+    if (!$actuadorActual) {
+        responderJson(404, ['ok' => false, 'error' => 'Actuador Shelly no encontrado']);
+    }
+    $usarCloud = (string) ($actuadorActual['modo_control'] ?? '') !== 'LOCAL'
+        && idindShellyConfigurado($configLocal);
+    $resultado = $usarCloud
+        ? idindShellySincronizar(
+            $pdo,
+            $configLocal,
+            (int) $usuario['cliente_id'],
+            $actuadorId
+        )
+        : idindShellySincronizarLocal($pdo, (int) $usuario['cliente_id'], $actuadorId);
     $estado = array_values(array_filter(
         idindShellyEstadoCliente($pdo, (int) $usuario['cliente_id']),
         static function (array $fila) use ($actuadorId): bool {

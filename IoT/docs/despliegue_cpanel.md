@@ -25,7 +25,12 @@ Si la base ya existe, conserva sus tablas e importa:
 
 ```text
 database/migracion_usuarios_sesiones_mysql57.sql
+database/migracion_crm_portal_sso_mysql57.sql
 ```
+
+La migracion CRM-Portal-SSO agrega `clientes.crm_client_id` y
+`usuarios.crm_portal_user_id`; con eso el portal cliente puede entrar a IoT y
+ver/configurar solo sus dispositivos.
 
 Después abre **SQL** y ejecuta el bloque inicial de `database/consultas.sql` que
 registra el cliente y `ESP32_001`. El bloque se puede repetir sin duplicar
@@ -70,7 +75,7 @@ La API no necesita un archivo privado dentro de `api/`; carga `crm/config.php`.
 
 Copia `crm/config.example.php` como `public_html/crm/config.php` y reemplaza los marcadores. Este es el único archivo privado: CRM toma de él MySQL y SMTP; la API toma MySQL y la sección `iot`.
 
-Usa permisos `0600` o `0640`. `crm/config.php` está excluido de Git y su acceso web está bloqueado por `.htaccess`. El archivo anterior `IoT/api/config.local.php` ya no se utiliza.
+Usa permisos `0600` o `0640`. `crm/config.php` está excluido de Git y su acceso web está bloqueado por `.htaccess`. `IoT/api/config.local.php` queda solo como fallback para despliegues IoT separados del CRM.
 ## 5. Crear administrador inicial
 
 Abre:

@@ -13,9 +13,10 @@ function idindShellyAdminDisponible(PDO $pdo): bool
         $pdo->query(
             'SELECT nombre, categoria, tipo_carga, corriente_max_a, potencia_max_w,
                     tiempo_max_encendido_s, apagado_automatico, permite_rutinas,
-                    requiere_confirmacion, descripcion
+                    requiere_confirmacion, notificar_cambios_externos, descripcion
              FROM actuadores_shelly LIMIT 0'
         );
+        $pdo->query('SELECT apagado_programado_en FROM estado_shelly LIMIT 0');
         return true;
     } catch (Throwable $error) {
         return false;
@@ -26,7 +27,7 @@ function idindShellyAdminRequerirMigracion(PDO $pdo): void
 {
     if (!idindShellyAdminDisponible($pdo)) {
         throw new IdindShellyAdminException(
-            'Falta importar database/migracion_shelly_seguridad_mysql57.sql'
+            'Falta importar database/migracion_shelly_push_alexa_mysql57.sql'
         );
     }
 }
@@ -170,6 +171,10 @@ function idindShellyAdminConfiguracion(PDO $pdo, array $data, int $clienteId, ar
     $apagadoAutomatico = idindShellyAdminBooleano($valor('apagado_automatico'));
     $permiteRutinas = idindShellyAdminBooleano($valor('permite_rutinas'));
     $requiereConfirmacion = idindShellyAdminBooleano($valor('requiere_confirmacion'), true);
+    $notificarCambiosExternos = idindShellyAdminBooleano(
+        $valor('notificar_cambios_externos'),
+        true
+    );
 
     if ($apagadoAutomatico && $tiempo === null) {
         throw new IdindShellyAdminException('Define el tiempo maximo para usar el apagado automatico');
@@ -199,6 +204,7 @@ function idindShellyAdminConfiguracion(PDO $pdo, array $data, int $clienteId, ar
         'apagado_automatico' => $apagadoAutomatico,
         'permite_rutinas' => $categoria === 'SEGURIDAD' ? 0 : $permiteRutinas,
         'requiere_confirmacion' => $requiereConfirmacion,
+        'notificar_cambios_externos' => $notificarCambiosExternos,
         'descripcion' => $descripcion,
         'modo_control' => $modoControl,
         'estado' => $estado,
@@ -210,7 +216,7 @@ function idindShellyAdminObtener(PDO $pdo, int $clienteId, string $id): ?array
     $stmt = $pdo->prepare(
         "SELECT a.*, es.online, es.salida_encendida, es.potencia_w, es.voltaje_v,
                 es.corriente_a, es.temperatura_c, es.fuente, es.ultimo_error,
-                es.sincronizado_en,
+                es.sincronizado_en, es.apagado_programado_en,
                 CASE
                   WHEN es.sincronizado_en IS NULL THEN 'SIN_DATOS'
                   WHEN es.sincronizado_en < UTC_TIMESTAMP() - INTERVAL 3 MINUTE THEN 'DESACTUALIZADO'
@@ -226,7 +232,7 @@ function idindShellyAdminObtener(PDO $pdo, int $clienteId, string $id): ?array
     if (!$fila) {
         return null;
     }
-    foreach (['online', 'salida_encendida', 'apagado_automatico', 'permite_rutinas', 'requiere_confirmacion'] as $campo) {
+    foreach (['online', 'salida_encendida', 'apagado_automatico', 'permite_rutinas', 'requiere_confirmacion', 'notificar_cambios_externos'] as $campo) {
         $fila[$campo] = $fila[$campo] === null ? null : (int) $fila[$campo];
     }
     $fila['canal'] = (int) $fila['canal'];

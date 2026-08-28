@@ -73,6 +73,7 @@ $stmtSerie = $pdo->prepare(
         h.gas_porcentaje,
         h.gas_detectado,
         h.flama_detectada,
+        h.estacion_manual_activada,
         h.estado_general,
         h.salud_dht,
         h.salud_mq2,
@@ -103,6 +104,7 @@ $stmtEvento = $pdo->prepare(
         l.gas_porcentaje,
         CASE WHEN l.gas_raw >= :gas_umbral THEN 1 ELSE 0 END AS gas_detectado,
         l.flama_detectada,
+        l.estacion_manual_activada,
         l.estado_general,
         l.salud_dht,
         l.salud_mq2,
@@ -132,6 +134,7 @@ $stmtActual = $pdo->prepare(
         e.gas_porcentaje,
         e.gas_detectado,
         e.flama_detectada,
+        e.estacion_manual_activada,
         e.estado_general,
         e.peligro_activo,
         e.alarma_enclavada,
@@ -184,6 +187,7 @@ if (!$lecturaEvento) {
         'gas_porcentaje' => null,
         'gas_detectado' => 0,
         'flama_detectada' => 0,
+        'estacion_manual_activada' => 0,
         'estado_general' => $alerta['severidad'] === 'CRITICO' ? 'ALARMA' : 'ALERTA',
         'salud_dht' => null,
         'salud_mq2' => null,
@@ -194,6 +198,9 @@ if (!$lecturaEvento) {
 $tipoAlerta = strtolower((string) $alerta['tipo_alerta']);
 if (strpos($tipoAlerta, 'flama') !== false) {
     $lecturaEvento['flama_detectada'] = 1;
+}
+if (strpos($tipoAlerta, 'estacion manual') !== false || strpos($tipoAlerta, 'pulsador') !== false) {
+    $lecturaEvento['estacion_manual_activada'] = 1;
 }
 if (strpos($tipoAlerta, 'humo') !== false || strpos($tipoAlerta, 'gas') !== false) {
     $lecturaEvento['gas_detectado'] = 1;

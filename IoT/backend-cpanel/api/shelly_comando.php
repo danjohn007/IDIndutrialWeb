@@ -29,10 +29,6 @@ if (!$actuador) {
 if ($actuador['estado'] !== 'Activo') {
     responderJson(409, ['ok' => false, 'error' => 'El actuador Shelly no esta activo']);
 }
-if ($actuador['modo_control'] === 'LOCAL') {
-    responderJson(409, ['ok' => false, 'error' => 'El actuador esta configurado solo para control local']);
-}
-
 try {
     $comandoId = idindShellyCrearComando(
         $pdo,

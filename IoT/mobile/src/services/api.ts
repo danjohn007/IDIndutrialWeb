@@ -11,14 +11,18 @@ import type {
   MobileLiveHistory,
   MobilePushRegistration,
   MobilePushStatus,
-  MobileQuoteDetail,
-  MobileQuotesPage,
   MobileSummary,
   MobileShellyCommand,
   MobileShellyActuator,
   MobileShellyDetail,
   MobileShellyDetection,
   MobileShellySaveInput,
+  MobileHikvisionDetail,
+  MobileHikvisionDevice,
+  MobileHikvisionSaveInput,
+  MobileZktecoDetail,
+  MobileZktecoDevice,
+  MobileZktecoSaveInput,
   MobileRoutineDetail,
   MobileRoutineRunResult,
   MobileRoutineSaveInput,
@@ -119,10 +123,42 @@ export function getMobileAlerts(
 
 export function getMobileDevices(
   token: string,
-  syncShelly = false,
+  section: 'ESP32' | 'SHELLY' | 'HIKVISION' | 'ZKTECO' = 'ESP32',
 ): Promise<MobileDevicesResponse> {
-  const suffix = syncShelly ? '?sincronizar_shelly=1' : '';
+  const suffix = section === 'SHELLY'
+    ? '?incluir_shelly=1&sincronizar_shelly=1'
+    : section === 'HIKVISION'
+      ? '?incluir_hikvision=1'
+      : section === 'ZKTECO' ? '?incluir_zkteco=1' : '';
   return request<MobileDevicesResponse>(`mobile/dispositivos.php${suffix}`, { token });
+}
+
+export function getMobileZktecoDetail(token: string, equipmentId: string): Promise<MobileZktecoDetail> {
+  const query = new URLSearchParams({ equipo_id: equipmentId });
+  return request<MobileZktecoDetail>(`mobile/zkteco_detalle.php?${query.toString()}`, { token });
+}
+
+export function saveMobileZkteco(
+  token: string,
+  input: MobileZktecoSaveInput,
+): Promise<{ equipo: MobileZktecoDevice }> {
+  return request<{ equipo: MobileZktecoDevice }>('mobile/zkteco_guardar.php', {
+    method: 'POST', token, body: input,
+  });
+}
+
+export function getMobileHikvisionDetail(token: string, equipmentId: string): Promise<MobileHikvisionDetail> {
+  const query = new URLSearchParams({ equipo_id: equipmentId });
+  return request<MobileHikvisionDetail>(`mobile/hikvision_detalle.php?${query.toString()}`, { token });
+}
+
+export function saveMobileHikvision(
+  token: string,
+  input: MobileHikvisionSaveInput,
+): Promise<{ equipo: MobileHikvisionDevice }> {
+  return request<{ equipo: MobileHikvisionDevice }>('mobile/hikvision_guardar.php', {
+    method: 'POST', token, body: input,
+  });
 }
 
 export function controlMobileShelly(
@@ -286,19 +322,6 @@ export function silenceMobileAlarm(
       alerta_id: Number(alertId),
     },
   });
-}
-
-export function getMobileQuotes(token: string, page = 1): Promise<MobileQuotesPage> {
-  const query = new URLSearchParams({ pagina: String(page), por_pagina: '20' });
-  return request<MobileQuotesPage>(`mobile/cotizaciones.php?${query.toString()}`, { token });
-}
-
-export function getMobileQuoteDetail(
-  token: string,
-  opportunityId: string | number,
-): Promise<MobileQuoteDetail> {
-  const query = new URLSearchParams({ id: String(opportunityId) });
-  return request<MobileQuoteDetail>(`mobile/cotizacion.php?${query.toString()}`, { token });
 }
 
 export function registerMobilePush(

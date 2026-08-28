@@ -60,12 +60,14 @@ function idindEncolarNotificacionesAlertas(
 
         if ($esDesconexion) {
             $titulo = 'Dispositivo sin conexion';
-            $cuerpo = "{$dispositivo} dejo de reportar en {$ubicacion}. Revisa energia, Wi-Fi o internet.";
+            $cuerpo = "{$dispositivo} perdio conexion en {$ubicacion}. Revisa energia, Wi-Fi o internet.";
             $categoria = 'CONECTIVIDAD';
         } else {
             $titulo = 'Alerta critica: ' . $tipo;
             $categoria = 'SENSOR';
-            if (stripos($tipo, 'Flama') !== false) {
+            if (stripos($tipo, 'Estacion manual') !== false || stripos($tipo, 'Pulsador') !== false) {
+                $cuerpo = "Estacion manual activada en {$ubicacion} ({$dispositivo}).";
+            } elseif (stripos($tipo, 'Flama') !== false) {
                 $cuerpo = "Flama detectada en {$ubicacion} ({$dispositivo}).";
             } elseif (stripos($tipo, 'Gas') !== false || stripos($tipo, 'Humo') !== false) {
                 $lectura = $valor === null ? 'sin lectura' : number_format((float) $valor, 0) . ' ADC';
@@ -93,6 +95,7 @@ function idindEncolarNotificacionesAlertas(
                         'dispositivoId' => $dispositivo,
                         'tipo' => 'ALERTA',
                         'categoria' => $categoria,
+                        'evento' => $esDesconexion ? 'ESP32_OFFLINE' : 'SENSOR_CRITICO',
                         'url' => '/alerta/' . (int) $alerta['id'],
                     ],
                     JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES

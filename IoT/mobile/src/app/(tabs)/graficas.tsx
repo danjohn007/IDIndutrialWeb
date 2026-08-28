@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -103,6 +104,7 @@ export default function LiveChartsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [screenFocused, setScreenFocused] = useState(false);
   const pollingRef = useRef(false);
 
   const loadDevices = useCallback(async () => {
@@ -174,7 +176,17 @@ export default function LiveChartsScreen() {
     }
   }, [selectedId, token]);
 
-  useForegroundRefresh(refreshLive, 5000, Boolean(token && selectedId));
+  useFocusEffect(useCallback(() => {
+    setScreenFocused(true);
+    if (selectedId) void refreshLive();
+    return () => setScreenFocused(false);
+  }, [refreshLive, selectedId]));
+
+  useForegroundRefresh(
+    refreshLive,
+    5000,
+    Boolean(token && selectedId && screenFocused),
+  );
 
   const chartSamples = useMemo(() => downsample(samples), [samples]);
   const temperaturePoints = useMemo(() => chartSamples.map((sample) => ({

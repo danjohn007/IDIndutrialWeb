@@ -30,10 +30,11 @@ Usa una pata de cada lado opuesto y comprueba continuidad antes de energizar.
 3. El ESP32 consulta la orden cada 2 segundos mientras la alarma esta enclavada.
 4. Mantener presionado el boton fisico durante 2 segundos tambien silencia el
    buzzer si el peligro continua.
-5. Una alarma silenciada mantiene el LED rojo parpadeando y muestra revision
+5. Si el peligro ya desaparecio, mantener presionado el boton fisico durante 2
+   segundos restablece la alarma aunque el buzzer no se haya silenciado primero
+   desde la app.
+6. Una alarma silenciada desde la app mantiene el LED rojo parpadeando y muestra revision
    fisica pendiente.
-6. Si ya no existe peligro, mantener el boton durante 2 segundos restablece el
-   sistema.
 7. Si existe peligro, el boton puede silenciar, pero nunca declara el sistema
    normal.
 8. Una condicion critica nueva vuelve a activar el buzzer.
