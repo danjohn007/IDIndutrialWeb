@@ -13,6 +13,10 @@ function crm_normalize_legacy_url(string $url): string
 {
   $normalized = preg_replace('~^(https?://[^/]+)/sistema(?=/|$)~i', '$1', trim($url));
   $normalized = preg_replace('~^/sistema(?=/|$)~i', '', (string) $normalized);
+  // Case-sensitive: the real IoT module routes stay lowercase (/iot/...); only the old
+  // uppercase /IoT container prefix from the previous deployment layout is stripped here.
+  $normalized = preg_replace('~^(https?://[^/]+)/IoT(?=/|$)~', '$1', (string) $normalized);
+  $normalized = preg_replace('~^/IoT(?=/|$)~', '', (string) $normalized);
   return (string) $normalized;
 }
 
@@ -548,7 +552,7 @@ function crm_normalize_notification_urls(PDO $pdo): void
     return;
   }
 
-  $rows = $pdo->query("SELECT id, target_url FROM notifications WHERE target_url LIKE '%/sistema%'")->fetchAll();
+  $rows = $pdo->query("SELECT id, target_url FROM notifications WHERE target_url LIKE '%/sistema%' OR target_url LIKE '%/IoT%'")->fetchAll();
   if (!$rows) {
     return;
   }

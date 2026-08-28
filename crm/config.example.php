@@ -10,7 +10,7 @@ return [
   'username' => 'TU_USUARIO_MYSQL',
   'password' => 'TU_PASSWORD_MYSQL',
   'charset' => 'utf8mb4',
-  'app_url' => 'https://idindustrial.com.mx/IoT/crm',
+  'app_url' => 'https://idindustrial.com.mx/crm',
   'quote_request_admin_email' => 'tecnologia@idindustrial.com.mx',
   'quote_request_secondary_email' => '',
   'smtp' => [
@@ -31,7 +31,7 @@ return [
     'shelly_cloud_server' => '',
     'shelly_cloud_auth_key' => '',
     'shelly_webhook_token' => 'GENERA_UN_TOKEN_ALEATORIO_DE_32_CARACTERES_O_MAS',
-    'alexa_public_base_url' => 'https://idindustrial.com.mx/IoT/iot/api',
+    'alexa_public_base_url' => 'https://idindustrial.com.mx/iot/api',
     'alexa_oauth_client_id' => 'idindustrial-alexa',
     'alexa_oauth_client_secret' => 'GENERA_UN_SECRETO_ALEATORIO_DE_48_CARACTERES_O_MAS',
     'alexa_lambda_shared_secret' => 'GENERA_OTRO_SECRETO_ALEATORIO_DE_48_CARACTERES_O_MAS',

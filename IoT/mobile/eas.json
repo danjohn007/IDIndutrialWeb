@@ -8,19 +8,19 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://idindustrial.com.mx/IoT/iot/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://idindustrial.com.mx/iot/api"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://idindustrial.com.mx/IoT/iot/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://idindustrial.com.mx/iot/api"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://idindustrial.com.mx/IoT/iot/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://idindustrial.com.mx/iot/api"
       }
     }
   },

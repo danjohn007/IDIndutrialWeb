@@ -1161,12 +1161,12 @@ if (($_POST['action'] ?? '') === 'update_quote') {
         $recipientStmt = $pdo->prepare('
           SELECT cpu.id, cpu.opportunity_id
           FROM client_portal_users cpu
-          WHERE cpu.is_active = 1 AND (cpu.id = ? OR cpu.client_id = ?)
-          ORDER BY CASE WHEN cpu.id = ? THEN 0 ELSE 1 END, cpu.updated_at DESC, cpu.id DESC
+          WHERE cpu.is_active = 1 AND (cpu.opportunity_id = ? OR cpu.id = ? OR cpu.client_id = ?)
+          ORDER BY CASE WHEN cpu.opportunity_id = ? THEN 0 WHEN cpu.id = ? THEN 1 ELSE 2 END, cpu.updated_at DESC, cpu.id DESC
           LIMIT 1
         ');
         $requestedBy = (int) ($before['requested_by_portal_user_id'] ?? 0);
-        $recipientStmt->execute([$requestedBy, (int) $before['client_id'], $requestedBy]);
+        $recipientStmt->execute([(int) $before['opportunity_id'], $requestedBy, (int) $before['client_id'], (int) $before['opportunity_id'], $requestedBy]);
         $recipient = $recipientStmt->fetch();
         if ($recipient) {
           crm_create_notification($pdo, [
@@ -1176,7 +1176,13 @@ if (($_POST['action'] ?? '') === 'update_quote') {
             'event_type' => 'quote_published',
             'title' => 'Cotizacion disponible',
             'message' => 'La propuesta ' . $before['quote_code'] . ' para ' . $before['service'] . ' ya esta disponible.',
-            'target_url' => crm_portal_url('cotizaciones', (int) $recipient['opportunity_id'], [], 'quote-' . $quoteId),
+            'target_url' => crm_portal_url('cotizaciones', (int) $before['opportunity_id'], [], 'quote-' . $quoteId),
+          ]);
+        } else {
+          crm_log_event('admin_quote.notification_recipient_missing', [
+            'quote_id' => $quoteId,
+            'opportunity_id' => (int) $before['opportunity_id'],
+            'client_id' => (int) $before['client_id'],
           ]);
         }
       }
