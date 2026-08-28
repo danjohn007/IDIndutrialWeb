@@ -48,6 +48,7 @@ $stmtDispositivos = $pdo->prepare(
         e.gas_porcentaje,
         e.gas_detectado,
         e.flama_detectada,
+        e.estacion_manual_activada,
         e.peligro_activo,
         e.alarma_enclavada,
         e.alarma_silenciada,

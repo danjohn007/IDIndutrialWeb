@@ -54,6 +54,7 @@ $stmtSerie = $pdo->prepare(
         h.gas_porcentaje,
         h.gas_detectado,
         h.flama_detectada,
+        h.estacion_manual_activada,
         h.estado_general
      FROM muestras_historicas h
      WHERE h.dispositivo_id = :dispositivo_id
@@ -76,6 +77,7 @@ $stmtActual = $pdo->prepare(
         e.gas_porcentaje,
         e.gas_detectado,
         e.flama_detectada,
+        e.estacion_manual_activada,
         e.estado_general
      FROM estado_sensores e
      WHERE e.dispositivo_id = :dispositivo_id

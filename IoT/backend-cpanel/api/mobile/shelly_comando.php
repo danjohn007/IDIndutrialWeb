@@ -22,7 +22,7 @@ try {
     $stmt = $pdo->prepare(
         "SELECT id, funcion, categoria, requiere_confirmacion FROM actuadores_shelly
          WHERE id = :id AND cliente_id = :cliente_id
-           AND estado = 'Activo' AND modo_control IN ('CLOUD', 'HIBRIDO')
+           AND estado = 'Activo' AND modo_control IN ('LOCAL', 'CLOUD', 'HIBRIDO')
          LIMIT 1"
     );
     $stmt->execute([

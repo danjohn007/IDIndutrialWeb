@@ -27,6 +27,20 @@ $retencionResumenMeses = configEntera(
     3,
     120
 );
+$retencionEventosShellyDias = configEntera(
+    $configLocal,
+    'retention_shelly_event_days',
+    365,
+    30,
+    3650
+);
+$retencionPushDias = configEntera(
+    $configLocal,
+    'retention_push_days',
+    90,
+    30,
+    730
+);
 $maxHorasPorEjecucion = configEntera(
     $configLocal,
     'retention_hours_per_run',
@@ -57,7 +71,8 @@ $stmtResumen = $pdo->prepare(
         temperatura_promedio, temperatura_minima, temperatura_maxima,
         humedad_promedio, humedad_minima, humedad_maxima,
         gas_promedio, gas_minimo, gas_maximo,
-        detecciones_gas, detecciones_flama, muestras_alarma
+        detecciones_gas, detecciones_flama, detecciones_estacion_manual,
+        muestras_alarma
      )
      SELECT
         dispositivo_id,
@@ -68,6 +83,7 @@ $stmtResumen = $pdo->prepare(
         ROUND(AVG(gas_raw), 2), MIN(gas_raw), MAX(gas_raw),
         SUM(gas_detectado = 1),
         SUM(flama_detectada = 1),
+        SUM(estacion_manual_activada = 1),
         SUM(estado_general = \'ALARMA\')
      FROM muestras_historicas
      WHERE periodo_minuto >= :desde
@@ -86,6 +102,7 @@ $stmtResumen = $pdo->prepare(
         gas_maximo = VALUES(gas_maximo),
         detecciones_gas = VALUES(detecciones_gas),
         detecciones_flama = VALUES(detecciones_flama),
+        detecciones_estacion_manual = VALUES(detecciones_estacion_manual),
         muestras_alarma = VALUES(muestras_alarma),
         actualizado_en = UTC_TIMESTAMP()'
 );
@@ -139,12 +156,43 @@ $resumenesEliminados = $pdo->exec(
      WHERE periodo_hora < UTC_TIMESTAMP() - INTERVAL {$retencionResumenMeses} MONTH"
 );
 
+$pushEliminadas = 0;
+$eventosShellyEliminados = 0;
+$entregasWebhookEliminadas = 0;
+try {
+    $pushEliminadas = (int) $pdo->exec(
+        "DELETE FROM notificaciones_push
+         WHERE estado IN ('ENVIADA', 'DESCARTADA')
+           AND creado_en < UTC_TIMESTAMP() - INTERVAL {$retencionPushDias} DAY"
+    );
+    $eventosShellyEliminados = (int) $pdo->exec(
+        "DELETE FROM eventos_shelly
+         WHERE fecha_hora < UTC_TIMESTAMP() - INTERVAL {$retencionEventosShellyDias} DAY"
+    );
+    try {
+        $entregasWebhookEliminadas = (int) $pdo->exec(
+            "DELETE FROM entregas_webhook_shelly
+             WHERE recibido_en < UTC_TIMESTAMP() - INTERVAL {$retencionEventosShellyDias} DAY"
+        );
+    } catch (Throwable $errorAuditoriaWebhook) {
+        // La migracion de webhooks puede instalarse despues del cron.
+        error_log('ID Industrial retencion webhooks: ' . $errorAuditoriaWebhook->getMessage());
+    }
+} catch (Throwable $errorLimpiezaOperativa) {
+    error_log('ID Industrial retencion operativa: ' . $errorLimpiezaOperativa->getMessage());
+}
+
 echo json_encode([
     'ok' => true,
     'retencion_muestras_dias' => $retencionDias,
     'retencion_resumen_meses' => $retencionResumenMeses,
+    'retencion_eventos_shelly_dias' => $retencionEventosShellyDias,
+    'retencion_push_dias' => $retencionPushDias,
     'horas_procesadas' => $horasProcesadas,
     'muestras_resumidas_y_eliminadas' => $muestrasEliminadas,
     'resumenes_vencidos_eliminados' => (int) $resumenesEliminados,
+    'eventos_shelly_eliminados' => $eventosShellyEliminados,
+    'entregas_webhook_eliminadas' => $entregasWebhookEliminadas,
+    'notificaciones_push_eliminadas' => $pushEliminadas,
     'duracion_segundos' => round(microtime(true) - $inicio, 3),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;

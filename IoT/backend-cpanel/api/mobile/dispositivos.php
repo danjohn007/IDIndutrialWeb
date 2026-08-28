@@ -3,19 +3,28 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/mobile_auth.php';
 require_once dirname(__DIR__) . '/lib/shelly.php';
+require_once dirname(__DIR__) . '/lib/hikvision.php';
+require_once dirname(__DIR__) . '/lib/zkteco.php';
 requerirMetodo('GET');
 
 $usuario = requerirTokenMovil();
 $clienteId = (int) $usuario['cliente_id'];
+$incluirShelly = ($_GET['incluir_shelly'] ?? '') === '1';
+$incluirHikvision = ($_GET['incluir_hikvision'] ?? '') === '1';
+$incluirZkteco = ($_GET['incluir_zkteco'] ?? '') === '1';
 
-if (($_GET['sincronizar_shelly'] ?? '') === '1' && idindShellyConfigurado($configLocal)) {
+if ($incluirShelly && ($_GET['sincronizar_shelly'] ?? '') === '1') {
     $lockName = 'idind_shelly_mobile_' . $clienteId;
-    $stmtLock = $pdo->prepare('SELECT GET_LOCK(:nombre, 1)');
+    $stmtLock = $pdo->prepare('SELECT GET_LOCK(:nombre, 0)');
     $stmtLock->execute(['nombre' => $lockName]);
     $lockTomado = (int) $stmtLock->fetchColumn() === 1;
 
     if ($lockTomado) {
         try {
+            $shellyCloudDisponible = idindShellyConfigurado($configLocal);
+            $modosSincronizables = $shellyCloudDisponible
+                ? "('CLOUD', 'HIBRIDO')"
+                : "('LOCAL', 'HIBRIDO')";
             $stmtEdad = $pdo->prepare(
                 "SELECT COUNT(*) AS total,
                         SUM(CASE WHEN es.sincronizado_en IS NULL THEN 1 ELSE 0 END) AS sin_datos,
@@ -24,7 +33,7 @@ if (($_GET['sincronizar_shelly'] ?? '') === '1' && idindShellyConfigurado($confi
                  LEFT JOIN estado_shelly es ON es.actuador_id = a.id
                  WHERE a.cliente_id = :cliente_id
                    AND a.estado = 'Activo'
-                   AND a.modo_control IN ('CLOUD', 'HIBRIDO')"
+                   AND a.modo_control IN {$modosSincronizables}"
             );
             $stmtEdad->execute(['cliente_id' => $clienteId]);
             $edad = $stmtEdad->fetch() ?: [];
@@ -33,9 +42,13 @@ if (($_GET['sincronizar_shelly'] ?? '') === '1' && idindShellyConfigurado($confi
                     (int) ($edad['sin_datos'] ?? 0) > 0
                     || $edad['edad_segundos'] === null
                     || (int) $edad['edad_segundos'] >= 8
-                );
+            );
             if ($debeSincronizar) {
-                idindShellySincronizar($pdo, $configLocal, $clienteId);
+                if ($shellyCloudDisponible) {
+                    idindShellySincronizar($pdo, $configLocal, $clienteId);
+                } else {
+                    idindShellySincronizarLocal($pdo, $clienteId);
+                }
             }
         } catch (Throwable $errorShellySync) {
             error_log('ID Industrial sincronizacion Shelly movil: ' . $errorShellySync->getMessage());
@@ -69,6 +82,7 @@ $stmt = $pdo->prepare(
         e.gas_porcentaje,
         e.gas_detectado,
         e.flama_detectada,
+        e.estacion_manual_activada,
         e.peligro_activo,
         e.alarma_enclavada,
         e.alarma_silenciada,
@@ -119,10 +133,22 @@ $stmt = $pdo->prepare(
 $stmt->execute(['cliente_id' => $clienteId]);
 
 $actuadoresShelly = [];
-try {
-    $actuadoresShelly = idindShellyEstadoCliente($pdo, $clienteId);
-} catch (Throwable $errorShelly) {
-    error_log('ID Industrial estado Shelly movil: ' . $errorShelly->getMessage());
+if ($incluirShelly) {
+    try {
+        $actuadoresShelly = idindShellyEstadoCliente($pdo, $clienteId);
+    } catch (Throwable $errorShelly) {
+        error_log('ID Industrial estado Shelly movil: ' . $errorShelly->getMessage());
+    }
+}
+
+$equiposHikvision = [];
+if ($incluirHikvision && idindHikvisionDisponible($pdo)) {
+    $equiposHikvision = idindHikvisionCliente($pdo, $clienteId);
+}
+
+$equiposZkteco = [];
+if ($incluirZkteco && idindZktecoDisponible($pdo)) {
+    $equiposZkteco = idindZktecoCliente($pdo, $clienteId);
 }
 
 responderJson(200, [
@@ -131,5 +157,9 @@ responderJson(200, [
         'generado_en' => gmdate('Y-m-d H:i:s'),
         'dispositivos' => $stmt->fetchAll(),
         'actuadores_shelly' => $actuadoresShelly,
+        'equipos_hikvision' => $equiposHikvision,
+        'equipos_zkteco' => $equiposZkteco,
+        'hikvision_disponible' => idindHikvisionDisponible($pdo),
+        'zkteco_disponible' => idindZktecoDisponible($pdo),
     ],
 ]);

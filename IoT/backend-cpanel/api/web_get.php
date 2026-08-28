@@ -69,6 +69,7 @@ $stmtDispositivos = $pdo->prepare(
           ELSE 0
         END AS mq2_lectura_atascada,
         e.flama_detectada AS flama,
+        e.estacion_manual_activada,
         e.estado_general,
         e.peligro_activo,
         e.alarma_enclavada,
@@ -159,10 +160,13 @@ foreach ($dispositivos as $dispositivo) {
     if (($dispositivo['salud_flama'] ?? '') === 'OK') {
         $sensoresIncendioActivos++;
     }
+    if (array_key_exists('estacion_manual_activada', $dispositivo)) {
+        $sensoresIncendioActivos++;
+    }
 }
 
 $resumen['sensores_incendio_activos'] = $sensoresIncendioActivos;
-$resumen['sensores_incendio_total'] = count($dispositivos) * 2;
+$resumen['sensores_incendio_total'] = count($dispositivos) * 3;
 
 $actuadoresShelly = [];
 try {

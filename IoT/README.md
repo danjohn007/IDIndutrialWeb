@@ -66,17 +66,19 @@ ID-Industrial/
 3. Si la base ya existe, ejecuta una sola vez
    `database/migracion_estado_actual_triggers.sql`.
 4. Importa `database/migracion_usuarios_sesiones_mysql57.sql`.
-5. Importa `database/migracion_diagnostico_mq2_mysql57.sql` y
+5. Importa `database/migracion_crm_portal_sso_mysql57.sql` si el panel se
+   abre desde Bitacora ID / CRM.
+6. Importa `database/migracion_diagnostico_mq2_mysql57.sql` y
    `database/migracion_retencion_mysql57.sql`.
-6. Registra el primer cliente y dispositivo con los ejemplos editables de
+7. Registra el primer cliente y dispositivo con los ejemplos editables de
    `database/consultas.sql`.
-7. Crea `crm/config.php` a partir de `crm/config.example.php`. Coloca ahi las credenciales de la base unificada y completa la seccion `iot`.
-8. Agrega un `setup_token` distinto de al menos 32 caracteres.
-9. Sube los archivos de `backend-cpanel/api/` a
+8. Crea `crm/config.php` a partir de `crm/config.example.php`. Coloca ahi las credenciales de la base unificada y completa la seccion `iot`.
+9. Agrega un `setup_token` distinto de al menos 32 caracteres.
+10. Sube los archivos de `backend-cpanel/api/` a
    `public_html/ID-Industrial/api/`.
-10. Sube el contenido de `web/` a `public_html/ID-Industrial/`.
-11. Abre `login.html` y crea el administrador inicial.
-12. Configura el Cron Job de `docs/actualizacion_mq2_retencion.md`.
+11. Sube el contenido de `web/` a `public_html/ID-Industrial/`.
+12. Abre `login.html` y crea el administrador inicial.
+13. Configura el Cron Job de `docs/actualizacion_mq2_retencion.md`.
 
 El archivo `.htaccess` bloquea el acceso web directo a los archivos de
 configuración. `crm/config.php` está ignorado por Git y es la única fuente privada.

@@ -7,37 +7,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from '@/context/auth-context';
 import { useAuth } from '@/context/auth-context';
-import { configureNotificationChannels } from '@/services/push-notifications';
 import { colors } from '@/theme/colors';
 
-type NotificationDestination =
-  | { type: 'ALERT'; id: string }
-  | { type: 'QUOTE'; id: string };
+type NotificationTarget =
+  | { kind: 'alert'; id: string }
+  | { kind: 'shelly'; id: string };
 
-function notificationDestination(
+function notificationTarget(
   response: Notifications.NotificationResponse | null,
-): NotificationDestination | null {
+): NotificationTarget | null {
   const data = response?.notification.request.content.data;
   if (!data) return null;
-
-  if (String(data.tipo ?? '').toUpperCase() === 'COTIZACION') {
-    const quoteCandidates = [data.opportunityId, data.opportunity_id, data.cotizacionId];
-    for (const candidate of quoteCandidates) {
-      if (
-        (typeof candidate === 'number' || typeof candidate === 'string')
-        && /^\d+$/.test(String(candidate))
-        && Number(candidate) > 0
-      ) {
-        return { type: 'QUOTE', id: String(candidate) };
-      }
-    }
-
-    const quoteUrl = [data.url, data.crmUrl, data.targetUrl].find(
-      (value): value is string => typeof value === 'string',
-    );
-    const quoteMatch = quoteUrl?.match(/\/crm\/oportunidades\/(\d+)(?:[/?#]|$)/i);
-    if (quoteMatch) return { type: 'QUOTE', id: quoteMatch[1] };
-  }
 
   const candidates = [data.alertaId, data.alerta_id, data.alertId];
   for (const candidate of candidates) {
@@ -46,7 +26,7 @@ function notificationDestination(
       && /^\d+$/.test(String(candidate))
       && Number(candidate) > 0
     ) {
-      return { type: 'ALERT', id: String(candidate) };
+      return { kind: 'alert', id: String(candidate) };
     }
   }
 
@@ -54,16 +34,27 @@ function notificationDestination(
     (value): value is string => typeof value === 'string',
   );
   const routeMatch = route?.match(/\/alerta\/(\d+)(?:[/?#]|$)/i);
-  return routeMatch ? { type: 'ALERT', id: routeMatch[1] } : null;
+  if (routeMatch?.[1]) return { kind: 'alert', id: routeMatch[1] };
+
+  const shellyCandidates = [data.actuadorId, data.actuador_id, data.shellyId];
+  for (const candidate of shellyCandidates) {
+    if (typeof candidate === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(candidate)) {
+      return { kind: 'shelly', id: candidate };
+    }
+  }
+  const shellyMatch = route?.match(/\/shelly\/([^/?#]+)(?:[/?#]|$)/i);
+  return shellyMatch?.[1]
+    ? { kind: 'shelly', id: decodeURIComponent(shellyMatch[1]) }
+    : null;
 }
 
 function NotificationNavigationObserver() {
   const router = useRouter();
   const { loading, user } = useAuth();
-  const [pending, setPending] = useState<NotificationDestination | null>(null);
+  const [pendingTarget, setPendingTarget] = useState<NotificationTarget | null>(null);
   const processedResponses = useRef(new Set<string>());
 
-  const captureNotification = useCallback(
+  const captureAlert = useCallback(
     (response: Notifications.NotificationResponse | null) => {
       if (!response) return;
 
@@ -73,11 +64,11 @@ function NotificationNavigationObserver() {
       ].join(':');
       if (processedResponses.current.has(responseKey)) return;
 
-      const destination = notificationDestination(response);
-      if (!destination) return;
+      const target = notificationTarget(response);
+      if (!target) return;
 
       processedResponses.current.add(responseKey);
-      setPending(destination);
+      setPendingTarget(target);
     },
     [],
   );
@@ -85,46 +76,41 @@ function NotificationNavigationObserver() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    captureNotification(Notifications.getLastNotificationResponse());
+    captureAlert(Notifications.getLastNotificationResponse());
     const subscription =
-      Notifications.addNotificationResponseReceivedListener(captureNotification);
+      Notifications.addNotificationResponseReceivedListener(captureAlert);
 
     return () => subscription.remove();
-  }, [captureNotification]);
+  }, [captureAlert]);
 
   useEffect(() => {
-    if (Platform.OS === 'web' || loading || !user || pending === null) {
+    if (
+      Platform.OS === 'web'
+      || loading
+      || !user
+      || pendingTarget === null
+    ) {
       return;
     }
 
-    const destination = pending;
+    const target = pendingTarget;
     const frame = requestAnimationFrame(() => {
-      if (destination.type === 'ALERT') {
-        router.push({
-          pathname: '/alerta/[id]',
-          params: { id: destination.id },
-        });
+      if (target.kind === 'alert') {
+        router.push({ pathname: '/alerta/[id]', params: { id: target.id } });
       } else {
-        router.push({
-          pathname: '/cotizaciones/[id]',
-          params: { id: destination.id },
-        });
+        router.push({ pathname: '/shelly/[id]', params: { id: target.id } });
       }
-      setPending(null);
+      setPendingTarget(null);
       Notifications.clearLastNotificationResponse();
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [loading, pending, router, user]);
+  }, [loading, pendingTarget, router, user]);
 
   return null;
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    void configureNotificationChannels();
-  }, []);
-
   return (
     <SafeAreaProvider>
       <AuthProvider>
@@ -141,10 +127,12 @@ export default function RootLayout() {
           <Stack.Screen name="login" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="alerta/[id]" />
-          <Stack.Screen name="cotizaciones/index" />
-          <Stack.Screen name="cotizaciones/[id]" />
           <Stack.Screen name="shelly/[id]" />
           <Stack.Screen name="shelly/formulario" />
+          <Stack.Screen name="hikvision/[id]" />
+          <Stack.Screen name="hikvision/formulario" />
+          <Stack.Screen name="zkteco/[id]" />
+          <Stack.Screen name="zkteco/formulario" />
           <Stack.Screen name="rutina/formulario" />
         </Stack>
       </AuthProvider>

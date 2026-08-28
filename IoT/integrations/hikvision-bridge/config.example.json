@@ -1,0 +1,14 @@
+{
+  "apiBaseUrl": "https://idactivos.digital/ID-Industrial/api",
+  "bridgeToken": "MISMO_TOKEN_DE_hikvision_bridge_token_EN_CPANEL",
+  "pollSeconds": 30,
+  "devices": [
+    {
+      "id": "HIK_001",
+      "baseUrl": "http://192.168.1.64",
+      "username": "admin",
+      "password": "PASSWORD_LOCAL_DEL_HIKVISION",
+      "listenEvents": true
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#12161B">
+    <title>Reportes | ID Industrial</title>
+    <link rel="stylesheet" href="css/dashboard.css?v=20260804-routines-motion1">
+    <link rel="stylesheet" href="css/reportes.css?v=20260728-reports1">
+    <link rel="stylesheet" href="css/motion.css?v=20260804-motion1">
+  </head>
+  <body>
+    <main class="app-shell reports-shell">
+      <header class="topbar reports-topbar">
+        <div class="brand-lockup">
+          <img class="brand-logo reports-logo" src="assets/logo-id-industrial.png" alt="ID Industrial">
+          <div class="brand-copy">
+            <p class="eyebrow">Documentacion operativa</p>
+            <h1>Reportes</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="session-user"><span id="reportsUserName">Verificando...</span><small id="reportsUserRole">--</small></div>
+          <a class="icon-button" href="salud.html" aria-label="Abrir salud del sistema" title="Salud del sistema"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 13h4l2-7 4 12 2-5h4"/></svg></a>
+          <a class="icon-button" href="index.html" aria-label="Volver al panel" title="Volver al panel"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></a>
+          <button class="icon-button" id="reportsLogout" type="button" aria-label="Volver al CRM" title="Volver al CRM"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M15 4h4a2 2 0 0 1 2 2h-4"/></svg></button>
+        </div>
+      </header>
+
+      <section class="report-intro">
+        <div>
+          <p class="section-label">Reporte operativo</p>
+          <h2>Resumen para seguimiento y auditoria</h2>
+          <p>El PDF integra alertas del periodo, estado actual de los dispositivos y condiciones de mantenimiento del MQ-2.</p>
+        </div>
+        <div class="report-page-mark" aria-hidden="true"><span>PDF</span><small>Generado por la API</small></div>
+      </section>
+
+      <section class="panel report-builder">
+        <div class="panel-heading"><div><p class="section-label">Configuracion</p><h2>Periodo del reporte</h2></div></div>
+        <form class="report-filters" id="reportFilters">
+          <label><span>Dispositivo</span><select id="reportDevice" name="dispositivo_id"><option value="">Todos los dispositivos</option></select></label>
+          <label><span>Desde</span><input id="reportFrom" name="desde" type="datetime-local" required></label>
+          <label><span>Hasta</span><input id="reportTo" name="hasta" type="datetime-local" required></label>
+          <div class="report-actions">
+            <a class="button button-primary" id="downloadPdf" href="api/reporte_pdf.php">Generar PDF</a>
+            <a class="button button-secondary" id="downloadCsv" href="api/exportar_alertas_csv.php">Exportar CSV</a>
+          </div>
+        </form>
+        <p class="report-message" id="reportMessage" aria-live="polite"></p>
+      </section>
+
+      <section class="report-content-grid">
+        <article class="panel report-section">
+          <p class="section-label">Incluye</p>
+          <h2>Contenido del PDF</h2>
+          <ul class="report-includes">
+            <li><strong>Resumen ejecutivo</strong><span>Alertas, eventos criticos, pendientes y dispositivos online.</span></li>
+            <li><strong>Graficas operativas</strong><span>Alertas por severidad y hallazgos de salud por sensor para priorizar la atencion.</span></li>
+            <li><strong>Salud por dispositivo</strong><span>Conexion, DHT11, MQ-2, KY-026 y ultima calibracion.</span></li>
+            <li><strong>Alertas del periodo</strong><span>Las 30 alertas mas recientes, severidad y estado de atencion.</span></li>
+          </ul>
+        </article>
+        <article class="panel report-section report-guidance">
+          <p class="section-label">Criterios</p>
+          <h2>Lectura del diagnostico</h2>
+          <dl>
+            <div><dt>Offline</dt><dd>Sin lectura en mas de 2 minutos.</dd></div>
+            <div><dt>Calibracion MQ-2</dt><dd>Pendiente o con mas de 90 dias.</dd></div>
+            <div><dt>Lectura atascada</dt><dd>Sin variacion util del ADC durante 10 minutos.</dd></div>
+          </dl>
+        </article>
+      </section>
+    </main>
+    <script src="js/motion.js?v=20260804-motion1" defer></script>
+    <script src="js/reportes.js?v=20260807-crm-sso1" defer></script>
+  </body>
+</html>

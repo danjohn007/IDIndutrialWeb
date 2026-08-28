@@ -116,10 +116,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="rutinas"
         options={{
-          title: 'Rutinas',
-          tabBarIcon: ({ color, focused, size }) => (
-            <TabIcon color={color} focused={focused} name="timer-outline" size={size} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen

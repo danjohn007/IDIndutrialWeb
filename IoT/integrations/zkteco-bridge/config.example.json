@@ -1,0 +1,18 @@
+{
+  "apiBaseUrl": "https://TU_DOMINIO/ID-Industrial/api",
+  "bridgeToken": "MISMO_TOKEN_DE_api_config_local_php",
+  "pollSeconds": 30,
+  "attendancePollSeconds": 60,
+  "initialLookbackMinutes": 10,
+  "maxEventsPerPoll": 25,
+  "devices": [
+    {
+      "id": "ZK_001",
+      "ip": "192.168.1.201",
+      "port": 4370,
+      "timeoutMs": 10000,
+      "inport": 5200,
+      "protocol": "PULL_4370"
+    }
+  ]
+}

@@ -13,10 +13,15 @@ try {
     idindShellyAdminRequerirMigracion($pdo);
     $actuadorId = idindShellyAdminId($actuadorId);
     $clienteId = (int) $usuario['cliente_id'];
-    if (!idindShellyAdminObtener($pdo, $clienteId, $actuadorId)) {
+    $actuador = idindShellyAdminObtener($pdo, $clienteId, $actuadorId);
+    if (!$actuador) {
         responderJson(404, ['ok' => false, 'error' => 'Dispositivo Shelly no encontrado']);
     }
-    $resultado = idindShellySincronizar($pdo, $configLocal, $clienteId, $actuadorId);
+    $usarCloud = (string) ($actuador['modo_control'] ?? '') !== 'LOCAL'
+        && idindShellyConfigurado($configLocal);
+    $resultado = $usarCloud
+        ? idindShellySincronizar($pdo, $configLocal, $clienteId, $actuadorId)
+        : idindShellySincronizarLocal($pdo, $clienteId, $actuadorId);
     responderJson(200, [
         'ok' => true,
         'data' => [

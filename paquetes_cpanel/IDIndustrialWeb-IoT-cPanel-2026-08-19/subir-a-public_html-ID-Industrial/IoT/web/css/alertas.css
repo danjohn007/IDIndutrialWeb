@@ -1,0 +1,236 @@
+.history-shell {
+  width: min(1600px, 100%);
+}
+
+.history-logo {
+  width: clamp(180px, 22vw, 300px);
+}
+
+.history-topbar h1 {
+  font-size: clamp(1.45rem, 2.4vw, 2.35rem);
+}
+
+.history-topbar .icon-button {
+  text-decoration: none;
+}
+
+.filter-panel {
+  margin-bottom: 18px;
+}
+
+.history-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 12px;
+  padding: 4px 18px 18px;
+}
+
+.history-filters label {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.history-filters label span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.history-filters input,
+.history-filters select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #161c22;
+  color: var(--text);
+}
+
+.history-filters input:focus,
+.history-filters select:focus {
+  border-color: var(--normal);
+  outline: none;
+}
+
+.filter-actions {
+  display: flex;
+  grid-column: span 3;
+  gap: 8px;
+  align-items: end;
+  justify-content: flex-end;
+}
+
+.filter-actions .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.filter-actions .button-primary {
+  border-color: var(--normal);
+  background: var(--normal);
+  color: #06121a;
+}
+
+.filter-actions .button-primary:hover,
+.filter-actions .button-primary:focus-visible {
+  background: #31b4ff;
+  color: #06121a;
+}
+
+.history-status {
+  min-height: 20px;
+  margin: 0;
+  padding: 0 18px 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.history-table {
+  min-width: 1060px;
+}
+
+.history-table tr {
+  transition: background 120ms ease;
+}
+
+.history-table tbody tr:hover {
+  background: rgba(0, 163, 255, 0.05);
+}
+
+.history-table td {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-care {
+  display: grid;
+  gap: 3px;
+}
+
+.history-care strong {
+  font-size: 0.72rem;
+}
+
+.history-care small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+}
+
+.detail-link {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 6px 9px;
+  border: 1px solid var(--normal);
+  border-radius: 6px;
+  color: var(--normal);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.detail-link:hover,
+.detail-link:focus-visible {
+  background: rgba(0, 163, 255, 0.08);
+  outline: none;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.pagination span {
+  min-width: 120px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+@media (max-width: 1020px) {
+  .history-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .history-filters {
+    grid-template-columns: 1fr;
+    padding: 4px 12px 12px;
+  }
+
+  .filter-actions {
+    display: grid;
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .history-table,
+  .history-table tbody,
+  .history-table tr,
+  .history-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .history-table {
+    min-width: 0;
+  }
+
+  .history-table thead {
+    display: none;
+  }
+
+  .history-table tr {
+    padding: 11px 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  .history-table td {
+    display: grid;
+    max-width: none;
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 9px;
+    align-items: start;
+    padding: 5px 0;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .history-table td::before {
+    color: var(--muted);
+    content: attr(data-label);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .history-table td[colspan] {
+    display: block;
+  }
+
+  .history-table td[colspan]::before {
+    content: none;
+  }
+
+  .history-table .alert-origin {
+    justify-self: start;
+  }
+}

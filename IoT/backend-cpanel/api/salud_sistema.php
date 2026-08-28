@@ -25,6 +25,7 @@ $stmt = $pdo->prepare(
         e.gas_raw,
         e.gas_detectado,
         e.flama_detectada,
+        e.estacion_manual_activada,
         COALESCE(c.umbral_adc, 1600) AS mq2_umbral_adc,
         c.ultima_calibracion,
         c.adc_aire_limpio,

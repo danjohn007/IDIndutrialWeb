@@ -12,22 +12,21 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/lib/shelly.php';
 
 try {
-    if (!idindShellyConfigurado($configLocal)) {
-        throw new IdindShellyException('Shelly Cloud no esta configurado');
-    }
+    $shellyCloudDisponible = idindShellyConfigurado($configLocal);
     $comandos = idindShellyProcesarPendientes($pdo, $configLocal, 10);
+    $modosSincronizables = $shellyCloudDisponible
+        ? "('CLOUD', 'HIBRIDO')"
+        : "('LOCAL', 'HIBRIDO')";
     $clientes = $pdo->query(
         "SELECT DISTINCT cliente_id FROM actuadores_shelly
-         WHERE estado = 'Activo' AND modo_control IN ('CLOUD', 'HIBRIDO')"
+         WHERE estado = 'Activo' AND modo_control IN {$modosSincronizables}"
     )->fetchAll();
     $sincronizaciones = [];
     foreach ($clientes as $cliente) {
         $clienteId = (int) $cliente['cliente_id'];
-        $sincronizaciones[$clienteId] = idindShellySincronizar(
-            $pdo,
-            $configLocal,
-            $clienteId
-        );
+        $sincronizaciones[$clienteId] = $shellyCloudDisponible
+            ? idindShellySincronizar($pdo, $configLocal, $clienteId)
+            : idindShellySincronizarLocal($pdo, $clienteId);
     }
     echo json_encode([
         'ok' => true,

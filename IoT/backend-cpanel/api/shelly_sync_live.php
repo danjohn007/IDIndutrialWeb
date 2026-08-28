@@ -22,9 +22,10 @@ if ((int) $stmtLock->fetchColumn() !== 1) {
 }
 
 try {
-    if (!idindShellyConfigurado($configLocal)) {
-        throw new IdindShellyException('Shelly Cloud no esta configurado');
-    }
+    $shellyCloudDisponible = idindShellyConfigurado($configLocal);
+    $modosSincronizables = $shellyCloudDisponible
+        ? "('CLOUD', 'HIBRIDO')"
+        : "('LOCAL', 'HIBRIDO')";
 
     $stmtEstado = $pdo->prepare(
         "SELECT
@@ -35,7 +36,7 @@ try {
          LEFT JOIN estado_shelly es ON es.actuador_id = a.id
          WHERE a.cliente_id = :cliente_id
            AND a.estado = 'Activo'
-           AND a.modo_control IN ('CLOUD', 'HIBRIDO')"
+           AND a.modo_control IN {$modosSincronizables}"
     );
     $stmtEstado->execute(['cliente_id' => $clienteId]);
     $resumen = $stmtEstado->fetch() ?: [];
@@ -62,7 +63,9 @@ try {
         ]);
     }
 
-    $resultado = idindShellySincronizar($pdo, $configLocal, $clienteId);
+    $resultado = $shellyCloudDisponible
+        ? idindShellySincronizar($pdo, $configLocal, $clienteId)
+        : idindShellySincronizarLocal($pdo, $clienteId);
     responderJson(200, [
         'ok' => true,
         'data' => ['sincronizado' => true, 'resultado' => $resultado],

@@ -216,6 +216,15 @@ export default function RoutinesScreen() {
     <AppScreen
       eyebrow="AUTOMATIZACION"
       title="Rutinas"
+      leading={(
+        <Pressable
+          accessibilityLabel="Volver a cuenta"
+          onPress={() => router.replace('/(tabs)/cuenta' as Href)}
+          style={styles.refreshButton}
+        >
+          <Ionicons color={colors.text} name="arrow-back" size={21} />
+        </Pressable>
+      )}
       action={(
         <View style={styles.headerActions}>
           {canManage ? (

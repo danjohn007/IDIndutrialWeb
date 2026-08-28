@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,13 @@ import { useAuth } from '@/context/auth-context';
 import { useForegroundRefresh } from '@/hooks/use-foreground-refresh';
 import { ApiError, controlMobileShelly, getMobileDevices } from '@/services/api';
 import { colors, radius, spacing } from '@/theme/colors';
-import type { GeneralState, MobileDevice, MobileShellyActuator } from '@/types/api';
+import type {
+  GeneralState,
+  MobileDevice,
+  MobileHikvisionDevice,
+  MobileShellyActuator,
+  MobileZktecoDevice,
+} from '@/types/api';
 
 function numeric(value: number | string | null | undefined): number {
   const parsed = Number(value);
@@ -259,16 +265,94 @@ function ShellyCard({
   );
 }
 
+function HikvisionCard({ device, onOpen }: { device: MobileHikvisionDevice; onOpen: () => void }) {
+  const online = device.conexion === 'ONLINE';
+  const color = online ? colors.success : device.conexion === 'DESACTUALIZADO' ? colors.warning : colors.muted;
+  return (
+    <Pressable onPress={onOpen} style={[styles.shellyCard, !online && styles.deviceOffline]}>
+      <View style={styles.deviceHeader}>
+        <View style={styles.deviceIdentity}>
+          <Text style={styles.sensorModel}>HIKVISION · {device.categoria.replace('_', ' ')}</Text>
+          <Text style={styles.deviceId}>{device.nombre || device.id}</Text>
+          <Text style={styles.location}>{device.ubicacion}</Text>
+        </View>
+        <Text style={[styles.shellyConnection, { color }]}>{device.conexion.replace('_', ' ')}</Text>
+      </View>
+      <View style={styles.shellyOutput}>
+        <Ionicons color={color} name={device.categoria === 'CONTROL_ACCESO' ? 'keypad-outline' : 'videocam-outline'} size={26} />
+        <View style={styles.shellyOutputCopy}>
+          <Text style={styles.readingLabel}>{device.modelo_detectado || device.modelo || 'Modelo pendiente'}</Text>
+          <Text style={styles.shellyOutputValue}>{device.id}</Text>
+        </View>
+      </View>
+      <Text style={styles.detailText}>Red local: {device.protocolo.toLowerCase()}://{device.ip_local}:{device.puerto}</Text>
+      <Text style={styles.detailText}>Sincronizado: {dateLabel(device.sincronizado_en)}</Text>
+      {device.ultimo_error ? <Text style={styles.shellyError}>{device.ultimo_error}</Text> : null}
+      <View style={styles.detailButton}>
+        <Text style={styles.detailButtonText}>Ver salud y eventos</Text>
+        <Ionicons color={colors.normal} name="chevron-forward" size={18} />
+      </View>
+    </Pressable>
+  );
+}
+
+function ZktecoCard({ device, onOpen }: { device: MobileZktecoDevice; onOpen: () => void }) {
+  const online = device.conexion === 'ONLINE';
+  const color = online ? colors.success : device.conexion === 'DESACTUALIZADO' ? colors.warning : colors.muted;
+  const users = device.usuarios_total == null ? '--' : String(device.usuarios_total);
+  const records = device.registros_total == null ? '--' : String(device.registros_total);
+  return (
+    <Pressable onPress={onOpen} style={[styles.shellyCard, !online && styles.deviceOffline]}>
+      <View style={styles.deviceHeader}>
+        <View style={styles.deviceIdentity}>
+          <Text style={styles.sensorModel}>ZKTECO · {device.categoria.replace('_', ' ')}</Text>
+          <Text style={styles.deviceId}>{device.nombre || device.id}</Text>
+          <Text style={styles.location}>{device.ubicacion}</Text>
+        </View>
+        <Text style={[styles.shellyConnection, { color }]}>{device.conexion.replace('_', ' ')}</Text>
+      </View>
+      <View style={styles.shellyOutput}>
+        <Ionicons color={color} name="finger-print-outline" size={27} />
+        <View style={styles.shellyOutputCopy}>
+          <Text style={styles.readingLabel}>{device.modelo_detectado || device.modelo || 'Modelo pendiente'}</Text>
+          <Text style={styles.shellyOutputValue}>{device.id}</Text>
+        </View>
+      </View>
+      <View style={styles.shellyMetrics}>
+        <View style={styles.shellyMetric}>
+          <Text style={styles.readingLabel}>Usuarios</Text>
+          <Text style={styles.shellyMetricValue}>{users}</Text>
+        </View>
+        <View style={styles.shellyMetric}>
+          <Text style={styles.readingLabel}>Registros</Text>
+          <Text style={styles.shellyMetricValue}>{records}</Text>
+        </View>
+      </View>
+      <Text style={styles.detailText}>Integracion: {device.protocolo.replace('_', ' ')}</Text>
+      <Text style={styles.detailText}>Sincronizado: {dateLabel(device.sincronizado_en)}</Text>
+      {device.ultimo_error ? <Text style={styles.shellyError}>{device.ultimo_error}</Text> : null}
+      <View style={styles.detailButton}>
+        <Text style={styles.detailButtonText}>Ver salud y marcajes</Text>
+        <Ionicons color={colors.normal} name="chevron-forward" size={18} />
+      </View>
+    </Pressable>
+  );
+}
+
 export default function DevicesScreen() {
   const router = useRouter();
   const { token, user } = useAuth();
   const [devices, setDevices] = useState<MobileDevice[]>([]);
   const [actuators, setActuators] = useState<MobileShellyActuator[]>([]);
+  const [hikvision, setHikvision] = useState<MobileHikvisionDevice[]>([]);
+  const [zkteco, setZkteco] = useState<MobileZktecoDevice[]>([]);
   const [busyActuator, setBusyActuator] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [section, setSection] = useState<'ESP32' | 'SHELLY'>('ESP32');
+  const [section, setSection] = useState<'ESP32' | 'SHELLY' | 'HIKVISION' | 'ZKTECO'>('ESP32');
+  const [screenFocused, setScreenFocused] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async (refresh = false, quiet = false) => {
     if (!token) return;
@@ -276,31 +360,38 @@ export default function DevicesScreen() {
     if (!refresh && !quiet) setLoading(true);
     if (!quiet) setError('');
     try {
-      const response = await getMobileDevices(token, section === 'SHELLY');
+      const response = await getMobileDevices(token, section);
       setDevices(response.dispositivos);
       setActuators(response.actuadores_shelly ?? []);
+      setHikvision(response.equipos_hikvision ?? []);
+      setZkteco(response.equipos_zkteco ?? []);
     } catch (caught) {
       if (!quiet) {
         setError(caught instanceof ApiError ? caught.message : 'No fue posible cargar los dispositivos.');
       }
     } finally {
+      hasLoadedRef.current = true;
       if (!quiet) setLoading(false);
       if (refresh) setRefreshing(false);
     }
   }, [section, token]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(useCallback(() => {
+    setScreenFocused(true);
+    void load(false, hasLoadedRef.current);
+    return () => setScreenFocused(false);
+  }, [load]));
 
   useForegroundRefresh(
-    () => void load(false, true),
+    () => load(false, true),
     10000,
-    section === 'SHELLY',
+    section !== 'ESP32' && screenFocused,
   );
 
   const online = devices.filter((device) => device.conexion === 'ONLINE').length;
   const shellyOnline = actuators.filter((actuator) => actuator.conexion === 'ONLINE').length;
+  const hikvisionOnline = hikvision.filter((device) => device.conexion === 'ONLINE').length;
+  const zktecoOnline = zkteco.filter((device) => device.conexion === 'ONLINE').length;
   const canControl = user?.rol === 'ADMIN' || user?.rol === 'OPERADOR';
 
   const runShellyCommand = useCallback((actuator: MobileShellyActuator, action: 'ENCENDER' | 'APAGAR') => {
@@ -326,8 +417,14 @@ export default function DevicesScreen() {
       title="Dispositivos"
       action={
         <View style={styles.headerActions}>
-          {section === 'SHELLY' && user?.rol === 'ADMIN' ? (
-            <Pressable accessibilityLabel="Agregar Shelly" onPress={() => router.push('/shelly/formulario' as Href)} style={styles.addButton}>
+          {section !== 'ESP32' && user?.rol === 'ADMIN' ? (
+            <Pressable accessibilityLabel="Agregar equipo" onPress={() => router.push(
+              section === 'SHELLY'
+                ? '/shelly/formulario' as Href
+                : section === 'HIKVISION'
+                  ? '/hikvision/formulario' as Href
+                  : '/zkteco/formulario' as Href,
+            )} style={styles.addButton}>
               <Ionicons color={colors.black} name="add" size={22} />
             </Pressable>
           ) : null}
@@ -351,16 +448,18 @@ export default function DevicesScreen() {
         <View>
           <Text style={styles.summaryLabel}>SALUD DEL SISTEMA</Text>
           <Text style={styles.summaryTitle}>
-            {section === 'ESP32'
-              ? `${online}/${devices.length} ESP32 en linea`
-              : `${shellyOnline}/${actuators.length} Shelly en linea`}
+            {section === 'ESP32' ? `${online}/${devices.length} ESP32 en linea`
+              : section === 'SHELLY' ? `${shellyOnline}/${actuators.length} Shelly en linea`
+                : section === 'HIKVISION' ? `${hikvisionOnline}/${hikvision.length} Hikvision en linea`
+                  : `${zktecoOnline}/${zkteco.length} ZKTeco en linea`}
           </Text>
         </View>
         <Ionicons
-          color={(section === 'ESP32'
-            ? online === devices.length && devices.length
-            : shellyOnline === actuators.length && actuators.length) ? colors.success : colors.warning}
-          name={section === 'ESP32' ? 'hardware-chip-outline' : 'flash-outline'}
+          color={(section === 'ESP32' ? online === devices.length && devices.length
+            : section === 'SHELLY' ? shellyOnline === actuators.length && actuators.length
+              : section === 'HIKVISION' ? hikvisionOnline === hikvision.length && hikvision.length
+                : zktecoOnline === zkteco.length && zkteco.length) ? colors.success : colors.warning}
+          name={section === 'ESP32' ? 'hardware-chip-outline' : section === 'SHELLY' ? 'flash-outline' : section === 'HIKVISION' ? 'videocam-outline' : 'finger-print-outline'}
           size={29}
         />
       </View>
@@ -368,11 +467,19 @@ export default function DevicesScreen() {
       <View style={styles.segmented}>
         <Pressable onPress={() => setSection('ESP32')} style={[styles.segment, section === 'ESP32' && styles.segmentSelected]}>
           <Ionicons color={section === 'ESP32' ? colors.black : colors.muted} name="hardware-chip-outline" size={18} />
-          <Text style={[styles.segmentText, section === 'ESP32' && styles.segmentTextSelected]}>Sensores ESP32</Text>
+          <Text style={[styles.segmentText, section === 'ESP32' && styles.segmentTextSelected]}>ESP32</Text>
         </Pressable>
         <Pressable onPress={() => setSection('SHELLY')} style={[styles.segment, section === 'SHELLY' && styles.segmentSelected]}>
           <Ionicons color={section === 'SHELLY' ? colors.black : colors.muted} name="flash-outline" size={18} />
-          <Text style={[styles.segmentText, section === 'SHELLY' && styles.segmentTextSelected]}>Equipos Shelly</Text>
+          <Text style={[styles.segmentText, section === 'SHELLY' && styles.segmentTextSelected]}>Shelly</Text>
+        </Pressable>
+        <Pressable onPress={() => setSection('HIKVISION')} style={[styles.segment, section === 'HIKVISION' && styles.segmentSelected]}>
+          <Ionicons color={section === 'HIKVISION' ? colors.black : colors.muted} name="videocam-outline" size={18} />
+          <Text style={[styles.segmentText, section === 'HIKVISION' && styles.segmentTextSelected]}>Hikvision</Text>
+        </Pressable>
+        <Pressable onPress={() => setSection('ZKTECO')} style={[styles.segment, section === 'ZKTECO' && styles.segmentSelected]}>
+          <Ionicons color={section === 'ZKTECO' ? colors.black : colors.muted} name="finger-print-outline" size={18} />
+          <Text style={[styles.segmentText, section === 'ZKTECO' && styles.segmentTextSelected]}>ZKTeco</Text>
         </Pressable>
       </View>
 
@@ -422,6 +529,50 @@ export default function DevicesScreen() {
           onOpen={(item) => router.push(`/shelly/${encodeURIComponent(item.id)}` as Href)}
         />
       )) : null}
+      {section === 'HIKVISION' ? (
+        <View style={styles.sectionHeading}>
+          <Text style={styles.summaryLabel}>SEGURIDAD E ISAPI</Text>
+          <Text style={styles.sectionTitle}>Equipos Hikvision</Text>
+          <Text style={styles.sectionDescription}>Salud, identidad y eventos reportados por el conector local.</Text>
+        </View>
+      ) : null}
+      {!loading && !error && section === 'HIKVISION' && !hikvision.length ? (
+        <View style={styles.emptyPanel}>
+          <Ionicons color={colors.muted} name="videocam-outline" size={28} />
+          <Text style={styles.emptyText}>No hay equipos Hikvision registrados.</Text>
+          {user?.rol === 'ADMIN' ? (
+            <Pressable onPress={() => router.push('/hikvision/formulario' as Href)} style={styles.emptyAddButton}>
+              <Ionicons color={colors.black} name="add" size={18} />
+              <Text style={styles.emptyAddText}>Agregar Hikvision</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+      {section === 'HIKVISION' ? hikvision.map((device) => (
+        <HikvisionCard device={device} key={device.id} onOpen={() => router.push(`/hikvision/${encodeURIComponent(device.id)}` as Href)} />
+      )) : null}
+      {section === 'ZKTECO' ? (
+        <View style={styles.sectionHeading}>
+          <Text style={styles.summaryLabel}>ASISTENCIA Y ACCESO</Text>
+          <Text style={styles.sectionTitle}>Equipos ZKTeco</Text>
+          <Text style={styles.sectionDescription}>Salud, capacidad y marcajes reportados por el conector local.</Text>
+        </View>
+      ) : null}
+      {!loading && !error && section === 'ZKTECO' && !zkteco.length ? (
+        <View style={styles.emptyPanel}>
+          <Ionicons color={colors.muted} name="finger-print-outline" size={28} />
+          <Text style={styles.emptyText}>No hay equipos ZKTeco registrados.</Text>
+          {user?.rol === 'ADMIN' ? (
+            <Pressable onPress={() => router.push('/zkteco/formulario' as Href)} style={styles.emptyAddButton}>
+              <Ionicons color={colors.black} name="add" size={18} />
+              <Text style={styles.emptyAddText}>Agregar ZKTeco</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+      {section === 'ZKTECO' ? zkteco.map((device) => (
+        <ZktecoCard device={device} key={device.id} onOpen={() => router.push(`/zkteco/${encodeURIComponent(device.id)}` as Href)} />
+      )) : null}
     </AppScreen>
   );
 }
@@ -433,8 +584,8 @@ const styles = StyleSheet.create({
   summary: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', padding: spacing.lg },
   summaryLabel: { color: colors.normal, fontSize: 11, fontWeight: '900' },
   summaryTitle: { color: colors.textStrong, fontSize: 20, fontWeight: '900', marginTop: spacing.xs },
-  segmented: { backgroundColor: colors.surfaceStrong, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, padding: spacing.xs },
-  segment: { alignItems: 'center', borderRadius: radius.sm, flex: 1, flexDirection: 'row', gap: spacing.sm, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.sm },
+  segmented: { backgroundColor: colors.surfaceStrong, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, padding: spacing.xs },
+  segment: { alignItems: 'center', borderRadius: radius.sm, flexBasis: '48%', flexDirection: 'row', flexGrow: 1, gap: spacing.sm, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.sm },
   segmentSelected: { backgroundColor: colors.warning },
   segmentText: { color: colors.muted, fontSize: 12, fontWeight: '800' },
   segmentTextSelected: { color: colors.black },

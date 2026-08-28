@@ -48,15 +48,21 @@ Después de publicar, visitar:
 - /crm/cotizaciones
 - /crm/cotizaciones/{id}
 - /crm/clientes
+- /crm/calendario
 - /crm/bitacora
 - /crm/notificaciones
 - /crm/perfil
+- /crm/configuracion
+- /crm/iot
 - /crm/portal
 - /crm/portal/proyectos
 - /crm/portal/bitacora
 - /crm/portal/solicitudes
+- /crm/portal/cotizaciones
 - /crm/portal/notificaciones
 - /crm/portal/perfil
+- /crm/portal/iot
+- /iot/
 - /crm/evidencias/{reporte_id}
 
 Apache usa .htaccess y el servidor embebido de PHP usa router.php. Las URLs antiguas con extension PHP se redirigen de forma permanente a su ruta limpia.

@@ -49,6 +49,8 @@ a { color: inherit; text-decoration: none; }
 .device-type-badge { display: inline-flex; align-items: center; width: fit-content; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: .72rem; font-weight: 800; }
 .device-type-badge.esp32 { border-color: rgba(0, 163, 255, .65); color: var(--blue); }
 .device-type-badge.shelly { border-color: rgba(255, 176, 0, .75); color: var(--yellow); }
+.device-type-badge.hikvision { border-color: rgba(53, 208, 127, .65); color: var(--green); }
+.device-type-badge.zkteco { border-color: rgba(255, 176, 0, .75); color: var(--yellow); }
 .shelly-connection { font-size: .78rem; }
 .shelly-connection.online { color: var(--green); }
 .shelly-connection.offline { color: var(--muted); }
@@ -83,6 +85,37 @@ a { color: inherit; text-decoration: none; }
 .device-fields-note { margin: 8px 0 2px; color: var(--muted); font-size: .82rem; }
 .device-fields-note code { color: var(--text); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.webhook-dialog { width: min(900px, calc(100% - 28px)); max-height: min(880px, calc(100vh - 32px)); }
+.webhook-panel { padding: 26px; }
+.webhook-device { margin: 5px 0 0; color: var(--muted); }
+.webhook-status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.webhook-status { display: grid; gap: 4px; min-width: 0; padding: 16px; border: 1px solid var(--border); border-left: 4px solid var(--yellow); border-radius: 6px; background: var(--surface-strong); }
+.webhook-status.ok { border-left-color: var(--green); }
+.webhook-status.error { border-left-color: var(--red); }
+.webhook-status > span { color: var(--muted); font-size: .76rem; font-weight: 800; text-transform: uppercase; }
+.webhook-status > small { color: var(--muted); overflow-wrap: anywhere; }
+.webhook-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+.webhook-section h3 { margin: 4px 0 10px; font-size: 1.05rem; }
+.webhook-section-heading, .webhook-copy-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.webhook-steps { margin: 12px 0 18px; padding-left: 22px; color: var(--muted); }
+.webhook-steps li + li { margin-top: 7px; }
+.webhook-url-list, .webhook-code-list { display: grid; gap: 12px; }
+.webhook-copy-block { min-width: 0; }
+.webhook-copy-heading { margin-bottom: 7px; }
+.webhook-copy-block textarea, .webhook-copy-block pre { width: 100%; margin: 0; border: 1px solid var(--border); border-radius: 6px; background: #101519; color: var(--text); font: .78rem/1.5 Consolas, monospace; overflow-wrap: anywhere; }
+.webhook-copy-block textarea { min-height: 76px; resize: vertical; padding: 10px 12px; }
+.webhook-copy-block pre { max-height: 230px; overflow: auto; padding: 12px; white-space: pre-wrap; }
+.webhook-advanced summary { cursor: pointer; color: var(--text); font-weight: 800; }
+.webhook-advanced[open] summary { margin-bottom: 12px; }
+.webhook-note, .webhook-advanced > p, .webhook-empty { color: var(--muted); }
+.webhook-deliveries { display: grid; margin-top: 10px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.webhook-delivery { display: grid; grid-template-columns: minmax(150px, 1fr) 70px 100px minmax(180px, 1.2fr); align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid var(--border); background: var(--surface-strong); }
+.webhook-delivery:last-child { border-bottom: 0; }
+.webhook-delivery > div { display: grid; gap: 2px; }
+.webhook-delivery small { color: var(--muted); overflow-wrap: anywhere; }
+.webhook-delivery-source, .webhook-delivery-state { color: var(--muted); font-size: .72rem; font-weight: 800; }
+.webhook-delivery-state { color: var(--green); }
+.webhook-delivery-state.error { color: var(--red); }
 @media (max-width: 720px) {
   .users-shell { width: min(100% - 24px, 560px); padding-top: 16px; }
   .users-topbar, .panel-heading { align-items: stretch; flex-direction: column; }
@@ -90,4 +123,8 @@ a { color: inherit; text-decoration: none; }
   .session-user { margin-right: auto; text-align: left; }
   .users-panel { padding: 18px; }
   .form-grid { grid-template-columns: 1fr; gap: 0; }
+  .webhook-panel { padding: 18px; }
+  .webhook-status-grid { grid-template-columns: 1fr; }
+  .webhook-delivery { grid-template-columns: 1fr auto; }
+  .webhook-delivery > small { grid-column: 1 / -1; }
 }

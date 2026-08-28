@@ -28,6 +28,7 @@ function construirFiltrosAlertas(array $query, int $clienteId): array
     $filtrosSensor = [
         'GAS' => "(a.tipo_alerta LIKE '%GAS%' OR a.tipo_alerta LIKE '%HUMO%' OR a.tipo_alerta LIKE '%MQ-2%')",
         'FLAMA' => "(a.tipo_alerta LIKE '%FLAMA%' OR a.tipo_alerta LIKE '%FUEGO%' OR a.tipo_alerta LIKE '%KY-026%')",
+        'ESTACION_MANUAL' => "(a.tipo_alerta LIKE '%ESTACION MANUAL%' OR a.tipo_alerta LIKE '%PULSADOR%')",
         'TEMPERATURA' => "(a.tipo_alerta LIKE '%TEMPERATURA%' OR a.tipo_alerta LIKE '%CALOR%')",
         'DHT' => "a.tipo_alerta LIKE '%DHT%'",
         'CONECTIVIDAD' => "(a.tipo_alerta LIKE '%SIN CONEXION%' OR a.tipo_alerta LIKE '%DESCONECT%')",

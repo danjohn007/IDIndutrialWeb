@@ -43,13 +43,15 @@ try {
                shelly_device_id, modelo, generacion, ip_local, canal, funcion,
                categoria, tipo_carga, corriente_max_a, potencia_max_w,
                tiempo_max_encendido_s, apagado_automatico, permite_rutinas,
-               requiere_confirmacion, descripcion, modo_control, estado
+               requiere_confirmacion, notificar_cambios_externos,
+               descripcion, modo_control, estado
              ) VALUES (
                :id, :cliente_id, :nombre, :ubicacion, :dispositivo_vinculado_id,
                :shelly_device_id, :modelo, :generacion, :ip_local, :canal, :funcion,
                :categoria, :tipo_carga, :corriente_max_a, :potencia_max_w,
                :tiempo_max_encendido_s, :apagado_automatico, :permite_rutinas,
-               :requiere_confirmacion, :descripcion, :modo_control, :estado
+               :requiere_confirmacion, :notificar_cambios_externos,
+               :descripcion, :modo_control, :estado
              )'
         );
     } else {
@@ -65,6 +67,7 @@ try {
                apagado_automatico = :apagado_automatico,
                permite_rutinas = :permite_rutinas,
                requiere_confirmacion = :requiere_confirmacion,
+               notificar_cambios_externos = :notificar_cambios_externos,
                descripcion = :descripcion, modo_control = :modo_control, estado = :estado
              WHERE id = :id AND cliente_id = :cliente_id'
         );

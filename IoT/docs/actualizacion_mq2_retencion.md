@@ -40,13 +40,16 @@ Valores predeterminados de `config.local.php`:
 ```php
 'retention_raw_days' => 90,
 'retention_hourly_months' => 24,
+'retention_shelly_event_days' => 365,
+'retention_push_days' => 90,
 'retention_hours_per_run' => 48,
 'retention_max_runtime_seconds' => 45,
 ```
 
 Las muestras por minuto se conservan 90 dias. Las mas antiguas se agrupan por
 hora en `resumen_horario` y se eliminan dentro de la misma transaccion. Los
-resumenes horarios se conservan 24 meses. Las tablas `alertas`,
+resumenes horarios se conservan 24 meses. La auditoria Shelly se conserva 365
+dias y las notificaciones push ya enviadas o descartadas, 90 dias. Las tablas `alertas`,
 `alerta_gestiones` y `lecturas_sensores` no se borran con este proceso.
 
 ## Cron Job en cPanel
@@ -62,4 +65,3 @@ El archivo solo acepta ejecucion por CLI; abrirlo en el navegador devuelve
 HTTP 403. Cada corrida procesa como maximo 48 horas antiguas o 45 segundos.
 Esto limita el uso de CPU en alojamiento compartido y permite ponerse al dia
 gradualmente si existe un historial grande.
-

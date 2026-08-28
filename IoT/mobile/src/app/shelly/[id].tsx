@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppScreen } from '@/components/app-screen';
 import { useAuth } from '@/context/auth-context';
+import { useForegroundRefresh } from '@/hooks/use-foreground-refresh';
 import {
   ApiError,
   controlMobileShelly,
@@ -34,6 +35,16 @@ function categoryLabel(value: MobileShellyActuator['categoria']): string {
   return 'Seguridad';
 }
 
+function scheduledOffLabel(value: string | null | undefined): string {
+  if (!value) return 'Sin temporizador activo';
+  const deadline = new Date(`${value.replace(' ', 'T')}Z`);
+  if (Number.isNaN(deadline.getTime())) return value;
+  const remaining = Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 1000));
+  if (remaining === 0) return 'Vencido; esperando confirmacion de Shelly';
+  if (remaining < 60) return `${remaining} s restantes`;
+  return `${Math.ceil(remaining / 60)} min restantes`;
+}
+
 function eventLabel(value: string): string {
   return value.replace(/_/g, ' ').toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
 }
@@ -55,6 +66,7 @@ export default function ShellyDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [screenFocused, setScreenFocused] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !id) return;
@@ -68,21 +80,44 @@ export default function ShellyDetailScreen() {
     }
   }, [id, token]);
 
-  useEffect(() => { void load(); }, [load]);
+  const syncStatus = useCallback(async () => {
+    if (!token || !id) return;
+    const result = await testMobileShelly(token, id);
+    setDetail((current) => current ? { ...current, actuador: result.actuador } : current);
+  }, [id, token]);
+
+  useFocusEffect(useCallback(() => {
+    setScreenFocused(true);
+    const initialize = async () => {
+      await load();
+      try {
+        await syncStatus();
+      } catch {
+        // El detalle almacenado sigue disponible si Shelly Cloud no responde.
+      }
+    };
+    void initialize();
+    return () => setScreenFocused(false);
+  }, [load, syncStatus]));
+
+  useForegroundRefresh(
+    syncStatus,
+    10000,
+    Boolean(token && id && screenFocused),
+  );
 
   const runTest = useCallback(async () => {
     if (!token || !id) return;
     setBusy(true);
     try {
-      await testMobileShelly(token, id);
-      await load();
+      await syncStatus();
       Alert.alert('Conexion verificada', 'El estado se sincronizo con Shelly Cloud.');
     } catch (caught) {
       Alert.alert('No fue posible sincronizar', caught instanceof ApiError ? caught.message : 'Intenta nuevamente.');
     } finally {
       setBusy(false);
     }
-  }, [id, load, token]);
+  }, [id, syncStatus, token]);
 
   const runControl = useCallback((action: 'ENCENDER' | 'APAGAR') => {
     if (!token || !id) return;
@@ -158,7 +193,7 @@ export default function ShellyDetailScreen() {
               </Pressable>
               <Pressable disabled={busy} onPress={() => void runTest()} style={[styles.outlineButton, busy && styles.disabled]}>
                 <Ionicons color={colors.normal} name="sync-outline" size={19} />
-                <Text style={styles.outlineText}>Probar conexion</Text>
+                <Text style={styles.outlineText}>Sincronizar ahora</Text>
               </Pressable>
             </View>
           ) : null}
@@ -181,6 +216,8 @@ export default function ShellyDetailScreen() {
             <DataRow label="Corriente maxima" value={actuator.corriente_max_a == null ? 'Sin definir' : `${actuator.corriente_max_a} A`} />
             <DataRow label="Potencia maxima" value={actuator.potencia_max_w == null ? 'Sin definir' : `${actuator.potencia_max_w} W`} />
             <DataRow label="Apagado automatico" value={numberValue(actuator.apagado_automatico) ? `${Math.ceil(numberValue(actuator.tiempo_max_encendido_s) / 60)} min` : 'Desactivado'} />
+            <DataRow label="Temporizador actual" value={scheduledOffLabel(actuator.apagado_programado_en)} />
+            <DataRow label="Avisos externos" value={numberValue(actuator.notificar_cambios_externos) ? 'Activados' : 'Desactivados'} />
             <DataRow label="Confirmacion manual" value={numberValue(actuator.requiere_confirmacion) ? 'Requerida' : 'No requerida'} />
             {actuator.descripcion ? <Text style={styles.description}>{actuator.descripcion}</Text> : null}
           </View>
