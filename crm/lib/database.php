@@ -750,15 +750,9 @@ function crm_dispatch_quote_push_notifications(PDO $pdo, int $opportunityId): ar
   }
 
   if (!function_exists('idindPushEnviarFilas')) {
-    $pushLibraries = [
-      dirname(__DIR__, 2) . '/IoT/api/lib/push_notificaciones.php',
-      dirname(__DIR__, 2) . '/IoT/backend-cpanel/api/lib/push_notificaciones.php',
-    ];
-    foreach ($pushLibraries as $pushLibrary) {
-      if (is_file($pushLibrary)) {
-        require_once $pushLibrary;
-        break;
-      }
+    $pushLibrary = dirname(__DIR__, 2) . '/IoT/api/lib/push_notificaciones.php';
+    if (is_file($pushLibrary)) {
+      require_once $pushLibrary;
     }
   }
 
