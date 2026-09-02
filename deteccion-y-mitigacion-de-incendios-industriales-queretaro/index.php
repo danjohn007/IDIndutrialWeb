@@ -190,7 +190,7 @@ include __DIR__ . '/../includes/navbar.php';
     <div class="service-hero__media" aria-hidden="true">
       <picture>
         <source srcset="<?php echo htmlspecialchars($basePath . $heroDesktopImage); ?>?v=<?php echo $heroImageVersion; ?>" media="(min-width: 900px)">
-        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>?v=<?php echo $heroImageVersion; ?>" alt="" width="1325" height="800" fetchpriority="high" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>?v=<?php echo $heroImageVersion; ?>" alt="" width="1584" height="672" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="service-hero__overlay" aria-hidden="true"></div>
@@ -242,7 +242,7 @@ include __DIR__ . '/../includes/navbar.php';
   </section>
 
   <section class="service-banner service-banner--contain" aria-label="Sistemas contra incendio para naves industriales">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/deteccion-incendios-inspeccion-seguridad.jpg" alt="Inspección de seguridad de sistema contra incendio industrial" width="1584" height="672" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/deteccion-incendios-inspeccion-seguridad.jpg" alt="Inspección de seguridad de sistema contra incendio industrial" width="1024" height="354" loading="lazy" decoding="async">
     <div>
       <p>Documentación lista para brigada, protección civil y aseguradora</p>
       <h2>Evidencia técnica clara para cada revisión de cumplimiento</h2>
@@ -280,7 +280,7 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/mitigacion-incendios-extintor-industrial.jpg" alt="Extintor industrial con señalización de protección civil" width="1024" height="354" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/mitigacion-incendios-extintor-industrial.jpg" alt="Extintor industrial con señalización de protección civil" width="1325" height="800" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
