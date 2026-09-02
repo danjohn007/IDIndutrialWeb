@@ -6,8 +6,8 @@ $canonicalUrl = 'https://idindustrial.com.mx/deteccion-y-mitigacion-de-incendios
 $phone = '+52 442 598 6318';
 $whatsapp = '524425986318';
 $contactEmail = 'contacto@idindustrial.com.mx';
-$heroMobileImage = 'assets/img/optimized/mobile/card-incendios.jpg';
-$heroDesktopImage = 'assets/img/optimized/card-incendios.jpg';
+$heroMobileImage = 'assets/img/optimized/deteccion-incendios-brigada-industrial.jpg';
+$heroDesktopImage = 'assets/img/optimized/deteccion-incendios-brigada-industrial.jpg';
 
 $title = 'Detección y mitigación de incendios industriales en Querétaro | Naves y parques industriales';
 $description = 'Sistemas de detección y mitigación de incendios para naves industriales en Querétaro. Soporte técnico para jefes de brigada contra incendio y responsables de seguridad e higiene en parques industriales de El Marqués, Corregidora, Querétaro y San Juan del Río.';
@@ -189,13 +189,13 @@ include __DIR__ . '/../includes/navbar.php';
     <div class="service-hero__media" aria-hidden="true">
       <picture>
         <source srcset="<?php echo htmlspecialchars($basePath . $heroDesktopImage); ?>" media="(min-width: 900px)">
-        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>" alt="" width="1920" height="500" fetchpriority="high" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>" alt="" width="1325" height="800" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="service-hero__overlay" aria-hidden="true"></div>
     <div class="container service-hero__content reveal">
       <p class="eyebrow">Detección y mitigación de incendios · Parques industriales de Querétaro</p>
-      <h1><span>Detección y mitigación</span><span>de incendios para naves</span><span>industriales en Querétaro</span></h1>
+      <h1 style="font-size:clamp(2.4rem,5.6vw,5.4rem)"><span>Detección y mitigación</span><span>de incendios industriales</span><span>en Querétaro</span></h1>
       <p>Sistemas de detección temprana, mitigación especializada y cumplimiento normativo para jefes de brigada contra incendio y responsables de seguridad e higiene en naves industriales de Querétaro, El Marqués, Corregidora y San Juan del Río.</p>
       <div class="hero__actions">
         <a class="button button--primary" href="<?php echo htmlspecialchars($basePath); ?>?servicio=incendios#contacto">Solicitar evaluación de riesgo</a>
@@ -235,13 +235,13 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/service-card-deteccion-incendios.jpg" alt="Panel de detección de incendios para nave industrial en Querétaro" width="1254" height="1254" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/deteccion-incendios-sensor-humo.jpg" alt="Sensor de humo para detección temprana de incendios en nave industrial" width="1024" height="642" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
 
   <section class="service-banner service-banner--contain" aria-label="Sistemas contra incendio para naves industriales">
-    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/card-incendios.jpg" alt="Sistema contra incendio industrial en Querétaro" width="1920" height="500" loading="lazy" decoding="async">
+    <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/deteccion-incendios-inspeccion-seguridad.jpg" alt="Inspección de seguridad de sistema contra incendio industrial" width="1584" height="672" loading="lazy" decoding="async">
     <div>
       <p>Documentación lista para brigada, protección civil y aseguradora</p>
       <h2>Evidencia técnica clara para cada revisión de cumplimiento</h2>
@@ -249,20 +249,20 @@ include __DIR__ . '/../includes/navbar.php';
   </section>
 
   <section id="mitigacion-incendios-industrial" class="detail-section section-light section-pad">
-    <div class="container detail-grid detail-grid--reverse">
-      <div class="detail-panel reveal">
-        <h3>Mitigación incluida según riesgo</h3>
-        <ul>
+    <div class="container split">
+      <div class="split__content reveal">
+        <p class="eyebrow">Mitigación especializada</p>
+        <h2>Cuando el riesgo lo exige, la respuesta debe ser específica al proceso.</h2>
+        <p>Un almacén de producto terminado, un cuarto de servidores y una línea con líquidos inflamables no se protegen igual. Definimos el sistema de mitigación por área, no un esquema genérico para toda la planta.</p>
+        <ul class="service-list">
           <?php foreach ($mitigationServices as $item): ?>
             <li><?php echo htmlspecialchars($item); ?></li>
           <?php endforeach; ?>
         </ul>
       </div>
-      <div class="detail-copy reveal reveal--delay">
-        <p class="eyebrow">Mitigación especializada</p>
-        <h2>Cuando el riesgo lo exige, la respuesta debe ser específica al proceso.</h2>
-        <p>Un almacén de producto terminado, un cuarto de servidores y una línea con líquidos inflamables no se protegen igual. Definimos el sistema de mitigación por área, no un esquema genérico para toda la planta.</p>
-      </div>
+      <figure class="service__image reveal reveal--delay">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/mitigacion-incendios-gabinete-manguera.jpg" alt="Gabinete y manguera contra incendio en nave industrial" width="1024" height="614" loading="lazy" decoding="async">
+      </figure>
     </div>
   </section>
 
@@ -278,8 +278,8 @@ include __DIR__ . '/../includes/navbar.php';
           <?php endforeach; ?>
         </ul>
       </div>
-      <figure class="service__image service__image--monitoring reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/service-card-deteccion-incendios.jpg" alt="Cumplimiento normativo de sistemas contra incendio industrial" width="1254" height="1254" loading="lazy" decoding="async">
+      <figure class="service__image reveal reveal--delay">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/mitigacion-incendios-extintor-industrial.jpg" alt="Extintor industrial con señalización de protección civil" width="1024" height="354" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
@@ -316,7 +316,7 @@ include __DIR__ . '/../includes/navbar.php';
         </ul>
       </div>
       <figure class="service__image reveal reveal--delay">
-        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/card-incendios.jpg" alt="Costo de sistema de detección y mitigación de incendios industrial" width="1920" height="500" loading="lazy" decoding="async">
+        <img src="<?php echo htmlspecialchars($basePath); ?>assets/img/optimized/mitigacion-incendios-agente-limpio.jpg" alt="Sistema de agente limpio para cuarto eléctrico industrial" width="1024" height="710" loading="lazy" decoding="async">
       </figure>
     </div>
   </section>
