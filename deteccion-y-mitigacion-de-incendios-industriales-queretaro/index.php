@@ -185,11 +185,12 @@ include __DIR__ . '/../includes/navbar.php';
 ?>
 
 <main class="service-page" id="inicio">
+  <?php $heroImageVersion = @filemtime(__DIR__ . '/../' . $heroDesktopImage) ?: 1; ?>
   <section class="service-hero section-dark">
     <div class="service-hero__media" aria-hidden="true">
       <picture>
-        <source srcset="<?php echo htmlspecialchars($basePath . $heroDesktopImage); ?>" media="(min-width: 900px)">
-        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>" alt="" width="1325" height="800" fetchpriority="high" decoding="async">
+        <source srcset="<?php echo htmlspecialchars($basePath . $heroDesktopImage); ?>?v=<?php echo $heroImageVersion; ?>" media="(min-width: 900px)">
+        <img src="<?php echo htmlspecialchars($basePath . $heroMobileImage); ?>?v=<?php echo $heroImageVersion; ?>" alt="" width="1325" height="800" fetchpriority="high" decoding="async">
       </picture>
     </div>
     <div class="service-hero__overlay" aria-hidden="true"></div>
