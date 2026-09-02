@@ -23,7 +23,7 @@
       <a href="<?php echo htmlspecialchars($assetBase); ?>instalacion-aire-acondicionado-industrial-queretaro/">HVAC Industrial &amp; Chillers</a>
       <a href="<?php echo htmlspecialchars($assetBase); ?>instalacion-camaras-seguridad-industrial-queretaro/">CCTV Industrial</a>
       <a href="<?php echo htmlspecialchars($assetBase); ?>control-de-acceso-de-personal-queretaro/">Control de Accesos</a>
-      <a href="<?php echo htmlspecialchars($assetBase); ?>#deteccion-incendios">Detección de Incendios</a>
+      <a href="<?php echo htmlspecialchars($assetBase); ?>deteccion-y-mitigacion-de-incendios-industriales-queretaro/">Detección y Mitigación de Incendios</a>
     </nav>
 
     <div class="footer__region">

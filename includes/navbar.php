@@ -23,7 +23,7 @@ $primaryNavItems = [
   ['label' => 'Inicio', 'href' => $assetBase . '#inicio'],
   ['label' => 'Quiénes somos', 'href' => $assetBase . '#quienes-somos'],
   ['label' => 'Cableado estructurado', 'href' => $assetBase . 'industriales/cableado-estructurado-queretaro/'],
-  ['label' => 'Detección de incendios', 'href' => $assetBase . '#deteccion-incendios'],
+  ['label' => 'Detección de incendios', 'href' => $assetBase . 'deteccion-y-mitigacion-de-incendios-industriales-queretaro/'],
 ];
 
 $moreServiceItems = [

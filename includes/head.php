@@ -81,6 +81,8 @@
       "control de accesos",
       "HVAC industrial",
       "detección de incendios",
+      "mitigación de incendios industrial",
+      "brigadas contra incendio",
       "Smart Factories e IoT industrial"
     ],
     "hasOfferCatalog": {
@@ -88,7 +90,7 @@
       "name": "Soluciones industriales",
       "itemListElement": [
         {"@type": "Service", "name": "Cableado estructurado y fibra óptica"},
-        {"@type": "Service", "name": "Detección de incendios"},
+        {"@type": "Service", "name": "Detección y mitigación de incendios"},
         {"@type": "Service", "name": "Sistemas HVAC"},
         {"@type": "Service", "name": "Control de accesos"},
         {"@type": "Service", "name": "CCTV industrial"},
