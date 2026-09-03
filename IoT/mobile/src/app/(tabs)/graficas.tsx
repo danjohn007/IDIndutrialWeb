@@ -53,6 +53,7 @@ function toLiveSample(device: MobileDevice): MobileLiveSample | null {
     gas_porcentaje: device.gas_porcentaje,
     gas_detectado: device.gas_detectado,
     flama_detectada: device.flama_detectada,
+    estacion_manual_activada: device.estacion_manual_activada ?? 0,
     estado_general: device.estado_general,
   };
 }
@@ -365,8 +366,45 @@ export default function LiveChartsScreen() {
             </View>
           </View>
 
+          <View style={styles.flameCard}>
+            <View style={styles.chartHeading}>
+              <Text style={styles.chartTitle}>Estacion manual</Text>
+              <Text style={styles.chartSubtitle}>Rojo significa que la palanca fue activada.</Text>
+            </View>
+            <View style={styles.flameTimeline}>
+              {samples.slice(-60).map((sample, index) => {
+                const activated = numeric(sample.estacion_manual_activada) === 1;
+                return (
+                  <View
+                    accessibilityLabel={`${activated ? 'Estacion manual activada' : 'Estacion manual normal'} a las ${timeLabel(sample.periodo)}`}
+                    key={`${sample.periodo}-${index}-manual-station`}
+                    style={[
+                      styles.flameSample,
+                      activated && styles.flameDetected,
+                    ]}
+                  />
+                );
+              })}
+            </View>
+            <View style={styles.flameState}>
+              <Ionicons
+                color={numeric(latest?.estacion_manual_activada) === 1 ? colors.critical : colors.success}
+                name={numeric(latest?.estacion_manual_activada) === 1 ? 'hand-left' : 'checkmark-circle-outline'}
+                size={21}
+              />
+              <Text
+                style={[
+                  styles.flameStateText,
+                  numeric(latest?.estacion_manual_activada) === 1 && styles.flameStateCritical,
+                ]}
+              >
+                {numeric(latest?.estacion_manual_activada) === 1 ? 'Palanca activada ahora' : 'Palanca normal'}
+              </Text>
+            </View>
+          </View>
+
           <Text style={styles.chartHelp}>
-            Toca cualquier punto de una gráfica para consultar su valor y hora exactos.
+            Toca un punto para ver hora y valor.
           </Text>
         </>
       ) : null}

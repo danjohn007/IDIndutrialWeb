@@ -104,6 +104,24 @@ function DeviceCard({ device }: { device: MobileDevice }) {
           {isOffline ? 'OFFLINE' : (device.salud_flama ?? 'SIN DATOS')}
         </Text>
       </View>
+      <View style={styles.sensorRow}>
+        <View style={styles.sensorCopy}>
+          <Text style={styles.sensorName}>Estación manual</Text>
+          <Text style={styles.sensorValue}>
+            {isOffline
+              ? 'Sin lectura reciente'
+              : numeric(device.estacion_manual_activada) === 1 ? 'Activada' : 'Normal'}
+          </Text>
+        </View>
+        <Text
+          style={[
+            styles.sensorHealth,
+            !isOffline && numeric(device.estacion_manual_activada) === 1 && { color: colors.critical },
+          ]}
+        >
+          {isOffline ? 'OFFLINE' : 'PULSADOR'}
+        </Text>
+      </View>
     </View>
   );
 }

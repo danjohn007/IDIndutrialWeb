@@ -189,6 +189,19 @@ function DeviceCard({ device }: { device: MobileDevice }) {
         </Text>
       </View>
 
+      <View style={styles.flameRow}>
+        <View style={styles.flameCopy}>
+          <Ionicons color={offline ? colors.muted : colors.critical} name="hand-left-outline" size={20} />
+          <View>
+            <Text style={styles.sensorModel}>PULL STATION</Text>
+            <Text style={styles.sensorTitle}>Estación manual</Text>
+          </View>
+        </View>
+        <Text style={[styles.flameValue, { color: offline ? colors.muted : numeric(device.estacion_manual_activada) === 1 ? colors.critical : colors.success }]}>
+          {offline ? 'Sin lectura' : numeric(device.estacion_manual_activada) === 1 ? 'Activada' : 'Normal'}
+        </Text>
+      </View>
+
       <View style={styles.healthGrid}>
         <SensorHealth health={offline ? 'OFFLINE' : device.salud_dht} label="DHT11" />
         <SensorHealth health={offline ? 'OFFLINE' : device.salud_mq2} label="MQ-2" />

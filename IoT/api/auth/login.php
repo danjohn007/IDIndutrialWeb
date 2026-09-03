@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/auth.php';
+require_once dirname(__DIR__) . '/lib/crm_admin_bridge.php';
 requerirMetodo('POST');
 
 $data = obtenerJson();
@@ -43,6 +44,21 @@ $bloqueado = $usuario
 $activo = $usuario && (string) $usuario['estado'] === 'ACTIVO';
 
 if (!$usuario || !$passwordCorrecto || !$activo || $bloqueado) {
+    $usuarioCrmAdmin = idindCrmBridgeLoginAsIotAdmin(
+        $pdo,
+        $email,
+        $password,
+        $usuario ?: null
+    );
+    if ($usuarioCrmAdmin) {
+        $usuario = $usuarioCrmAdmin;
+        $passwordCorrecto = true;
+        $activo = true;
+        $bloqueado = false;
+    }
+}
+
+if (!$usuario || !$passwordCorrecto || !$activo || $bloqueado) {
     if ($usuario && !$bloqueado) {
         $intentos = min(255, (int) $usuario['intentos_fallidos'] + 1);
         $stmtFallo = $pdo->prepare(
@@ -66,7 +82,7 @@ if (!$usuario || !$passwordCorrecto || !$activo || $bloqueado) {
     usleep(250000);
     responderJson(
         $bloqueado ? 429 : 401,
-        ['ok' => false, 'error' => 'Correo o password incorrectos']
+        ['ok' => false, 'error' => 'Correo o contrasena incorrectos']
     );
 }
 

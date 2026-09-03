@@ -7,6 +7,8 @@ import type {
   MobileAlarmCommand,
   MobileAlertsPage,
   MobileDevicesResponse,
+  MobileQuoteDetail,
+  MobileQuotesPage,
   MobileIncident,
   MobileLiveHistory,
   MobilePushRegistration,
@@ -105,6 +107,22 @@ export function logout(token: string): Promise<{ sesion_cerrada: boolean }> {
 
 export function getMobileSummary(token: string): Promise<MobileSummary> {
   return request<MobileSummary>('mobile/resumen.php', { token });
+}
+
+export function getMobileQuotes(token: string, page = 1): Promise<MobileQuotesPage> {
+  const query = new URLSearchParams({
+    pagina: String(page),
+    por_pagina: '20',
+  });
+  return request<MobileQuotesPage>(`mobile/cotizaciones.php?${query.toString()}`, { token });
+}
+
+export function getMobileQuoteDetail(
+  token: string,
+  quoteId: string | number,
+): Promise<MobileQuoteDetail> {
+  const query = new URLSearchParams({ id: String(quoteId) });
+  return request<MobileQuoteDetail>(`mobile/cotizacion.php?${query.toString()}`, { token });
 }
 
 export function getMobileAlerts(

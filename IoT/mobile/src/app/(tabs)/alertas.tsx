@@ -26,6 +26,7 @@ const sensorOptions: FilterOption<SensorFilter>[] = [
   { label: 'Todos', value: '' },
   { label: 'Humo/Gas', value: 'GAS' },
   { label: 'Flama', value: 'FLAMA' },
+  { label: 'Estación manual', value: 'ESTACION_MANUAL' },
   { label: 'Temperatura', value: 'TEMPERATURA' },
   { label: 'Conectividad', value: 'CONECTIVIDAD' },
 ];
@@ -58,6 +59,9 @@ function alertValue(alert: MobileAlert): string {
   const type = alert.tipo_alerta.toUpperCase();
   if (type.includes('SIN CONEXION') || type.includes('DESCONECT')) {
     return 'Sin comunicacion';
+  }
+  if (type.includes('ESTACION MANUAL') || type.includes('PULSADOR')) {
+    return 'Activada';
   }
   if (alert.valor_sensor === null || alert.valor_sensor === undefined) {
     return 'Sin valor';

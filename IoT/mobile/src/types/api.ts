@@ -37,6 +37,7 @@ export type MobileDevice = {
   gas_porcentaje: number | string | null;
   gas_detectado: number | string | null;
   flama_detectada: number | string | null;
+  estacion_manual_activada?: number | string | null;
   peligro_activo?: number | string | null;
   alarma_enclavada?: number | string | null;
   alarma_silenciada?: number | string | null;
@@ -376,6 +377,52 @@ export type MobileRoutineRunResult = {
   acciones_exitosas: number;
 };
 
+export type MobileQuoteRequest = {
+  id: number | string;
+  company_name: string;
+  contact_name: string;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  service: string;
+  request_type: string | null;
+  project_location: string | null;
+  desired_execution_date: string | null;
+  status: string;
+  priority: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  attachments_count: number | string;
+};
+
+export type MobileQuoteAttachment = {
+  id: number | string;
+  original_name: string;
+  mime: string;
+  size: number | string;
+  created_at: string;
+};
+
+export type MobileQuotesPage = {
+  solicitudes: MobileQuoteRequest[];
+  paginacion: {
+    pagina: number;
+    por_pagina: number;
+    total: number;
+    paginas: number;
+  };
+};
+
+export type MobileQuoteDetail = {
+  solicitud: MobileQuoteRequest & {
+    contact_email: string | null;
+    contact_phone: string | null;
+    notes: string | null;
+  };
+  adjuntos: MobileQuoteAttachment[];
+  crm_url: string;
+};
+
 export type MobileAlert = {
   id: number | string;
   dispositivo_id: string;
@@ -405,7 +452,7 @@ export type MobileSummary = {
 
 export type MobileAlertFilters = {
   dispositivo_id?: string;
-  sensor?: 'GAS' | 'FLAMA' | 'TEMPERATURA' | 'DHT' | 'CONECTIVIDAD';
+  sensor?: 'GAS' | 'FLAMA' | 'ESTACION_MANUAL' | 'TEMPERATURA' | 'DHT' | 'CONECTIVIDAD';
   severidad?: 'NORMAL' | 'PRECAUCION' | 'CRITICO';
   estado?: 'NUEVA' | 'RECONOCIDA' | 'RESUELTA';
   pagina?: number;
@@ -450,6 +497,7 @@ export type MobileLiveSample = {
   gas_porcentaje: number | string | null;
   gas_detectado: number | string | null;
   flama_detectada: number | string | null;
+  estacion_manual_activada: number | string | null;
   estado_general: GeneralState | null;
 };
 
@@ -475,6 +523,7 @@ export type MobileIncidentSample = {
   gas_porcentaje: number | string | null;
   gas_detectado: number | string | null;
   flama_detectada: number | string | null;
+  estacion_manual_activada: number | string | null;
   estado_general: 'NORMAL' | 'ALERTA' | 'ALARMA';
   salud_dht: string | null;
   salud_mq2: string | null;

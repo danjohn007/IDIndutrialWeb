@@ -80,21 +80,24 @@ function severityColor(severity: MobileAlert['severidad']): string {
 function alertCauseText(alert: MobileAlert): string {
   const type = alert.tipo_alerta.toLowerCase();
   if (type.includes('sin conexion') || type.includes('desconect')) {
-    return 'El dispositivo dejo de enviar lecturas dentro del tiempo esperado. Revisa su alimentacion, Wi-Fi y acceso a internet.';
+    return 'El ESP32 dejo de reportar. Revisa corriente, Wi-Fi e Internet.';
   }
   if (type.includes('flama')) {
-    return 'El sensor KY-026 detectó flama. Esa detección fue la causa de esta alerta.';
+    return 'El sensor de flama detecto fuego.';
+  }
+  if (type.includes('estacion manual') || type.includes('pulsador')) {
+    return 'Se bajo la palanca manual en sitio.';
   }
   if (type.includes('humo') || type.includes('gas')) {
-    return 'El MQ-2 detectó un nivel de humo o gas por encima del umbral configurado.';
+    return 'El sensor MQ-2 detecto humo o gas.';
   }
   if (type.includes('temperatura')) {
-    return 'La temperatura cruzó el límite configurado para este nivel de alerta.';
+    return 'La temperatura paso el limite configurado.';
   }
   if (type.includes('fallo') || type.includes('revisar')) {
-    return 'El sistema detectó una condición del sensor que requiere revisión.';
+    return 'Un sensor necesita revision.';
   }
-  return 'El dispositivo reportó una condición fuera del funcionamiento normal.';
+  return 'El dispositivo reporto una condicion anormal.';
 }
 
 function eventValueText(incident: MobileIncident): string {
@@ -102,6 +105,7 @@ function eventValueText(incident: MobileIncident): string {
   const sample = incident.lectura_evento;
   if (type.includes('sin conexion') || type.includes('desconect')) return 'Sin comunicacion';
   if (type.includes('flama')) return 'Flama detectada';
+  if (type.includes('estacion manual') || type.includes('pulsador')) return 'Activada';
   if (type.includes('humo') || type.includes('gas')) {
     return measurement(sample?.gas_raw ?? incident.alerta.valor_sensor, 0, ' ADC');
   }
@@ -264,8 +268,8 @@ export default function IncidentScreen() {
       const response = await manageMobileAlert(token, id, action, comment);
       setNotice(
         response.estado_atencion === 'RESUELTA'
-          ? 'La alerta quedó resuelta.'
-          : 'La alerta quedó reconocida.',
+          ? 'Alerta resuelta.'
+          : 'Alerta reconocida.',
       );
       setComment('');
       await load();
@@ -279,7 +283,7 @@ export default function IncidentScreen() {
   const requestResolve = () => {
     Alert.alert(
       'Resolver alerta',
-      'Confirma que el área fue revisada y la condición ya no requiere atención.',
+      'Confirma que el sitio ya fue revisado.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -298,7 +302,7 @@ export default function IncidentScreen() {
     setNotice('');
     try {
       await silenceMobileAlarm(token, id);
-      setNotice('Orden enviada. El ESP32 silenciará el buzzer y mantendrá la revisión pendiente.');
+      setNotice('Orden enviada. El sonido se apagara en unos segundos.');
       await new Promise((resolve) => setTimeout(resolve, 2500));
       await load();
     } catch (caught) {
@@ -310,12 +314,12 @@ export default function IncidentScreen() {
 
   const requestSilence = () => {
     Alert.alert(
-      'Silenciar buzzer',
-      'El sonido se apagará, pero la alarma y la revisión física permanecerán activas. Si aparece un peligro nuevo, el buzzer volverá a sonar.',
+      'Apagar sonido',
+      'Se apaga el sonido. La alerta sigue activa hasta revisar el sitio.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Silenciar',
+          text: 'Apagar sonido',
           style: 'destructive',
           onPress: () => void executeSilence(),
         },
@@ -383,7 +387,10 @@ export default function IncidentScreen() {
                   ? 'cloud-offline-outline'
                   : incident.alerta.tipo_alerta.toLowerCase().includes('flama')
                     ? 'flame'
-                    : 'warning'}
+                    : incident.alerta.tipo_alerta.toLowerCase().includes('estacion manual')
+                      || incident.alerta.tipo_alerta.toLowerCase().includes('pulsador')
+                      ? 'hand-left'
+                      : 'warning'}
                 size={23}
               />
             </View>
@@ -439,13 +446,18 @@ export default function IncidentScreen() {
               <Text style={styles.currentDescription}>
                 {isConnectivityAlert
                   ? currentState.conexion === 'ONLINE'
-                    ? 'El dispositivo ya volvió a reportar y esta alerta se resolvió automáticamente.'
-                    : 'El dispositivo continúa sin enviar lecturas recientes.'
+                    ? 'El ESP32 ya volvio a reportar.'
+                    : 'El ESP32 sigue sin reportar.'
                   : incident.alerta.tipo_alerta.toLowerCase().includes('flama')
                   ? numeric(currentState.flama_detectada) === 1
-                    ? 'El sensor todavía detecta flama.'
-                    : 'Ahora no se detecta flama. Esto no invalida la alerta: la condición pudo terminar después del evento.'
-                  : 'Estos son los valores más recientes y pueden ser distintos a los que originaron la alerta.'}
+                    ? 'Todavia detecta flama.'
+                    : 'Ya no detecta flama.'
+                  : incident.alerta.tipo_alerta.toLowerCase().includes('estacion manual')
+                    || incident.alerta.tipo_alerta.toLowerCase().includes('pulsador')
+                    ? numeric(currentState.estacion_manual_activada) === 1
+                      ? 'La palanca sigue activada.'
+                      : 'La palanca ya esta normal.'
+                    : 'Estos son los datos mas recientes.'}
               </Text>
               {!isConnectivityAlert ? <View style={styles.sampleValues}>
                 <Text style={styles.sampleValue}>Temp. {measurement(currentState.temperatura, 1, ' °C')}</Text>
@@ -453,6 +465,9 @@ export default function IncidentScreen() {
                 <Text style={styles.sampleValue}>Gas {measurement(currentState.gas_raw, 0, ' ADC')}</Text>
                 <Text style={[styles.sampleValue, numeric(currentState.flama_detectada) === 1 && styles.sampleCritical]}>
                   Flama {numeric(currentState.flama_detectada) === 1 ? 'detectada' : 'sin detección'}
+                </Text>
+                <Text style={[styles.sampleValue, numeric(currentState.estacion_manual_activada) === 1 && styles.sampleCritical]}>
+                  Manual {numeric(currentState.estacion_manual_activada) === 1 ? 'activada' : 'normal'}
                 </Text>
               </View> : null}
             </View>
@@ -475,12 +490,12 @@ export default function IncidentScreen() {
                     <Text style={styles.sectionTitle}>Alarma física</Text>
                     <Text style={styles.alarmMode}>
                       {!alarmOnline
-                        ? 'CONTROL REMOTO NO DISPONIBLE'
+                        ? 'SIN CONEXION'
                         : !alarmLatched
-                          ? 'SIN ALARMA ENCLAVADA'
+                          ? 'SIN ALARMA'
                           : alarmSilenced
-                            ? 'BUZZER SILENCIADO'
-                            : 'BUZZER INTERMITENTE ACTIVO'}
+                            ? 'SONIDO APAGADO'
+                            : 'SONANDO'}
                     </Text>
                   </View>
                 </View>
@@ -494,14 +509,14 @@ export default function IncidentScreen() {
 
               <Text style={styles.alarmControlDescription}>
                 {!alarmOnline
-                  ? 'El botón físico de GPIO25 continúa funcionando aunque la app o Internet fallen.'
+                  ? 'El ESP32 esta offline. Revisa el sitio.'
                   : !alarmLatched
-                    ? 'El dispositivo no reporta una alarma sonora pendiente.'
+                    ? 'No hay alarma pendiente.'
                     : alarmSilenced && dangerActive
-                      ? 'El sonido está apagado, pero los sensores todavía reportan peligro. El botón físico no permitirá restablecer.'
+                      ? 'El sonido esta apagado, pero el peligro sigue.'
                       : alarmSilenced
-                        ? 'Ya no se detecta peligro. Falta mantener presionado el botón físico para completar la revisión.'
-                        : 'Silenciar apaga únicamente el sonido. El LED rojo y la revisión física seguirán activos.'}
+                        ? 'Ya no hay peligro. Falta revisar y resetear con el boton fisico.'
+                        : 'Puedes apagar el sonido. La alerta seguira activa.'}
               </Text>
 
               {alarmSilenced ? (
@@ -510,7 +525,7 @@ export default function IncidentScreen() {
                   <Text style={styles.alarmSilencedText}>
                     Revisión física pendiente
                     {currentState.silenciada_por && currentState.silenciada_por !== 'NINGUNO'
-                      ? ` · ${currentState.silenciada_por === 'APP_MOVIL' ? 'silenciada desde la app' : 'silenciada con botón físico'}`
+                      ? ` · ${currentState.silenciada_por === 'APP_MOVIL' ? 'apagada desde la app' : 'apagada con boton fisico'}`
                       : ''}
                   </Text>
                 </View>
@@ -530,7 +545,7 @@ export default function IncidentScreen() {
                   ) : (
                     <>
                       <Ionicons color={colors.textStrong} name="volume-mute-outline" size={20} />
-                      <Text style={styles.silenceActionText}>Silenciar buzzer</Text>
+                      <Text style={styles.silenceActionText}>Apagar sonido</Text>
                     </>
                   )}
                 </Pressable>
@@ -538,7 +553,7 @@ export default function IncidentScreen() {
 
               {!canManage && alarmLatched ? (
                 <Text style={styles.alarmReadOnly}>
-                  Tu perfil puede consultar el estado, pero no silenciar el equipo.
+                  Tu usuario solo puede ver el estado.
                 </Text>
               ) : null}
             </View>
@@ -604,6 +619,27 @@ export default function IncidentScreen() {
                     ))}
                   </View>
                 </View>
+                <View style={styles.flameTimeline}>
+                  <Text style={styles.signalLabel}>Estacion manual</Text>
+                  <View style={styles.flameDots}>
+                    {samples.map((sample, index) => (
+                      <Pressable
+                        accessibilityLabel={`Estacion manual ${numeric(sample.estacion_manual_activada) === 1 ? 'activada' : 'normal'} a las ${timeLabel(sample.periodo)}`}
+                        key={`${sample.periodo}-manual`}
+                        onPress={() => setSelectedIndex(index)}
+                        style={[
+                          styles.flameDot,
+                          {
+                            backgroundColor: numeric(sample.estacion_manual_activada) === 1
+                              ? colors.critical
+                              : colors.border,
+                            borderColor: index === selectedIndex ? colors.textStrong : 'transparent',
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
               </>
             ) : (
               <Text style={styles.emptyText}>No hay muestras históricas para esta ventana.</Text>
@@ -620,7 +656,7 @@ export default function IncidentScreen() {
               </View>
               {!selectedIsEvent ? (
                 <Text style={styles.sampleExplanation}>
-                  Esta lectura corresponde a otro momento de la ventana y puede mostrar una condición diferente.
+                  Lectura de otro momento de la alerta.
                 </Text>
               ) : null}
               <View style={styles.sampleValues}>
@@ -629,6 +665,9 @@ export default function IncidentScreen() {
                 <Text style={styles.sampleValue}>Gas {measurement(selectedSample.gas_raw, 0, ' ADC')}</Text>
                 <Text style={[styles.sampleValue, numeric(selectedSample.flama_detectada) === 1 && styles.sampleCritical]}>
                   Flama {numeric(selectedSample.flama_detectada) === 1 ? 'Sí' : 'No'}
+                </Text>
+                <Text style={[styles.sampleValue, numeric(selectedSample.estacion_manual_activada) === 1 && styles.sampleCritical]}>
+                  Manual {numeric(selectedSample.estacion_manual_activada) === 1 ? 'activada' : 'normal'}
                 </Text>
               </View>
             </View>

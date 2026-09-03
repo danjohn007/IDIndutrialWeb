@@ -3,3 +3,7 @@ error_log
 # Deployment packages/snapshots should never be versioned as binary zips.
 *.zip
 paquetes_cpanel/
+
+# Real credentials/secrets - server-only, never commit.
+crm/config.php
+IoT/api/config.local.php
