@@ -60,6 +60,12 @@ DirectoryIndex index.php index.html
   RewriteRule ^crm/iot/?$ crm/iot-sso.php [QSA,L]
   RewriteRule ^crm/?$ crm/index.php?view=dashboard [QSA,L]
 
+  # Compatibilidad temporal con el despliegue anterior /IoT/iot/.
+  # La API se reescribe internamente para no romper POST de ESP32 viejos.
+  RewriteRule ^IoT/iot/api/(.+)$ IoT/api/$1 [QSA,L,NC]
+  RewriteRule ^IoT/iot/?$ iot/ [R=301,L,NE,NC]
+  RewriteRule ^IoT/iot/(.+)$ iot/$1 [R=301,L,NE,NC]
+
   # Modulo IoT: panel web en /iot/ y API en /iot/api/
   # Keep the trailing slash so relative CSS, JS, image and API URLs resolve
   # below /iot/ instead of from the public deployment directory.

@@ -1,0 +1,107 @@
+PAQUETE IOT CON UNA SOLA CARPETA IOT
+
+Objetivo:
+- Quitar la estructura confusa public_html/IoT/iot/
+- Dejar IoT directo en public_html/IoT/
+- URL final del panel: https://idindustrial.com.mx/IoT/
+- API final: https://idindustrial.com.mx/IoT/api/
+
+NO BORRES LO VIEJO AL INICIO
+Primero sube esto como prueba y confirma que funciona.
+
+DONDE SUBIR
+Sube el contenido de:
+SUBIR_DENTRO_public_html_IoT/
+
+Dentro de:
+public_html/IoT/
+
+Debe quedar asi:
+public_html/IoT/index.html
+public_html/IoT/api/
+public_html/IoT/css/
+public_html/IoT/js/
+public_html/IoT/assets/
+public_html/IoT/crm/
+
+Tu CRM puede quedarse en:
+https://idindustrial.com.mx/IoT/crm/
+
+El IoT quedara en:
+https://idindustrial.com.mx/IoT/
+
+CONFIG
+No se incluye tu config.local.php real.
+
+Si ya tenias:
+public_html/IoT/iot/api/config.local.php
+
+Copialo a:
+public_html/IoT/api/config.local.php
+
+Tambien conserva:
+public_html/IoT/crm/config.php
+
+No reemplaces tus configs reales con examples.
+
+ARCHIVOS SUBIDOS DEL CRM
+No borres:
+public_html/IoT/crm/data/
+
+Esa carpeta contiene los PDF, imagenes, evidencias y archivos de cotizacion.
+Si las descargas del CRM dicen "Archivo no encontrado", revisa:
+LEEME_RECUPERAR_ARCHIVOS_CRM.txt
+
+FIRMWARE
+El firmware limpio esta en:
+FIRMWARE/esp32_monitor/esp32_monitor.ino
+
+Ya apunta a:
+https://idindustrial.com.mx/IoT/api/guardar_lectura.php
+https://idindustrial.com.mx/IoT/api/comando_dispositivo.php
+
+IMPORTANTE:
+La .htaccess incluida mantiene compatibilidad con el firmware viejo que apunta a:
+https://idindustrial.com.mx/IoT/iot/api/guardar_lectura.php
+
+Pero lo ideal es subir despues el firmware nuevo para que ya use /IoT/api/.
+
+BASE DE DATOS
+Si la estacion manual ya funciono, no repitas migraciones.
+Solo si no aparece la estacion manual, corre:
+SQL/07_estacion_manual.sql
+
+QUE PUEDES BORRAR DESPUES DE PROBAR
+Cuando confirmes que https://idindustrial.com.mx/IoT/ funciona:
+1. Renombra primero:
+   public_html/IoT/iot/ -> public_html/IoT/iot_backup/
+
+2. Prueba:
+   https://idindustrial.com.mx/IoT/
+   Baja palanca y confirma alarma.
+
+3. Antes de borrar el backup, revisa si existe:
+   public_html/IoT/iot_backup/crm/data/
+
+   Si existe, copia esa carpeta a:
+   public_html/IoT/crm/data/
+
+4. Si todo funciona, ya puedes borrar:
+   public_html/IoT/iot_backup/
+
+NO BORRES:
+public_html/IoT/api/
+public_html/IoT/css/
+public_html/IoT/js/
+public_html/IoT/assets/
+public_html/IoT/crm/
+public_html/IoT/crm/data/
+public_html/IoT/crm/config.php
+public_html/IoT/api/config.local.php
+
+RESUMEN RAPIDO
+Antes:
+https://idindustrial.com.mx/IoT/iot/
+
+Despues:
+https://idindustrial.com.mx/IoT/

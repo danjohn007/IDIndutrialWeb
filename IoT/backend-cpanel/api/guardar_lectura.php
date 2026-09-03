@@ -244,6 +244,17 @@ if (strlen($tipoAlerta) > 80) {
 }
 $valorAlertaSolicitado = numeroOpcional($data, 'valor_alerta', -1000000, 1000000);
 
+if ($estacionManualActivada === 1) {
+    $estadoGeneral = 'ALARMA';
+    $peligroActivo = 1;
+    $alarmaEnclavada = 1;
+    $tipoAlerta = $tipoAlerta !== '' ? $tipoAlerta : 'Estacion manual';
+    if ($alarmaSilenciada === 0) {
+        $buzzerEncendido = 1;
+        $modoOperacion = 'ALARMA_SONORA';
+    }
+}
+
 try {
     $pdo->beginTransaction();
 
@@ -281,6 +292,7 @@ try {
     $gasDetectadoAnterior = (int) ($lecturaAnterior['gas_detectado'] ?? 0);
     $flamaDetectadaAnterior = (int) ($lecturaAnterior['flama_detectada'] ?? 0);
     $estacionManualAnterior = (int) ($lecturaAnterior['estacion_manual_activada'] ?? 0);
+    $estacionManualSeActivo = $estacionManualActivada === 1 && $estacionManualAnterior === 0;
 
     $stmtEstado = $pdo->prepare(
         'INSERT INTO estado_sensores (
@@ -424,7 +436,7 @@ try {
         $agregarAlerta('Flama', 1.0, 'CRITICO');
     }
 
-    if ($estacionManualActivada === 1 && $estacionManualAnterior === 0) {
+    if ($estacionManualSeActivo) {
         $agregarAlerta('Estacion manual', 1.0, 'CRITICO');
     }
 
@@ -498,6 +510,7 @@ try {
             $estadoGeneral === 'ALARMA'
             && (
                 $estadoAnterior !== 'ALARMA'
+                || $estacionManualSeActivo
                 || ($alarmaSilenciadaAnterior === 1 && $alarmaSilenciada === 0)
             )
         ) {
@@ -509,7 +522,9 @@ try {
                 'AUTOMATICO',
                 null,
                 $alertaIds[0] ?? null,
-                'Alarma iniciada o rearmada por el ESP32'
+                $estacionManualSeActivo
+                    ? 'Estacion manual activada por el ESP32'
+                    : 'Alarma iniciada o rearmada por el ESP32'
             );
         } elseif ($alarmaSilenciada === 1 && $alarmaSilenciadaAnterior === 0) {
             $shellyComandos = idindShellyComandarVinculados(

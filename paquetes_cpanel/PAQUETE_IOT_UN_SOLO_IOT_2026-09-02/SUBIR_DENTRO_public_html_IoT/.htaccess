@@ -1,0 +1,57 @@
+Options -Indexes
+DirectoryIndex index.html index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Rutas limpias del portal cliente bajo /IoT/crm/.
+  RewriteRule ^crm/portal/notificaciones/estado/?$ crm/cliente.php?notification_poll=1 [QSA,L,NC]
+  RewriteRule ^crm/portal/salir/?$ crm/cliente.php?logout=1 [QSA,L,NC]
+  RewriteRule ^crm/portal/proyectos/?$ crm/cliente.php?view=proyectos [QSA,L,NC]
+  RewriteRule ^crm/portal/bitacora/?$ crm/cliente.php?view=bitacora [QSA,L,NC]
+  RewriteRule ^crm/portal/solicitudes/?$ crm/cliente.php?view=solicitudes [QSA,L,NC]
+  RewriteRule ^crm/portal/cotizaciones/?$ crm/cliente.php?view=cotizaciones [QSA,L,NC]
+  RewriteRule ^crm/portal/notificaciones/?$ crm/cliente.php?view=notificaciones [QSA,L,NC]
+  RewriteRule ^crm/portal/perfil/?$ crm/cliente.php?view=perfil [QSA,L,NC]
+  RewriteRule ^crm/portal/iot/?$ crm/iot-sso.php [QSA,L,NC]
+  RewriteRule ^crm/portal/?$ crm/cliente.php?view=resumen [QSA,L,NC]
+
+  # Rutas limpias del CRM administrador bajo /IoT/crm/.
+  RewriteRule ^crm/data/ - [F,L,NC]
+  RewriteRule ^crm/archivos-cotizacion/([0-9]+)/?$ crm/quote-file.php?id=$1 [QSA,L,NC]
+  RewriteRule ^crm/archivos-oportunidad/([0-9]+)/?$ crm/opportunity-file.php?id=$1 [QSA,L,NC]
+  RewriteRule ^crm/evidencias/([0-9]+)/?$ crm/evidence.php?id=$1 [QSA,L,NC]
+  RewriteRule ^crm/notificaciones/estado/?$ crm/index.php?notification_poll=1 [QSA,L,NC]
+  RewriteRule ^crm/salir/?$ crm/index.php?logout=1 [QSA,L,NC]
+  RewriteRule ^crm/oportunidades/([0-9]+)/?$ crm/index.php?view=opportunity&id=$1 [QSA,L,NC]
+  RewriteRule ^crm/oportunidades/?$ crm/index.php?view=opportunities [QSA,L,NC]
+  RewriteRule ^crm/cotizaciones/([0-9]+)/?$ crm/index.php?view=quote&id=$1 [QSA,L,NC]
+  RewriteRule ^crm/cotizaciones/?$ crm/index.php?view=quotes [QSA,L,NC]
+  RewriteRule ^crm/calendario/?$ crm/index.php?view=calendar [QSA,L,NC]
+  RewriteRule ^crm/clientes/?$ crm/index.php?view=clients [QSA,L,NC]
+  RewriteRule ^crm/prospectos/?$ crm/index.php?view=prospects [QSA,L,NC]
+  RewriteRule ^crm/notificaciones/?$ crm/index.php?view=bitacora&notifications=1 [QSA,L,NC]
+  RewriteRule ^crm/bitacora/?$ crm/index.php?view=bitacora [QSA,L,NC]
+  RewriteRule ^crm/perfil/?$ crm/index.php?view=profile [QSA,L,NC]
+  RewriteRule ^crm/configuracion/?$ crm/index.php?view=settings [QSA,L,NC]
+  RewriteRule ^crm/iot/?$ crm/iot-sso.php [QSA,L,NC]
+  RewriteRule ^crm/?$ crm/index.php?view=dashboard [QSA,L,NC]
+
+  # Compatibilidad con la ruta anterior:
+  # /IoT/iot/api/... sigue llegando a /IoT/api/... sin romper POST del ESP32.
+  RewriteRule ^iot/api/(.+)$ api/$1 [QSA,L,NC]
+
+  # El navegador ya no debe quedarse en /IoT/iot/.
+  RewriteRule ^iot/?$ ./ [R=301,L,NE,NC]
+  RewriteRule ^iot/(.+)$ $1 [R=301,L,NE,NC]
+</IfModule>
+
+<FilesMatch "(^config(?:\.(?:sample|example|local))?\.php$|^error_log$|\.(?:sql|log|bak|ini)$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

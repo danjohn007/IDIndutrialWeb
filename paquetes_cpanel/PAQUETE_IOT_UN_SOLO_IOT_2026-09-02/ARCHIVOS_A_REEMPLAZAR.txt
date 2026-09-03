@@ -1,0 +1,74 @@
+ARCHIVOS A SUBIR O REEMPLAZAR
+
+Ruta destino:
+public_html/IoT/
+
+Sube el contenido de:
+SUBIR_DENTRO_public_html_IoT/
+
+REEMPLAZAR / SUBIR EN public_html/IoT/
+- .htaccess
+- index.html
+- alertas.html
+- dispositivos.html
+- login.html
+- reportes.html
+- salud.html
+- usuarios.html
+- api/
+- assets/
+- css/
+- js/
+
+CRM
+Este paquete ahora trae el CRM necesario para que funcionen rutas limpias y descargas:
+
+- crm/index.php
+- crm/cliente.php
+- crm/iot-sso.php
+- crm/opportunity-file.php
+- crm/quote-file.php
+- crm/evidence.php
+- crm/lib/database.php
+- assets/css/crm.css
+- assets/js/crm-workspace.js
+- assets/js/crm-calendar.js
+
+Puedes reemplazar esos archivos PHP/CSS/JS.
+
+NO BORRAR CARPETA DE ARCHIVOS SUBIDOS
+No borres:
+public_html/IoT/crm/data/
+
+Ahi viven los PDF, imagenes, evidencias y archivos de cotizacion.
+Si ya existia antes en otra ruta, copiala a:
+public_html/IoT/crm/data/
+
+NO REEMPLAZAR CON PLANTILLAS
+No reemplaces:
+public_html/IoT/crm/config.php
+
+Si existe, copia:
+public_html/IoT/iot/api/config.local.php
+
+Hacia:
+public_html/IoT/api/config.local.php
+
+Si no existe config.local.php, crea uno desde:
+public_html/IoT/api/config.local.example.php
+
+FIRMWARE
+Sube al ESP32 el archivo:
+FIRMWARE/esp32_monitor/esp32_monitor.ino
+
+Ese firmware apunta a:
+https://idindustrial.com.mx/IoT/api/guardar_lectura.php
+https://idindustrial.com.mx/IoT/api/comando_dispositivo.php
+
+LIMPIEZA DESPUES DE PROBAR
+Cuando https://idindustrial.com.mx/IoT/ funcione:
+1. Renombra public_html/IoT/iot/ a public_html/IoT/iot_backup/
+2. Antes de borrar iot_backup, revisa si adentro hay crm/data/.
+3. Si existe public_html/IoT/iot_backup/crm/data/, copia su contenido a public_html/IoT/crm/data/.
+4. Prueba otra vez la alarma y las descargas del CRM.
+5. Si todo sigue bien, borra iot_backup.

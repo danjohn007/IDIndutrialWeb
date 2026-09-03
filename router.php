@@ -65,6 +65,24 @@ foreach ($routes as $pattern => [$script, $routeQuery]) {
 }
 
 
+// Compatibilidad temporal con el despliegue anterior /IoT/iot/.
+if (preg_match('#^IoT/iot/api/(.+)$#i', $relativePath, $match)) {
+  $legacyApiScript = 'IoT/api/' . $match[1];
+  $legacyApiFile = realpath($documentRoot . '/' . $legacyApiScript);
+  $legacyApiBase = $documentRoot . DIRECTORY_SEPARATOR . 'IoT' . DIRECTORY_SEPARATOR . 'api';
+  if ($legacyApiFile && str_starts_with($legacyApiFile, $legacyApiBase) && is_file($legacyApiFile)) {
+    $dispatch('IoT/api/' . $match[1]);
+  }
+}
+if (preg_match('#^IoT/iot/?$#i', $relativePath) === 1) {
+  header('Location: /iot/', true, 301);
+  exit;
+}
+if (preg_match('#^IoT/iot/(.+)$#i', $relativePath, $match)) {
+  header('Location: /iot/' . $match[1], true, 301);
+  exit;
+}
+
 // Modulo IoT: panel web en /iot/ y API en /iot/api/.
 if ($relativePath === 'iot/login.html') {
   header('Location: /crm/', true, 302);

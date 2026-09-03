@@ -6,23 +6,23 @@ Leer una estacion manual tipo pull station como entrada digital del ESP32 y guar
 
 La entrada queda como contacto seco activo en LOW:
 
-- Normal: contacto abierto, GPIO32 en HIGH por `INPUT_PULLUP`.
-- Activada: la palanca cierra el contacto hacia GND, GPIO32 lee LOW.
+- Normal: contacto abierto, GPIO25/D25 en HIGH por `INPUT_PULLUP`.
+- Activada: la palanca cierra el contacto hacia GND, GPIO25/D25 lee LOW.
 
 ## Cableado recomendado
 
 Usa un contacto seco aislado de la estacion manual:
 
 ```text
-ESP32 GPIO32 ---- resistencia 2.2k a 4.7k ---- terminal NO/COM de estacion manual ---- ESP32 GND
+ESP32 GPIO25/D25 ---- resistencia 2.2k a 4.7k ---- terminal NO/COM de estacion manual ---- ESP32 GND
 ```
 
 El firmware ya usa `pinMode(PIN_ESTACION_MANUAL, INPUT_PULLUP)`, por eso no hace falta llevar 3.3V a la estacion. La resistencia en serie protege el GPIO si por error el pin queda como salida o hay un cableado equivocado de baja energia.
 
 Para cable largo o ambiente ruidoso, agrega cerca del ESP32:
 
-- Pull-up externo de 10k entre GPIO32 y 3.3V.
-- Capacitor de 100 nF entre GPIO32 y GND.
+- Pull-up externo de 10k entre GPIO25/D25 y 3.3V.
+- Capacitor de 100 nF entre GPIO25/D25 y GND.
 
 ## Muy importante
 
@@ -47,7 +47,7 @@ El sistema IoT debe tomarse como monitoreo y automatizacion complementaria. No r
 ## Pin agregado
 
 ```cpp
-constexpr uint8_t PIN_ESTACION_MANUAL = 32;
+constexpr uint8_t PIN_ESTACION_MANUAL = 25;
 ```
 
 Puedes cambiarlo por otro GPIO libre si el gabinete lo requiere. Evita GPIO34 para esta entrada si quieres pull-up interno, porque GPIO34 no tiene pull-up/pull-down interno.

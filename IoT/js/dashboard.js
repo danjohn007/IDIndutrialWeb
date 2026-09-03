@@ -224,7 +224,7 @@ function renderMetrics(resumen, dispositivos, alertas) {
   );
   const totalFireSensors = numberFrom(
     resumen.sensores_incendio_total,
-    dispositivos.length * 2
+    dispositivos.length * 3
   );
   const activeFireSensors = numberFrom(
     resumen.sensores_incendio_activos,
@@ -254,7 +254,7 @@ function countOperationalFireSensors(dispositivos) {
 
     const mq2 = normalizeText(device.salud_mq2 ?? device.saludMQ2);
     const flame = normalizeText(device.salud_flama ?? device.saludFlama);
-    return total + (mq2 === 'OK' ? 1 : 0) + (flame === 'OK' ? 1 : 0);
+    return total + (mq2 === 'OK' ? 1 : 0) + (flame === 'OK' ? 1 : 0) + 1;
   }, 0);
 }
 
@@ -353,6 +353,7 @@ function renderDevices(dispositivos) {
     const gasValue = isOffline ? null : (device.humo ?? device.gas ?? device.gas_raw);
     const gasDetected = !isOffline && isGasDetected(device);
     const flameDetected = !isOffline && isFlameDetected(device);
+    const manualStationActive = !isOffline && isManualStationActive(device);
     const dhtHealth = isOffline ? 'OFFLINE' : normalizeText(device.salud_dht ?? device.saludDHT);
     const reportedGasHealth = isOffline
       ? 'OFFLINE'
@@ -369,6 +370,9 @@ function renderDevices(dispositivos) {
     const canCalibrate = !isOffline && ['ADMIN', 'OPERADOR'].includes(normalizeText(currentUser?.rol));
     const gasStatus = detectorStatus(gasDetected, gasHealth, 'Detectado');
     const flameStatus = detectorStatus(flameDetected, flameHealth, 'Detectada');
+    const manualStationStatus = isOffline
+      ? 'Offline'
+      : (manualStationActive ? 'Activada' : 'Normal');
     const alarmLatched = !isOffline && Number(device.alarma_enclavada) === 1;
     const alarmSilenced = alarmLatched && Number(device.alarma_silenciada) === 1;
     const dangerActive = !isOffline && Number(device.peligro_activo) === 1;
@@ -457,6 +461,17 @@ function renderDevices(dispositivos) {
           <strong class="sensor-value">${isOffline ? 'Sin lectura' : (flameDetected ? 'Sí' : 'No')}</strong>
           <small class="sensor-detail">${isOffline ? 'Sin conexión reciente' : (flameDetected ? 'Flama presente' : 'Sin detección')}</small>
         </section>
+        <section class="sensor-card ${manualStationActive ? 'is-detected' : (isOffline ? 'is-offline' : '')}">
+          <header>
+            <div>
+              <span class="sensor-model">PULL STATION</span>
+              <strong class="sensor-name">Estacion manual</strong>
+            </div>
+            <span class="detector-status">${escapeHtml(manualStationStatus)}</span>
+          </header>
+          <strong class="sensor-value">${isOffline ? 'Sin lectura' : (manualStationActive ? 'Activada' : 'Normal')}</strong>
+          <small class="sensor-detail">${isOffline ? 'Sin conexion reciente' : (manualStationActive ? 'Palanca accionada' : 'Contacto abierto')}</small>
+        </section>
       </div>
       ${alarmLatched ? `
         <section class="physical-alarm ${alarmSilenced ? 'is-silenced' : 'is-sounding'}" role="status">
@@ -467,7 +482,7 @@ function renderDevices(dispositivos) {
               ${alarmSilenced
                 ? dangerActive
                   ? 'Los sensores todavia reportan peligro. El restablecimiento fisico esta bloqueado.'
-                  : `Lecturas seguras. Falta completar la revision con el boton fisico${silencedBy === 'APP_MOVIL' ? '; silenciada desde la app' : silencedBy === 'BOTON_FISICO' ? '; silenciada desde GPIO25' : ''}.`
+                  : `Lecturas seguras. Falta completar la revision con el boton fisico${silencedBy === 'APP_MOVIL' ? '; silenciada desde la app' : silencedBy === 'BOTON_FISICO' ? '; silenciada desde el boton fisico' : ''}.`
                 : 'La alarma permanece enclavada hasta que se silencie y se complete la revision fisica.'}
             </p>
             ${canSilenceAlarm ? `
@@ -699,6 +714,11 @@ function isFlameDetected(device) {
   return ['1', 'TRUE', 'DETECTADA', 'SI'].includes(normalizeText(value));
 }
 
+function isManualStationActive(device) {
+  const value = device.estacion_manual_activada ?? device.estacionManualActivada;
+  return ['1', 'TRUE', 'ACTIVADA', 'SI'].includes(normalizeText(value));
+}
+
 function healthItem(label, value) {
   const health = normalizeText(value || 'DESCONOCIDO');
   const healthClass = ['FALLO', 'OFFLINE'].includes(health)
@@ -889,6 +909,7 @@ function announceNewAlarm(alertas) {
 
 function classForAlertOrigin(value) {
   const type = normalizeText(value);
+  if (type.includes('ESTACION MANUAL') || type.includes('PULSADOR')) return 'manual';
   const hasFlame = type.includes('FLAMA') || type.includes('FUEGO');
   const hasSmoke = type.includes('HUMO') || type.includes('GAS');
 
@@ -906,6 +927,9 @@ function formatAlertValue(alert) {
 
   if (type.includes('SIN CONEXION') || type.includes('DESCONECT')) {
     return 'Sin comunicacion';
+  }
+  if (type.includes('ESTACION MANUAL') || type.includes('PULSADOR')) {
+    return 'Activada';
   }
   if (type.includes('FLAMA') && !type.includes('HUMO') && !type.includes('GAS')) {
     return 'Detectada';
@@ -1020,6 +1044,7 @@ function buildLiveSample(dispositivos) {
     humedad: average(readings.map((device) => chartNumber(device.humedad))),
     gas_raw: maxValue(readings.map((device) => chartNumber(device.humo ?? device.gas_raw ?? device.gas))),
     flama_detectada: readings.some(isFlameDetected) ? 1 : 0,
+    estacion_manual_activada: readings.some(isManualStationActive) ? 1 : 0,
     alarmas: readings.filter((device) => normalizeState(device.estado_general) === 'ALARMA').length,
     alertas: readings.filter((device) => normalizeState(device.estado_general) === 'ALERTA').length,
     revisiones_dht: readings.filter((device) => ['REVISAR', 'FALLO'].includes(normalizeText(device.salud_dht))).length,
@@ -1379,11 +1404,11 @@ function drawBinaryTimeline(canvas, config) {
   context.fillRect(padding.left, 12, 14, 6);
   context.fillStyle = '#e0e0e0';
   context.textAlign = 'left';
-  context.fillText('Normal', padding.left + 20, 18);
+  context.fillText(config.normalLabel ?? 'Normal', padding.left + 20, 18);
   context.fillStyle = '#ff453a';
   context.fillRect(padding.left + 88, 12, 14, 6);
   context.fillStyle = '#e0e0e0';
-  context.fillText('Detectada', padding.left + 108, 18);
+  context.fillText(config.detectedLabel ?? 'Detectada', padding.left + 108, 18);
 
   context.fillStyle = 'rgba(46, 207, 122, 0.14)';
   context.fillRect(padding.left, bandTop, plotWidth, bandHeight);
@@ -1443,9 +1468,11 @@ function drawBinaryTimeline(canvas, config) {
     labels: config.labels,
     tooltipLabels: config.tooltipLabels,
     series: [{
-      label: 'Flama',
+      label: config.seriesLabel ?? 'Flama',
       values: config.values,
-      tooltipFormatter: (value) => value >= 1 ? 'Detectada' : 'Normal'
+      tooltipFormatter: (value) => value >= 1
+        ? (config.detectedLabel ?? 'Detectada')
+        : (config.normalLabel ?? 'Normal')
     }]
   };
   chartInteractionState.set(canvas, {
@@ -1684,6 +1711,8 @@ function renderIncident(payload) {
   const humidity = series.map((item) => chartNumber(item.humedad));
   const gas = series.map((item) => chartNumber(item.gas_raw));
   const flame = series.map((item) => Number(item.flama_detectada) === 1 ? 1 : 0);
+  const manualStation = series.map((item) => Number(item.estacion_manual_activada) === 1 ? 1 : 0);
+  const isManualStationAlert = alertType.includes('ESTACION MANUAL') || alertType.includes('PULSADOR');
   const markerIndex = nearestSeriesIndex(series, alert.fecha_hora);
   const [temperatureMin, temperatureMax] = numericExtent(temperature, 0, 50, 2);
   const gasThreshold = numberFrom(payload?.gas_umbral, 1600);
@@ -1757,7 +1786,9 @@ function renderIncident(payload) {
     labels,
     tooltipLabels,
     markerIndex,
-    values: flame
+    values: isManualStationAlert ? manualStation : flame,
+    seriesLabel: isManualStationAlert ? 'Estacion manual' : 'Flama',
+    detectedLabel: isManualStationAlert ? 'Activada' : 'Detectada'
   });
 
   elements.incidentStatus.textContent = `${series.length} muestras · `

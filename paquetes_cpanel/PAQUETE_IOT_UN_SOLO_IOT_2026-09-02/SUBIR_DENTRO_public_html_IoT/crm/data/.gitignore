@@ -1,0 +1,6 @@
+*
+!.gitignore
+!.htaccess
+!request-evidence/
+request-evidence/*
+!request-evidence/.gitignore

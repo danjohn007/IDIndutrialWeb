@@ -10,7 +10,7 @@ return [
   'username' => 'TU_USUARIO_MYSQL',
   'password' => 'TU_PASSWORD_MYSQL',
   'charset' => 'utf8mb4',
-  'app_url' => 'https://idindustrial.com.mx/crm',
+  'app_url' => 'https://idindustrial.com.mx/IoT/crm',
   'quote_request_admin_email' => 'tecnologia@idindustrial.com.mx',
   'quote_request_secondary_email' => '',
   'smtp' => [

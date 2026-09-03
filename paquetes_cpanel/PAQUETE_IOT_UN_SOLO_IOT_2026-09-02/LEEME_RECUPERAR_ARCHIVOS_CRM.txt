@@ -1,0 +1,70 @@
+RECUPERAR ARCHIVOS DEL CRM
+
+El CRM muestra los adjuntos desde la base de datos, pero el PDF/JPG real vive en carpetas dentro de crm/data/.
+
+Ruta final correcta:
+public_html/IoT/crm/data/opportunity-attachments/
+
+Para cotizaciones y evidencias tambien revisa:
+public_html/IoT/crm/data/quote-attachments/
+public_html/IoT/crm/data/quote-proposals/
+public_html/IoT/crm/data/request-evidence/
+
+Si el boton Descargar muestra "Archivo no encontrado", entonces la fila existe en MySQL pero falta el archivo fisico en la ruta que dice file_path.
+
+PASO 1 - VER LA RUTA QUE GUARDO MYSQL
+En phpMyAdmin, base del CRM, ejecuta:
+
+SELECT
+  id,
+  opportunity_id,
+  file_path,
+  original_name,
+  mime,
+  size,
+  created_at
+FROM opportunity_attachments
+WHERE opportunity_id = 25
+ORDER BY id;
+
+Ejemplo:
+Si file_path dice:
+data/opportunity-attachments/abcdef123.pdf
+
+Ese archivo debe existir fisicamente aqui:
+public_html/IoT/crm/data/opportunity-attachments/abcdef123.pdf
+
+OJO:
+El nombre visible "Analisis CARNIHUB & Propuesta CEDIS.pdf" NO siempre es el nombre fisico.
+El nombre fisico casi siempre es un nombre largo aleatorio guardado en file_path.
+
+PASO 2 - BUSCAR EN EL SERVIDOR VIEJO/BACKUP
+Busca estas carpetas en cPanel:
+
+public_html/IoT/crm/data/
+public_html/IoT/iot/crm/data/
+public_html/IoT/iot_backup/crm/data/
+public_html/IoT/crm_backup/data/
+
+Si encuentras opportunity-attachments, quote-attachments, quote-proposals o request-evidence, copialas a:
+public_html/IoT/crm/data/
+
+PASO 3 - NO BORRAR DATA
+Cuando subas paquetes nuevos, NO borres:
+public_html/IoT/crm/data/
+
+Esa carpeta contiene los archivos subidos por clientes/admin.
+
+PASO 4 - SI FALTA EL HANDLER
+Este paquete ya incluye:
+public_html/IoT/crm/opportunity-file.php
+public_html/IoT/crm/quote-file.php
+public_html/IoT/crm/evidence.php
+public_html/IoT/crm/lib/database.php
+
+Y el .htaccess ya enruta:
+/IoT/crm/archivos-oportunidad/ID
+/IoT/crm/archivos-cotizacion/ID
+/IoT/crm/evidencias/ID
+
+Si solo faltaban esos PHP, sube el paquete actualizado y no toques config.php ni data/.

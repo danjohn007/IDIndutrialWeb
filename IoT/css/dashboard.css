@@ -1247,6 +1247,11 @@ td strong {
   color: var(--critical);
 }
 
+.alert-origin.manual {
+  border-color: var(--critical);
+  color: var(--critical);
+}
+
 .alert-origin.temperature {
   border-color: var(--normal);
   color: var(--normal);

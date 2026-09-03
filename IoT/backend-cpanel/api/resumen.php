@@ -23,7 +23,8 @@ if ($dispositivoId !== '') {
 }
 
 $where = "h.periodo_minuto >= UTC_TIMESTAMP() - INTERVAL {$horas} HOUR
-    AND d.cliente_id = :cliente_id{$filtroDispositivo}";
+    AND d.cliente_id = :cliente_id
+    AND d.estado <> 'Inactivo'{$filtroDispositivo}";
 $intervaloSegundos = $horas <= 6
     ? 300
     : ($horas <= 24 ? 1800 : ($horas <= 168 ? 14400 : 43200));
@@ -104,6 +105,7 @@ $stmtActual = $pdo->prepare(
      INNER JOIN dispositivos d ON d.id = e.dispositivo_id
      WHERE e.actualizado_en >= UTC_TIMESTAMP() - INTERVAL {$horas} HOUR
        AND d.cliente_id = :cliente_id
+       AND d.estado <> 'Inactivo'
        {$filtroActual}
      ORDER BY e.actualizado_en DESC
      LIMIT 1"

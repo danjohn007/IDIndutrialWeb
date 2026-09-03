@@ -25,7 +25,8 @@ $stmtResumen = $pdo->prepare(
         END) AS criticas_abiertas
      FROM dispositivos d
      LEFT JOIN alertas a ON a.dispositivo_id = d.id
-     WHERE d.cliente_id = :cliente_id"
+     WHERE d.cliente_id = :cliente_id
+       AND d.estado <> 'Inactivo'"
 );
 $stmtResumen->execute(['cliente_id' => $clienteId]);
 $resumen = $stmtResumen->fetch() ?: [];
@@ -104,6 +105,7 @@ $stmtAlertas = $pdo->prepare(
        LIMIT 1
      )
      WHERE d.cliente_id = :cliente_id
+       AND d.estado <> 'Inactivo'
      ORDER BY a.fecha_hora DESC, a.id DESC
      LIMIT 5"
 );

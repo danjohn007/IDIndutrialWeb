@@ -1,0 +1,25 @@
+HOTFIX CERRAR SESION CRM EN /IoT/crm/salir
+
+Problema:
+https://idindustrial.com.mx/IoT/crm/salir daba 404.
+
+Causa:
+La instalacion nueva tenia .htaccess para IoT, pero faltaban las rutas limpias
+del CRM cuando el CRM vive dentro de public_html/IoT/crm/.
+
+Solucion:
+Reemplaza este archivo:
+public_html/IoT/.htaccess
+
+Por este del paquete:
+SUBIR_DENTRO_public_html_IoT/.htaccess
+
+Despues prueba:
+https://idindustrial.com.mx/IoT/crm/salir
+
+Tambien quedan cubiertas:
+https://idindustrial.com.mx/IoT/crm/
+https://idindustrial.com.mx/IoT/crm/clientes/
+https://idindustrial.com.mx/IoT/crm/cotizaciones/
+https://idindustrial.com.mx/IoT/crm/portal/salir/
+https://idindustrial.com.mx/IoT/crm/iot/

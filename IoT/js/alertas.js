@@ -63,6 +63,7 @@ function formatDate(value) {
 
 function originClass(value) {
   const type = normalizeText(value);
+  if (type.includes('ESTACION MANUAL') || type.includes('PULSADOR')) return 'manual';
   if ((type.includes('FLAMA') || type.includes('FUEGO')) && (type.includes('GAS') || type.includes('HUMO'))) return 'combined';
   if (type.includes('FLAMA') || type.includes('FUEGO')) return 'flame';
   if (type.includes('GAS') || type.includes('HUMO') || type.includes('MQ-2')) return 'smoke';
@@ -82,6 +83,7 @@ function formatAlertValue(alert) {
   const type = normalizeText(alert.tipo_alerta);
   const value = alert.valor_sensor;
   if (type.includes('SIN CONEXION') || type.includes('DESCONECT')) return 'Sin comunicacion';
+  if (type.includes('ESTACION MANUAL') || type.includes('PULSADOR')) return 'Activada';
   if (type.includes('FLAMA') && !type.includes('GAS') && !type.includes('HUMO')) return 'Detectada';
   if (type.includes('GAS') || type.includes('HUMO') || type.includes('MQ-2')) {
     return value === null || value === undefined ? '--' : `${value} ADC`;

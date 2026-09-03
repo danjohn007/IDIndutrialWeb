@@ -7,8 +7,8 @@
 const char* ssid = "INFINITUM7586_2.4";
 const char* password = "sh53qASgY7";
 
-const char* API_URL = "https://idindustrial.com.mx/IoT/api/guardar_lectura.php";
-const char* COMANDOS_URL = "https://idindustrial.com.mx/IoT/api/comando_dispositivo.php";
+const char* API_URL = "https://idindustrial.com.mx/IoT/iot/api/guardar_lectura.php";
+const char* COMANDOS_URL = "https://idindustrial.com.mx/IoT/iot/api/comando_dispositivo.php";
 const char* API_TOKEN = "WJuIUBSvjb46uUL4IBg4DulwZvbZ74Nn";
 const char* DISPOSITIVO_ID = "ESP32_001";
 
