@@ -13,6 +13,10 @@ function crm_normalize_legacy_url(string $url): string
 {
   $normalized = preg_replace('~^(https?://[^/]+)/sistema(?=/|$)~i', '$1', trim($url));
   $normalized = preg_replace('~^/sistema(?=/|$)~i', '', (string) $normalized);
+  // Case-sensitive: the real IoT module routes stay lowercase (/iot/...); only the old
+  // uppercase /IoT container prefix from the previous deployment layout is stripped here.
+  $normalized = preg_replace('~^(https?://[^/]+)/IoT(?=/|$)~', '$1', (string) $normalized);
+  $normalized = preg_replace('~^/IoT(?=/|$)~', '', (string) $normalized);
   return (string) $normalized;
 }
 
@@ -549,7 +553,7 @@ function crm_normalize_notification_urls(PDO $pdo): void
     return;
   }
 
-  $rows = $pdo->query("SELECT id, target_url FROM notifications WHERE target_url LIKE '%/sistema%'")->fetchAll();
+  $rows = $pdo->query("SELECT id, target_url FROM notifications WHERE target_url LIKE '%/sistema%' OR target_url LIKE '%/IoT%'")->fetchAll();
   if (!$rows) {
     return;
   }
@@ -746,15 +750,9 @@ function crm_dispatch_quote_push_notifications(PDO $pdo, int $opportunityId): ar
   }
 
   if (!function_exists('idindPushEnviarFilas')) {
-    $pushLibraries = [
-      dirname(__DIR__, 2) . '/IoT/api/lib/push_notificaciones.php',
-      dirname(__DIR__, 2) . '/IoT/backend-cpanel/api/lib/push_notificaciones.php',
-    ];
-    foreach ($pushLibraries as $pushLibrary) {
-      if (is_file($pushLibrary)) {
-        require_once $pushLibrary;
-        break;
-      }
+    $pushLibrary = dirname(__DIR__, 2) . '/IoT/api/lib/push_notificaciones.php';
+    if (is_file($pushLibrary)) {
+      require_once $pushLibrary;
     }
   }
 

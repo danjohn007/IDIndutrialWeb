@@ -133,15 +133,15 @@ $serviceOverview = [
   [
     'id' => 'deteccion-incendios',
     'title' => 'Detección de incendios',
-    'copy' => 'Paneles, sensores, estaciones manuales y alarmamiento para áreas críticas.',
+    'copy' => 'Paneles, sensores, rociadores y mitigación especializada para áreas críticas.',
     'application' => 'Aplicación: producción, almacenes, cuartos técnicos y corporativos.',
-    'href' => '#contacto',
+    'href' => 'deteccion-y-mitigacion-de-incendios-industriales-queretaro/',
     'image' => 'assets/img/optimized/service-card-deteccion-incendios.jpg',
     'alt' => 'Panel de detección de incendios industrial',
     'width' => 1254,
     'height' => 1254,
     'badge' => 'Seguridad',
-    'linkText' => 'Consultar detección de incendios',
+    'linkText' => 'Ver detección y mitigación de incendios',
   ],
   [
     'id' => 'sistemas-hvac',

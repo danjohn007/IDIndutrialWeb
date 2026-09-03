@@ -73,7 +73,7 @@ La API no necesita un archivo privado dentro de `api/`; carga `crm/config.php`.
 
 ## 4. Configuración privada compartida
 
-Copia `crm/config.example.php` como `public_html/IoT/crm/config.php` y reemplaza los marcadores. Este es el único archivo privado: CRM toma de él MySQL y SMTP; la API toma MySQL y la sección `iot`.
+Copia `crm/config.example.php` como `public_html/crm/config.php` y reemplaza los marcadores. Este es el único archivo privado: CRM toma de él MySQL y SMTP; la API toma MySQL y la sección `iot`.
 
 Usa permisos `0600` o `0640`. `crm/config.php` está excluido de Git y su acceso web está bloqueado por `.htaccess`. `IoT/api/config.local.php` queda solo como fallback para despliegues IoT separados del CRM.
 ## 5. Crear administrador inicial
