@@ -59,6 +59,12 @@ const initialForm: FormState = {
   modoControl: 'HIBRIDO', vinculadoId: '', estado: 'Activo',
 };
 
+const equipmentStatusOptions: Array<{ label: string; value: MobileShellySaveInput['estado'] }> = [
+  { label: 'Activo', value: 'Activo' },
+  { label: 'Mantenimiento', value: 'Mantenimiento' },
+  { label: 'Baja', value: 'Inactivo' },
+];
+
 function optionalNumber(value: string): number | null {
   if (!value.trim()) return null;
   const parsed = Number(value.replace(',', '.'));
@@ -268,18 +274,32 @@ export default function ShellyFormScreen() {
       Alert.alert('Tiempo requerido', 'Define cuantos minutos puede permanecer encendido.');
       return;
     }
-    setSaving(true);
-    try {
-      const result = await saveMobileShelly(token, payload);
-      Alert.alert('Configuracion guardada', 'El dispositivo quedo disponible en ID Industrial.', [
-        { text: 'Ver dispositivo', onPress: () => router.replace(`/shelly/${encodeURIComponent(result.actuador.id)}` as Href) },
-      ]);
-    } catch (caught) {
-      Alert.alert('No fue posible guardar', caught instanceof ApiError ? caught.message : 'Revisa los datos e intenta nuevamente.');
-    } finally {
-      setSaving(false);
+    const saveNow = async () => {
+      setSaving(true);
+      try {
+        const result = await saveMobileShelly(token, payload);
+        Alert.alert('Equipo guardado', 'Los cambios quedaron listos.', [
+          { text: 'Ver equipo', onPress: () => router.replace(`/shelly/${encodeURIComponent(result.actuador.id)}` as Href) },
+        ]);
+      } catch (caught) {
+        Alert.alert('No se pudo guardar', caught instanceof ApiError ? caught.message : 'Revisa los datos e intenta nuevamente.');
+      } finally {
+        setSaving(false);
+      }
+    };
+    if (editing && payload.estado === 'Inactivo') {
+      Alert.alert(
+        'Dar de baja equipo',
+        'El equipo deja de usarse, pero su historial se conserva.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Dar de baja', style: 'destructive', onPress: () => void saveNow() },
+        ],
+      );
+      return;
     }
-  }, [payload, router, token]);
+    void saveNow();
+  }, [editing, payload, router, token]);
 
   return (
     <AppScreen
@@ -347,7 +367,8 @@ export default function ShellyFormScreen() {
               </View>
             ) : null}
             <ToggleRow disabled={form.categoria === 'SEGURIDAD'} description={form.categoria === 'SEGURIDAD' ? 'No disponible mientras la categoria sea Seguridad.' : 'Permite incluir este canal en automatizaciones manuales o programadas.'} label="Permitir rutinas" onValueChange={(value) => update('permiteRutinas', value)} value={form.permiteRutinas} />
-            <Chips label="Estado administrativo" onChange={(value) => update('estado', value)} options={[{ label: 'Activo', value: 'Activo' }, { label: 'Mantenimiento', value: 'Mantenimiento' }, { label: 'Inactivo', value: 'Inactivo' }]} value={form.estado} />
+            <Chips label="Estado del equipo" onChange={(value) => update('estado', value)} options={equipmentStatusOptions} value={form.estado} />
+            <Text style={styles.helper}>Baja no borra el equipo: solo lo deja fuera de operacion y conserva su historial.</Text>
           </View>
 
           <Pressable disabled={saving} onPress={() => void save()} style={[styles.saveButton, saving && styles.disabled]}>

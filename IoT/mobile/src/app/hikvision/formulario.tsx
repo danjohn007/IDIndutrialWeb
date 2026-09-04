@@ -15,6 +15,12 @@ const categories: Array<{ value: MobileHikvisionSaveInput['categoria']; label: s
   { value: 'OTRO', label: 'Otro' },
 ];
 
+const equipmentStatuses: Array<{ value: MobileHikvisionSaveInput['estado']; label: string }> = [
+  { value: 'Activo', label: 'Activo' },
+  { value: 'Mantenimiento', label: 'Mantenimiento' },
+  { value: 'Inactivo', label: 'Baja' },
+];
+
 function Field({ label, value, onChangeText, placeholder, editable = true, keyboardType = 'default' }: {
   label: string; value: string; onChangeText: (value: string) => void; placeholder?: string;
   editable?: boolean; keyboardType?: 'default' | 'number-pad';
@@ -62,18 +68,28 @@ export default function HikvisionFormScreen() {
     }
     const port = Number(form.puerto);
     if (!Number.isInteger(port) || port < 1 || port > 65535) { Alert.alert('Puerto invalido', 'Usa un valor entre 1 y 65535.'); return; }
-    setSaving(true);
-    try {
-      await saveMobileHikvision(token, {
-        accion: editing ? 'ACTUALIZAR' : 'CREAR', id: form.id.trim(), nombre: form.nombre.trim(),
-        ubicacion: form.ubicacion.trim(), categoria: form.categoria, modelo: form.modelo.trim(),
-        numero_serie: form.numeroSerie.trim(), ip_local: form.ipLocal.trim(), puerto: port,
-        protocolo: form.protocolo, estado: form.estado,
-      });
-      router.back();
-    } catch (error) {
-      Alert.alert('No fue posible guardar', error instanceof ApiError ? error.message : 'Intenta nuevamente.');
-    } finally { setSaving(false); }
+    const saveNow = async () => {
+      setSaving(true);
+      try {
+        await saveMobileHikvision(token, {
+          accion: editing ? 'ACTUALIZAR' : 'CREAR', id: form.id.trim(), nombre: form.nombre.trim(),
+          ubicacion: form.ubicacion.trim(), categoria: form.categoria, modelo: form.modelo.trim(),
+          numero_serie: form.numeroSerie.trim(), ip_local: form.ipLocal.trim(), puerto: port,
+          protocolo: form.protocolo, estado: form.estado,
+        });
+        router.back();
+      } catch (error) {
+        Alert.alert('No se pudo guardar', error instanceof ApiError ? error.message : 'Intenta nuevamente.');
+      } finally { setSaving(false); }
+    };
+    if (editing && form.estado === 'Inactivo') {
+      Alert.alert('Dar de baja equipo', 'El equipo deja de usarse, pero su historial se conserva.', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Dar de baja', style: 'destructive', onPress: () => void saveNow() },
+      ]);
+      return;
+    }
+    await saveNow();
   };
 
   return <AppScreen eyebrow="HIKVISION · ISAPI" title={editing ? 'Editar equipo' : 'Nuevo equipo'} leading={(
@@ -96,6 +112,12 @@ export default function HikvisionFormScreen() {
         <Field keyboardType="number-pad" label="Puerto ISAPI" onChangeText={(value) => update('puerto', value)} value={form.puerto} />
         <View style={styles.chips}>{(['HTTP', 'HTTPS'] as const).map((value) => <Pressable key={value} onPress={() => update('protocolo', value)} style={[styles.chip, form.protocolo === value && styles.chipSelected]}><Text style={[styles.chipText, form.protocolo === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View>
       </View>
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>OPERACION</Text>
+        <Text style={styles.label}>Estado del equipo</Text>
+        <View style={styles.chips}>{equipmentStatuses.map((item) => <Pressable key={item.value} onPress={() => update('estado', item.value)} style={[styles.chip, form.estado === item.value && styles.chipSelected]}><Text style={[styles.chipText, form.estado === item.value && styles.chipTextSelected]}>{item.label}</Text></Pressable>)}</View>
+        <Text style={styles.helper}>Baja no borra el equipo: solo lo deja fuera de operacion y conserva su historial.</Text>
+      </View>
       <Pressable disabled={saving} onPress={() => void save()} style={[styles.saveButton, saving && styles.disabled]}>{saving ? <ActivityIndicator color={colors.black} /> : <><Ionicons color={colors.black} name="save-outline" size={20} /><Text style={styles.saveText}>Guardar equipo</Text></>}</Pressable>
     </>}
   </AppScreen>;
@@ -106,6 +128,7 @@ const styles = StyleSheet.create({
   notice: { alignItems: 'flex-start', backgroundColor: colors.surface, borderColor: colors.normal, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', gap: spacing.md, padding: spacing.lg },
   noticeText: { color: colors.text, flex: 1, fontSize: 13, lineHeight: 19 },
   card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
+  helper: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   sectionLabel: { color: colors.normal, fontSize: 11, fontWeight: '900' }, field: { gap: spacing.xs },
   label: { color: colors.text, fontSize: 13, fontWeight: '800' }, input: { backgroundColor: colors.surfaceStrong, borderColor: colors.border, borderRadius: radius.sm, borderWidth: 1, color: colors.textStrong, minHeight: 48, paddingHorizontal: spacing.md }, inputDisabled: { opacity: 0.6 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }, chip: { borderColor: colors.border, borderRadius: radius.sm, borderWidth: 1, minHeight: 40, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }, chipSelected: { backgroundColor: colors.warning, borderColor: colors.warning }, chipText: { color: colors.muted, fontSize: 12, fontWeight: '800' }, chipTextSelected: { color: colors.black },

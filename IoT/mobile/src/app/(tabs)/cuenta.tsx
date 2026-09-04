@@ -30,6 +30,17 @@ const roleNames = {
   LECTURA: 'Consulta',
 } as const;
 
+function dateLabel(value: string): string {
+  const date = new Date(`${value.replace(' ', 'T')}Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('es-MX', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+  }).format(date);
+}
+
 export default function AccountScreen() {
   const router = useRouter();
   const { signOut, token, user } = useAuth();
@@ -72,7 +83,7 @@ export default function AccountScreen() {
         await api.disableMobilePush(token, localPushToken);
         await removePushToken();
         setLocalPushToken(null);
-        setPushMessage('Notificaciones desactivadas en este telefono.');
+        setPushMessage('Notificaciones apagadas en este telefono.');
       } else {
         const registration = await requestExpoPushToken();
         await api.registerMobilePush(
@@ -83,7 +94,7 @@ export default function AccountScreen() {
         );
         await savePushToken(registration.token);
         setLocalPushToken(registration.token);
-        setPushMessage('Notificaciones activadas en este telefono.');
+        setPushMessage('Notificaciones listas en este telefono.');
       }
       setPushStatus(await api.getMobilePushStatus(token));
     } catch (error) {
@@ -117,8 +128,7 @@ export default function AccountScreen() {
         <View style={styles.securityCopy}>
           <Text style={styles.securityTitle}>Sesion protegida</Text>
           <Text style={styles.securityText}>
-            El token se almacena cifrado por el sistema del telefono y puede
-            revocarse al cerrar sesion.
+            Tu acceso queda protegido en este telefono y se revoca al cerrar sesion.
           </Text>
         </View>
       </View>
@@ -144,16 +154,15 @@ export default function AccountScreen() {
         <View style={styles.notificationHeader}>
           <View style={styles.notificationIcon}>
             <Ionicons
-              color={localPushToken ? colors.critical : colors.warning}
+              color={!capability.available ? colors.muted : localPushToken ? colors.success : colors.warning}
               name={localPushToken ? 'notifications' : 'notifications-outline'}
               size={23}
             />
           </View>
           <View style={styles.notificationCopy}>
-            <Text style={styles.securityTitle}>Alertas y conectividad</Text>
+            <Text style={styles.securityTitle}>Notificaciones</Text>
             <Text style={styles.securityText}>
-              Recibe avisos por flama, humo/gas, temperatura peligrosa o la
-              desconexion de un ESP32 aunque la app no este abierta.
+              Avisa por alarma, estacion manual o desconexion aunque la app no este abierta.
             </Text>
           </View>
         </View>
@@ -163,18 +172,38 @@ export default function AccountScreen() {
           <Text
             style={[
               styles.pushSummaryValue,
-              localPushToken ? styles.pushEnabled : styles.pushDisabled,
+              !capability.available
+                ? styles.pushUnavailable
+                : localPushToken ? styles.pushEnabled : styles.pushDisabled,
             ]}
           >
-            {localPushToken ? 'ACTIVADO' : 'DESACTIVADO'}
+            {!capability.available ? 'NO DISPONIBLE' : localPushToken ? 'LISTO' : 'APAGADO'}
           </Text>
         </View>
 
         <Text style={styles.deviceCount}>
           {pushLoading
             ? 'Consultando dispositivos...'
-            : `${pushStatus?.habilitadas ?? 0} telefono(s) activo(s) en tu cuenta`}
+            : `${pushStatus?.habilitadas ?? 0} telefono(s) registrado(s)`}
         </Text>
+
+        {!pushLoading && pushStatus?.registros.length ? (
+          <View style={styles.pushDeviceList}>
+            {pushStatus.registros.slice(0, 3).map((device) => (
+              <View key={device.id} style={styles.pushDeviceRow}>
+                <Ionicons
+                  color={colors.normal}
+                  name={device.plataforma === 'IOS' ? 'phone-portrait-outline' : 'logo-android'}
+                  size={18}
+                />
+                <View style={styles.pushDeviceCopy}>
+                  <Text style={styles.pushDeviceName}>{device.nombre_dispositivo}</Text>
+                  <Text style={styles.pushDeviceDate}>Registrado {dateLabel(device.ultimo_registro)}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {!capability.available ? (
           <Text style={styles.capabilityMessage}>{capability.message}</Text>
@@ -206,7 +235,7 @@ export default function AccountScreen() {
               localPushToken && styles.pushButtonDisableText,
             ]}
           >
-            {localPushToken ? 'Desactivar en este telefono' : 'Activar notificaciones'}
+            {localPushToken ? 'Apagar en este telefono' : 'Activar notificaciones'}
           </Text>
         </Pressable>
       </View>
@@ -356,9 +385,40 @@ const styles = StyleSheet.create({
   pushDisabled: {
     color: colors.warning,
   },
+  pushUnavailable: {
+    color: colors.muted,
+  },
   deviceCount: {
     color: colors.muted,
     fontSize: 12,
+  },
+  pushDeviceList: {
+    borderColor: colors.borderSoft,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  pushDeviceRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.borderSoft,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 54,
+    paddingHorizontal: spacing.md,
+  },
+  pushDeviceCopy: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  pushDeviceName: {
+    color: colors.textStrong,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  pushDeviceDate: {
+    color: colors.muted,
+    fontSize: 11,
   },
   capabilityMessage: {
     color: colors.warning,
